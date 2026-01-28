@@ -1,0 +1,30 @@
+{
+  "id": "AC_L2_3_1_1_windows_client",
+  "control_number": "AC.L2-3.1.1",
+  "title": "Limit system access to authorized users",
+  "description": "The system must restrict access to authorized users, processes acting on behalf of authorized users, and authorized devices.",
+  "category": "Access Control",
+  "target_os": ["windows-client"],
+
+  "check_type": "command",
+  "check_details": {
+    "windows": {
+      "checks": [
+        {
+          "name": "Local Administrators Group Review",
+          "command": "net localgroup administrators",
+          "purpose": "Identify users with administrative access"
+        },
+        {
+          "name": "Enabled Local Users",
+          "command": "wmic useraccount where disabled=false get name",
+          "purpose": "Identify enabled local user accounts"
+        }
+      ]
+    }
+  },
+  "expected_result": "Only approved and documented users are members of privileged groups and enabled accounts are authorized.",
+  "severity": "High",
+  "remediation": "Remove unauthorized users from privileged groups and disable or delete unauthorized accounts.",
+  "tags": ["cmmc", "access-control", "privilege-management", "windows-client"]
+}

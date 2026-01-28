@@ -4,8 +4,8 @@
   "title": "Short Title of the Control",
   "description": "Full description of the control, what is required to be compliant.",
   "category": "Access Control",
-  "target_os": ["windows", "debian"],
-  "check_type": "type_of_check_here",
+  "target_os": ["windows-client", "windows-server", "linux"],
+  "check_type": "type of check being done (authorized_services, privileged_users, etc.)",
   "check_details": {
     "example_field_1": "value",
     "example_field_2": "value"
