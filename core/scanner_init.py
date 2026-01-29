@@ -2,6 +2,10 @@ import platform
 
 
 def get_linux_flavor():
+    """
+    Get the distro and similar flavor of Linux
+    :return:
+    """
     info = {}
     with open("/etc/os-release") as f:
         for line in f:
@@ -12,7 +16,11 @@ def get_linux_flavor():
     id_like = info.get("ID_LIKE", "")
     return distro, id_like
 
-def os_scan():
+def os_scan() -> str:
+    """
+    Returns the current operating system (windows, mac, linux, linux debian)
+    :return:
+    """
     os_parent = platform.system().lower()
     if "win" in os_parent:
         return "windows"
