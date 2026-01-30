@@ -3,7 +3,7 @@ import json
 import subprocess
 
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
-RULE_PATH = os.path.join(SCRIPT_DIR, "rulesets", "cmmc-rules", "windows-client", "access-control", "AC.L2-3.1.1.json")
+RULE_PATH = os.path.join(SCRIPT_DIR, "rulesets", "cmmc-rules", "AC.L2-3.1.1.json")
 
 with open(RULE_PATH) as f:
     rule = json.load(f)
@@ -21,7 +21,9 @@ def run_command(cmd):
         return {"stdout": "", "stderr": str(e), "returncode": -1}
 
 
-os_checks = rule.get("check_details", {}).get("checks", [])
+# Get checks for the chosen OS (keys in check_details use hyphens: windows-client, debian, etc.)
+os_key = "windows-client"
+os_checks = rule.get("check_details", {}).get(os_key, {}).get("checks", [])
 for check in os_checks:
     name = check.get("name")
     cmd = check.get("command")

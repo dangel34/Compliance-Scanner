@@ -42,9 +42,12 @@ class RuleRunner:
             }
 
     def get_checks(self) -> List[Dict[str, Any]]:
+        # Normalize os_type (windows_client -> windows-client) to match check_details keys
+        os_key = self.os_type.replace("_", "-")
         return (
             self.rule
             .get("check_details", {})
+            .get(os_key, {})
             .get("checks", [])
         )
 
@@ -79,10 +82,9 @@ if __name__ == "__main__":
     SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
     PROJECT_ROOT = os.path.dirname(SCRIPT_DIR)
 
-    RULE_PATH = os.path.join(PROJECT_ROOT, "rulesets", "cmmc-rules", "windows-client",
-                             "access-control", "AC.L2-3.1.1.json")
+    RULE_PATH = os.path.join(PROJECT_ROOT, "rulesets", "cmmc-rules", "AC.L2-3.1.1.json")
 
-    runner = RuleRunner(rule_path=RULE_PATH, os_type="windows")
+    runner = RuleRunner(rule_path=RULE_PATH, os_type="windows_client")
     result = runner.run_checks()
 
     print(f"Rule ID: {result['rule_id']}")
