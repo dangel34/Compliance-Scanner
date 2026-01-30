@@ -23,7 +23,10 @@ def os_scan() -> str:
     """
     os_parent = platform.system().lower()
     if "win" in os_parent:
-        return "windows"
+        if "server" in platform.win32_ver():
+            return "windows_server"
+        else:
+            return "windows_client"
     elif "darwin" in os_parent:
         return "mac"
     elif "linux" in os_parent:
@@ -35,6 +38,3 @@ def os_scan() -> str:
     else:
         return "other" # would like to raise error if happened
 
-
-if __name__ == "__main__":
-    print(os_scan())
