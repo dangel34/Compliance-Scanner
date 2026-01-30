@@ -5,11 +5,6 @@ import re
 
 
 
-df = pd.read_csv("CIS499_ Frameworks.csv")
-
-
-OUTPUT_DIR = "controls"
-os.makedirs(OUTPUT_DIR, exist_ok=True)
 
 def safe_filename(value: str) -> str:
     return re.sub(r"[^a-zA-Z0-9_.-]", "_", value)
@@ -51,22 +46,25 @@ def build_control(row, *, is_sub=False):
         "sub_controls": []
     }
 
+if __name__ == "__main__":
+    df = pd.read_csv("CIS499_ Frameworks.csv")
+    OUTPUT_DIR = "controls"
+    os.makedirs(OUTPUT_DIR, exist_ok=True)
+    grouped = df.groupby("Control Code")
 
-grouped = df.groupby("Control Code")
+    for control_code, group in grouped:
+        first_row = group.iloc[0]
+        main_control = build_control(first_row, is_sub=False)
 
-for control_code, group in grouped:
-    first_row = group.iloc[0]
-    main_control = build_control(first_row, is_sub=False)
+        for _, row in group.iterrows():
+            sub_control = build_control(row, is_sub=True)
+            sub_control["sub_controls"] = []
+            main_control["sub_controls"].append(sub_control)
 
-    for _, row in group.iterrows():
-        sub_control = build_control(row, is_sub=True)
-        sub_control["sub_controls"] = []
-        main_control["sub_controls"].append(sub_control)
+        filename = safe_filename(control_code) + ".json"
+        path = os.path.join(OUTPUT_DIR, filename)
 
-    filename = safe_filename(control_code) + ".json"
-    path = os.path.join(OUTPUT_DIR, filename)
+        with open(path, "w", encoding="utf-8") as f:
+            json.dump(main_control, f, indent=2)
 
-    with open(path, "w", encoding="utf-8") as f:
-        json.dump(main_control, f, indent=2)
-
-print(f"Generated {len(grouped)} control files in '{OUTPUT_DIR}/'")
+    print(f"Generated {len(grouped)} control files in '{OUTPUT_DIR}/'")
