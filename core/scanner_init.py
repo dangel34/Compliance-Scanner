@@ -52,7 +52,7 @@ def get_scanner():
     if "windows" in os_type:
         from windows import WindowsModule
         return WindowsModule()
-    if os_type == "debian":
+    if "debian" in os_type:
         from debian import DebianModule
         return DebianModule()
     return None
