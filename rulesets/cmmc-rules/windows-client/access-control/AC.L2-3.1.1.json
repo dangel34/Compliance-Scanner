@@ -8,7 +8,6 @@
 
   "check_type": "command",
   "check_details": {
-    "windows": {
       "checks": [
         {
           "name": "Local Administrators Group Review",
@@ -21,7 +20,6 @@
           "purpose": "Identify enabled local user accounts"
         }
       ]
-    }
   },
   "expected_result": "Only approved and documented users are members of privileged groups and enabled accounts are authorized.",
   "severity": "High",

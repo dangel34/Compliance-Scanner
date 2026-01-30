@@ -5,10 +5,20 @@
   "description": "Full description of the control, what is required to be compliant.",
   "category": "Access Control",
   "target_os": ["windows-client", "windows-server", "linux"],
-  "check_type": "type of check being done (authorized_services, privileged_users, etc.)",
+  "check_type": "type of check being done (authorized_services, privileged_users, command, etc.)",
   "check_details": {
-    "example_field_1": "value",
-    "example_field_2": "value"
+    "checks": [
+        {
+          "name": "what the check is looking at",
+          "command": "command ran to check",
+          "purpose": "purpose of the check"
+        },
+        {
+          "name": "what the check is looking at",
+          "command": "command ran to check",
+          "purpose": "purpose of the check"
+        }
+      ]
   },
   "expected_result": "Describe what a compliant result looks like",
   "severity": "High",
