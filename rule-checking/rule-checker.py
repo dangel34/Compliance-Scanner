@@ -68,7 +68,7 @@ class RuleRunner:
             })
 
         return {
-            "rule_id": self.rule.get("rule_id"),
+            "rule_id": self.rule.get("rule_id") or self.rule.get("id"),
             "title": self.rule.get("title"),
             "os": self.os_type,
             "checks_run": len(results),
@@ -102,3 +102,4 @@ if __name__ == "__main__":
 
         if check["stderr"]:
             print("Error:")
+            print(check["stderr"])

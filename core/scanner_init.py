@@ -1,4 +1,6 @@
 import platform
+import os
+import sys
 
 
 def get_linux_flavor():
@@ -36,5 +38,22 @@ def os_scan() -> str:
         else:
             return "linux" # Generalization
     else:
-        return "other" # would like to raise error if happened
+        return "other"  # would like to raise error if happened
+
+
+def get_scanner():
+    """
+    Returns a scanner instance for the current OS, or None if unsupported.
+    """
+    os_type = os_scan()
+    scanners_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "scanners")
+    if scanners_dir not in sys.path:
+        sys.path.insert(0, scanners_dir)
+    if "windows" in os_type:
+        from windows import WindowsModule
+        return WindowsModule()
+    if os_type == "debian":
+        from debian import DebianModule
+        return DebianModule()
+    return None
 
