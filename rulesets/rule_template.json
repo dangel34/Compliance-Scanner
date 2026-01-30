@@ -7,18 +7,24 @@
   "target_os": ["windows-client", "windows-server", "linux"],
   "check_type": "type of check being done (authorized_services, privileged_users, command, etc.)",
   "check_details": {
-    "checks": [
-        {
-          "name": "what the check is looking at",
-          "command": "command ran to check",
-          "purpose": "purpose of the check"
-        },
+    "windows-client": {
+      "checks": [
         {
           "name": "what the check is looking at",
           "command": "command ran to check",
           "purpose": "purpose of the check"
         }
       ]
+    },
+    "windows-server": {
+      "checks": []
+    },
+    "debian": {
+      "checks": []
+    },
+    "linux": {
+      "checks": []
+    }
   },
   "expected_result": "Describe what a compliant result looks like",
   "severity": "High",
