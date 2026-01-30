@@ -2,8 +2,12 @@ import os
 import json
 import subprocess
 
-with open("rulesets/cmmc-rules/windows-client/access-control/AC.L2-3.1.1.json") as f:
+SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
+RULE_PATH = os.path.join(SCRIPT_DIR, "rulesets", "cmmc-rules", "windows-client", "access-control", "AC.L2-3.1.1.json")
+
+with open(RULE_PATH) as f:
     rule = json.load(f)
+
 
 def run_command(cmd):
     try:
@@ -16,7 +20,8 @@ def run_command(cmd):
     except Exception as e:
         return {"stdout": "", "stderr": str(e), "returncode": -1}
 
-os_checks = rule.get("check_details", {}).get("windows", {}).get("checks", [])
+
+os_checks = rule.get("check_details", {}).get("checks", [])
 for check in os_checks:
     name = check.get("name")
     cmd = check.get("command")
