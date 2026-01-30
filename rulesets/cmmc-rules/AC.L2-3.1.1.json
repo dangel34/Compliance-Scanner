@@ -8,6 +8,7 @@
 
   "check_type": "command",
   "check_details": {
+    "windows-client": {
       "checks": [
         {
           "name": "Local Administrators Group Review",
@@ -20,6 +21,24 @@
           "purpose": "Identify enabled local user accounts"
         }
       ]
+    },
+    "windows-server": {
+      "checks": [
+        {
+          "name": "Local Administrators Group Review",
+          "command": "net localgroup administrators",
+          "purpose": "Identify users with administrative access"
+        },
+        {
+          "name": "Enabled Local Users",
+          "command": "wmic useraccount where disabled=false get name",
+          "purpose": "Identify enabled local user accounts"
+        }
+      ]
+    },
+    "debian": {
+      "checks": []
+    }
   },
   "expected_result": "Only approved and documented users are members of privileged groups and enabled accounts are authorized.",
   "severity": "High",
