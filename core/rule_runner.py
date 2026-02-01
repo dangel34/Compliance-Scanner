@@ -57,13 +57,13 @@ class RuleRunner:
             }
 
     def _get_scanner(self):
-        """Use injected scanner or get_scanner() from core."""
+        """Use injected scanner or get_scanner() from core"""
         if self._scanner is not None:
             return self._scanner
         return get_scanner()
 
     def get_checks(self) -> List[Dict[str, Any]]:
-        # Normalize os_type (windows_client -> windows-client) to match check_details keys
+        """Normalize os_type (windows_client -> windows-client) to match check_details keys"""
         os_key = self.os_type.replace("_", "-")
         return (
             self.rule
