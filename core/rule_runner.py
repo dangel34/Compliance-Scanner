@@ -123,17 +123,20 @@ class RuleRunner:
                         "stderr": str(e)
                     })
             else:
-                # command (default): run via subprocess to preserve returncode for PASS/FAIL
+                # command (default): run via OS-appropriate scanner (Windows CMD/PowerShell, Linux bash)
                 cmd = check.get("command")
-                execution = self.run_command(cmd)
+                if scanner is not None:
+                    execution = scanner.run_command(cmd)
+                else:
+                    execution = self.run_command(cmd)
                 passed = execution["returncode"] == 0
                 results.append({
                     "check_name": name,
                     "command": cmd,
                     "status": "PASS" if passed else "FAIL",
                     "returncode": execution["returncode"],
-                    "stdout": execution["stdout"],
-                    "stderr": execution["stderr"]
+                    "stdout": execution.get("stdout", ""),
+                    "stderr": execution.get("stderr", "")
                 })
 
         return {
