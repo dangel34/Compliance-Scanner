@@ -63,12 +63,11 @@ class RuleRunner:
         return get_scanner()
 
     def get_checks(self) -> List[Dict[str, Any]]:
-        """Normalize os_type (windows_client -> windows-client) to match check_details keys"""
-        os_key = self.os_type.replace("_", "-")
+        """Gets checks"""
         return (
             self.rule
             .get("check_details", {})
-            .get(os_key, {})
+            .get(self.os_type, {})
             .get("checks", [])
         )
 
@@ -125,8 +124,8 @@ class RuleRunner:
             else:
                 # command (default): run via OS-appropriate scanner (Windows CMD/PowerShell, Linux bash)
                 cmd = check.get("command")
-                if scanner is not None:
-                    execution = scanner.run_command(cmd)
+                if scanner is not None and hasattr(scanner, "run_cmd"):
+                    execution = scanner.run_cmd(cmd)
                 else:
                     execution = self.run_command(cmd)
                 passed = execution["returncode"] == 0
