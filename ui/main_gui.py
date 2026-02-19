@@ -7,6 +7,7 @@ from typing import Any, Dict, List, Optional
 
 import customtkinter as ctk
 
+
 def get_project_root() -> str:
     """
     Return the project root folder (parent of ui/).
@@ -109,22 +110,50 @@ def format_rule_details(result: RunResult) -> str:
     :param result: Rule execution result dictionary.
     :return: Multi-line human-readable string describing checks and status.
     """
+    overall_status = get_rule_status(result)
+
     lines: List[str] = [
-        f"Rule ID: {result.get('rule_id', '')}",
-        f"Title: {result.get('title', '')}",
-        f"OS: {result.get('os', '')}",
+        "=" * 70,
+        f"OVERALL STATUS: {overall_status}",
+        "=" * 70,
+        "",
+        f"Rule ID   : {result.get('rule_id', '')}",
+        f"Title     : {result.get('title', '')}",
+        f"OS        : {result.get('os', '')}",
         f"Checks Run: {result.get('checks_run', 0)}",
         "",
+        "-" * 70,
     ]
 
-    overall_status = get_rule_status(result)
-    lines.insert(0, f"Overall Status: {overall_status}")
-    lines.insert(1, "=" * 50)
+    for i, check in enumerate(result.get("checks", []), start=1):
 
-    for check in result.get("checks", []):
-        lines.append(f"Check: {check.get('check_name', '')}")
-        lines.append(f"Status: {check.get('status', '')}")
-        lines.append("-" * 50)
+        lines.extend([
+            f"Check #{i}",
+            "-" * 70,
+            f"Name      : {check.get('check_name', '')}",
+            f"Status    : {check.get('status', '')}",
+            f"Command   : {check.get('command', '')}",
+            f"ReturnCode: {check.get('returncode', '')}",
+        ])
+
+        stdout = check.get("stdout", "")
+        stderr = check.get("stderr", "")
+
+        if stdout:
+            lines.extend([
+                "",
+                "STDOUT:",
+                stdout,
+            ])
+
+        if stderr:
+            lines.extend([
+                "",
+                "STDERR:",
+                stderr,
+            ])
+
+        lines.append("\n" + "=" * 70 + "\n")
 
     return "\n".join(lines)
 
@@ -145,6 +174,7 @@ class ComplianceApp(ctk.CTk):
         # State
         self.rules: List[Dict[str, str]] = []
         self.results_by_path: Dict[str, RunResult] = {}
+        self.selected_rule_path: Optional[str] = None
         self.rule_buttons: Dict[str, ctk.CTkButton] = {}
         self.theme: str = "dark"
 
@@ -153,7 +183,6 @@ class ComplianceApp(ctk.CTk):
 
         # Initial load
         self.refresh_rules()
-
 
     def _build_layout(self):
         """
@@ -230,11 +259,18 @@ class ComplianceApp(ctk.CTk):
             text="Run All Rules",
             command=self.run_all_rules,
         )
-        run_all_btn.pack(side="left", padx=10, pady=8)
+        run_all_btn.pack(side="left", padx=(10, 5), pady=8)
+
+        self.run_selected_btn = ctk.CTkButton(
+            bottom,
+            text="Run Selected Rule",
+            command=self.run_selected_rule,
+            state="disabled",
+        )
+        self.run_selected_btn.pack(side="left", padx=(5, 10), pady=8)
 
         self.status_label = ctk.CTkLabel(bottom, text="Status: Idle")
         self.status_label.pack(side="right", padx=10, pady=8)
-
 
     def toggle_theme(self):
         """
@@ -286,8 +322,10 @@ class ComplianceApp(ctk.CTk):
                 self.rules_scroll,
                 text=meta["rule_id"],
                 anchor="w",
+                command=lambda p=meta["path"]: self.select_rule(p),
             )
             btn.pack(fill="x", pady=4)
+
             self.rule_buttons[meta["path"]] = btn
 
         self.summary_label.configure(
@@ -298,10 +336,98 @@ class ComplianceApp(ctk.CTk):
         self.details_text.delete("1.0", "end")
         self.details_text.insert("1.0", "Run rules to view results.\n")
         self.details_text.configure(state="disabled")
+        self.selected_rule_path = None
+        self.run_selected_btn.configure(state="disabled")
 
         self.set_status("Idle")
 
-    # -------------------------------------------------
+    def select_rule(self, rule_path: str):
+        """
+        Select a rule in the UI and highlight it.
+
+        :param rule_path: Path to the selected rule JSON file.
+        """
+        self.selected_rule_path = rule_path
+
+        # Reset all button colors
+        for path, btn in self.rule_buttons.items():
+            # If rule already has results, preserve PASS/FAIL color
+            result = self.results_by_path.get(path)
+            if result:
+                status = get_rule_status(result)
+                if status == "PASS":
+                    btn.configure(fg_color="#1f6f43")
+                else:
+                    btn.configure(fg_color="#8b1e1e")
+            else:
+                btn.configure(fg_color="transparent")
+
+        # Highlight selected
+        selected_btn = self.rule_buttons.get(rule_path)
+        if selected_btn:
+            selected_btn.configure(fg_color="#3b8ed0")
+
+        # Enable run selected button
+        self.run_selected_btn.configure(state="normal")
+
+        self.set_status(f"Selected: {os.path.basename(rule_path)}")
+
+    def run_selected_rule(self):
+        """
+        Run only the currently selected rule.
+
+        :return:
+        """
+        if not self.selected_rule_path:
+            self.set_status("No rule selected")
+            return
+
+        self.set_status("Running selected rule...")
+
+        meta = next(
+            (m for m in self.rules if m["path"] == self.selected_rule_path),
+            None
+        )
+
+        if not meta:
+            self.set_status("Invalid rule selection")
+            return
+
+        try:
+            result = RuleRunner(
+                rule_path=meta["path"],
+                os_type=None
+            ).run_checks()
+
+        except Exception as e:
+            result = {
+                "rule_id": meta["rule_id"],
+                "title": meta["title"],
+                "os": os_scan(),
+                "checks_run": 0,
+                "checks": [],
+                "error": str(e),
+            }
+
+        # Store result
+        self.results_by_path[self.selected_rule_path] = result
+
+        status = get_rule_status(result)
+        btn = self.rule_buttons.get(self.selected_rule_path)
+
+        if btn:
+            if status == "PASS":
+                btn.configure(text=f"{result['rule_id']}  ✓", fg_color="#1f6f43")
+            else:
+                btn.configure(text=f"{result['rule_id']}  ✗", fg_color="#8b1e1e")
+
+        # Show details
+        self.details_text.configure(state="normal")
+        self.details_text.delete("1.0", "end")
+        self.details_text.insert("1.0", format_rule_details(result))
+        self.details_text.configure(state="disabled")
+
+        self.set_status("Done")
 
     def run_all_rules(self):
         """
