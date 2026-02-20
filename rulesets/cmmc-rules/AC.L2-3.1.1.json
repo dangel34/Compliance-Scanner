@@ -12,7 +12,7 @@
       "checks": [
         {
           "name": "Local Administrators Group Review",
-          "command": "net localgroup administrators",
+          "command": "cs_f(firewall.firewall_enabled)",
           "purpose": "Identify users with administrative access"
         },
         {

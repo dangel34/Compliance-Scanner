@@ -5,9 +5,11 @@ OS detection and, when applicable, scanner methods for service/file_permissions.
 import os
 import json
 import subprocess
+import re
+import importlib
 from typing import List, Dict, Any, Optional
 
-from .scanner_init import os_scan, get_scanner
+from scanner_init import os_scan, get_scanner
 
 # Project root (parent of core/)
 _core_dir = os.path.dirname(os.path.abspath(__file__))
@@ -72,6 +74,54 @@ class RuleRunner:
             .get("checks", [])
         )
 
+    def run_custom_function(self, func_call: str) -> Dict[str, Any]:
+        """
+        Executes custom python function from core/custom_functions.
+
+        Syntax:
+            cs_f(function_name)
+            cs_f(module.function_name)
+        """
+        try:
+            match = re.match(r"cs_f\((.*?)\)", func_call)
+            if not match:
+                raise ValueError("Invalid custom function syntax")
+
+            func_path = match.group(1).strip()
+
+            # allow module.function or just function
+            if "." in func_path:
+                module_name, func_name = func_path.split(".", 1)
+            else:
+                module_name = func_path
+                func_name = func_path
+
+            module = importlib.import_module(
+                f"core.custom_functions.{module_name}"
+            )
+
+            func = getattr(module, func_name)
+
+            result = func()
+
+            if isinstance(result, tuple):
+                success, output = result
+            else:
+                success = bool(result)
+                output = str(result)
+
+            return {
+                "stdout": output,
+                "stderr": "",
+                "returncode": 0 if success else 1
+            }
+
+        except Exception as e:
+            return {
+                "stdout": "",
+                "stderr": str(e),
+                "returncode": -1
+            }
     def run_checks(self) -> Dict[str, Any]:
         results = []
         check_type = self.rule.get("check_type", "command")
@@ -125,7 +175,12 @@ class RuleRunner:
             else:
                 # command (default): run via subprocess to preserve returncode for PASS/FAIL
                 cmd = check.get("command")
-                execution = self.run_command(cmd)
+
+                if cmd and cmd.startswith("cs_f("):
+                    execution = self.run_custom_function(cmd)
+                else:
+                    execution = self.run_command(cmd)
+
                 passed = execution["returncode"] == 0
                 results.append({
                     "check_name": name,
