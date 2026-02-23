@@ -9,11 +9,11 @@ import re
 import importlib
 from typing import List, Dict, Any, Optional
 
-from scanner_init import os_scan, get_scanner
-
 # Project root (parent of core/)
 _core_dir = os.path.dirname(os.path.abspath(__file__))
 _project_root = os.path.dirname(_core_dir)
+
+from core.scanner_init import os_scan, get_scanner
 
 
 class RuleRunner:
