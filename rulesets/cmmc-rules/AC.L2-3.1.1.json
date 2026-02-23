@@ -12,12 +12,12 @@
       "checks": [
         {
           "name": "Local Administrators Group Review",
-          "command": "cs_f(firewall.firewall_enabled)",
+          "command": "cs_f(users.local_administrators_group)",
           "purpose": "Identify users with administrative access"
         },
         {
           "name": "Enabled Local Users",
-          "command": "wmic useraccount where disabled=false get name",
+          "command": "cs_f(users.enabled_local_users)",
           "purpose": "Identify enabled local user accounts"
         }
       ]
@@ -26,12 +26,12 @@
       "checks": [
         {
           "name": "Local Administrators Group Review",
-          "command": "net localgroup administrators",
+          "command": "cs_f(users.local_administrators_group)",
           "purpose": "Identify users with administrative access"
         },
         {
           "name": "Enabled Local Users",
-          "command": "wmic useraccount where disabled=false get name",
+          "command": "cs_f(users.enabled_local_users)",
           "purpose": "Identify enabled local user accounts"
         }
       ]
