@@ -4,11 +4,11 @@
   "title": "Limit system access to authorized users",
   "description": "The system must restrict access to authorized users, processes acting on behalf of authorized users, and authorized devices.",
   "category": "Access Control",
-  "target_os": ["windows-client"],
+  "target_os": ["windows_client"],
 
   "check_type": "command",
   "check_details": {
-    "windows-client": {
+    "windows_client": {
       "checks": [
         {
           "name": "Local Administrators Group Review",
@@ -22,7 +22,7 @@
         }
       ]
     },
-    "windows-server": {
+    "windows_server": {
       "checks": [
         {
           "name": "Local Administrators Group Review",
