@@ -1,47 +1,221 @@
 {
-  "id": "AC_L2_3_1_1_windows_client",
+  "id": "AC.L2-3.1.1",
   "control_number": "AC.L2-3.1.1",
-  "title": "Limit system access to authorized users",
-  "description": "The system must restrict access to authorized users, processes acting on behalf of authorized users, and authorized devices.",
-  "category": "Access Control",
-  "target_os": ["windows-client"],
-
-  "check_type": "command",
+  "title": "no-title",
+  "description": "limit system access to authorized users, processes acting on behalf of authorized users, and devices (including other systems)",
+  "category": "AC",
+  "target_os": [
+    "debian",
+    "linux",
+    "windows-client",
+    "windows-server"
+  ],
   "check_details": {
     "windows-client": {
       "checks": [
         {
-          "name": "Local Administrators Group Review",
-          "command": "cs_f(firewall.firewall_enabled)",
-          "purpose": "Identify users with administrative access"
+          "check_type": "command",
+          "name": "TITLE OF CHECK",
+          "sub_control": "a",
+          "command": "NA",
+          "expected_result": "NA",
+          "purpose": "NA"
         },
         {
-          "name": "Enabled Local Users",
-          "command": "wmic useraccount where disabled=false get name",
-          "purpose": "Identify enabled local user accounts"
+          "check_type": "command",
+          "name": "Processes Acting on behalf of Authorized Users",
+          "sub_control": "b",
+          "command": "cs_f{access_control.process_identity_wc}",
+          "expected_result": "True",
+          "purpose": "To ensure no process is acting anonymously"
+        },
+        {
+          "check_type": "command",
+          "name": "Authorized Devices are identified",
+          "sub_control": "c",
+          "command": "cs_f{access_control.domain_joined_wc}",
+          "expected_result": "True",
+          "purpose": "See if they are domained joined"
+        },
+        {
+          "check_type": "command",
+          "name": "System access is limited to authorized users",
+          "sub_control": "d",
+          "command": "cs_f{access_control.system_access_wc}",
+          "expected_result": "True",
+          "purpose": "Checks to see if there is a list of authorized Users"
+        },
+        {
+          "check_type": "command",
+          "name": "TITLE OF CHECK",
+          "sub_control": "f",
+          "command": "NA",
+          "expected_result": "NA",
+          "purpose": "NA"
         }
       ]
     },
     "windows-server": {
       "checks": [
         {
-          "name": "Local Administrators Group Review",
-          "command": "net localgroup administrators",
-          "purpose": "Identify users with administrative access"
+          "check_type": "command",
+          "name": "Authorized users are identified",
+          "sub_control": "a",
+          "command": "cs_f{access_control.authorized_user_ws}",
+          "expected_result": "True",
+          "purpose": "To see if Authorized Users Exist"
         },
         {
-          "name": "Enabled Local Users",
-          "command": "wmic useraccount where disabled=false get name",
-          "purpose": "Identify enabled local user accounts"
+          "check_type": "command",
+          "name": "Processes Acting on behalf of Authorized Users",
+          "sub_control": "b",
+          "command": "cs_f{access_control.process_identity_wc}",
+          "expected_result": "True",
+          "purpose": "To ensure no process is acting anonymously"
+        },
+        {
+          "check_type": "command",
+          "name": "TITLE OF CHECK",
+          "sub_control": "c",
+          "command": "NA",
+          "expected_result": "NA",
+          "purpose": "NA"
+        },
+        {
+          "check_type": "command",
+          "name": "TITLE OF CHECK",
+          "sub_control": "d",
+          "command": "NA",
+          "expected_result": "NA",
+          "purpose": "NA"
+        },
+        {
+          "check_type": "command",
+          "name": "TITLE OF CHECK",
+          "sub_control": "e",
+          "command": "NA",
+          "expected_result": "NA",
+          "purpose": "NA"
+        },
+        {
+          "check_type": "command",
+          "name": "TITLE OF CHECK",
+          "sub_control": "f",
+          "command": "NA",
+          "expected_result": "NA",
+          "purpose": "NA"
+        }
+      ]
+    },
+    "linux": {
+      "checks": [
+        {
+          "check_type": "command",
+          "name": "TITLE OF CHECK",
+          "sub_control": "a",
+          "command": "NA",
+          "expected_result": "NA",
+          "purpose": "NA"
+        },
+        {
+          "check_type": "command",
+          "name": "TITLE OF CHECK",
+          "sub_control": "b",
+          "command": "NA",
+          "expected_result": "NA",
+          "purpose": "NA"
+        },
+        {
+          "check_type": "command",
+          "name": "TITLE OF CHECK",
+          "sub_control": "c",
+          "command": "NA",
+          "expected_result": "NA",
+          "purpose": "NA"
+        },
+        {
+          "check_type": "command",
+          "name": "TITLE OF CHECK",
+          "sub_control": "d",
+          "command": "NA",
+          "expected_result": "NA",
+          "purpose": "NA"
+        },
+        {
+          "check_type": "command",
+          "name": "TITLE OF CHECK",
+          "sub_control": "e",
+          "command": "NA",
+          "expected_result": "NA",
+          "purpose": "NA"
+        },
+        {
+          "check_type": "command",
+          "name": "TITLE OF CHECK",
+          "sub_control": "f",
+          "command": "NA",
+          "expected_result": "NA",
+          "purpose": "NA"
         }
       ]
     },
     "debian": {
-      "checks": []
+      "checks": [
+        {
+          "check_type": "command",
+          "name": "TITLE OF CHECK",
+          "sub_control": "a",
+          "command": "NA",
+          "expected_result": "NA",
+          "purpose": "NA"
+        },
+        {
+          "check_type": "command",
+          "name": "TITLE OF CHECK",
+          "sub_control": "b",
+          "command": "NA",
+          "expected_result": "NA",
+          "purpose": "NA"
+        },
+        {
+          "check_type": "command",
+          "name": "TITLE OF CHECK",
+          "sub_control": "c",
+          "command": "NA",
+          "expected_result": "NA",
+          "purpose": "NA"
+        },
+        {
+          "check_type": "command",
+          "name": "TITLE OF CHECK",
+          "sub_control": "d",
+          "command": "NA",
+          "expected_result": "NA",
+          "purpose": "NA"
+        },
+        {
+          "check_type": "command",
+          "name": "TITLE OF CHECK",
+          "sub_control": "e",
+          "command": "NA",
+          "expected_result": "NA",
+          "purpose": "NA"
+        },
+        {
+          "check_type": "command",
+          "name": "TITLE OF CHECK",
+          "sub_control": "f",
+          "command": "NA",
+          "expected_result": "NA",
+          "purpose": "NA"
+        }
+      ]
     }
   },
-  "expected_result": "Only approved and documented users are members of privileged groups and enabled accounts are authorized.",
   "severity": "High",
-  "remediation": "Remove unauthorized users from privileged groups and disable or delete unauthorized accounts.",
-  "tags": ["cmmc", "access-control", "privilege-management", "windows-client"]
+  "remediation": "Instructions to remediate non-compliance",
+  "tags": [
+    "AC",
+    "AC.L2-3.1.1"
+  ]
 }
