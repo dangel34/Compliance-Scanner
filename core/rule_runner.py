@@ -9,11 +9,11 @@ import re
 import importlib
 from typing import List, Dict, Any, Optional
 
-from scanner_init import os_scan, get_scanner
-
 # Project root (parent of core/)
 _core_dir = os.path.dirname(os.path.abspath(__file__))
 _project_root = os.path.dirname(_core_dir)
+
+from core.scanner_init import os_scan, get_scanner
 
 
 class RuleRunner:
@@ -65,12 +65,11 @@ class RuleRunner:
         return get_scanner()
 
     def get_checks(self) -> List[Dict[str, Any]]:
-        """Normalize os_type (windows_client -> windows-client) to match check_details keys"""
-        os_key = self.os_type.replace("_", "-")
+        """Gets checks"""
         return (
             self.rule
             .get("check_details", {})
-            .get(os_key, {})
+            .get(self.os_type, {})
             .get("checks", [])
         )
 
@@ -173,7 +172,7 @@ class RuleRunner:
                         "stderr": str(e)
                     })
             else:
-                # command (default): run via subprocess to preserve returncode for PASS/FAIL
+                # command (default): run via OS-appropriate scanner (Windows CMD/PowerShell, Linux bash)
                 cmd = check.get("command")
 
                 if cmd and cmd.startswith("cs_f("):
@@ -187,8 +186,8 @@ class RuleRunner:
                     "command": cmd,
                     "status": "PASS" if passed else "FAIL",
                     "returncode": execution["returncode"],
-                    "stdout": execution["stdout"],
-                    "stderr": execution["stderr"]
+                    "stdout": execution.get("stdout", ""),
+                    "stderr": execution.get("stderr", "")
                 })
 
         return {
