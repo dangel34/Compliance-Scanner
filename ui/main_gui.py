@@ -131,6 +131,7 @@ def format_rule_details(result: RunResult) -> str:
             f"Check #{i}",
             "-" * 70,
             f"Name      : {check.get('check_name', '')}",
+            f"Subcontrol: {check.get('sub_control', '')}",
             f"Status    : {check.get('status', '')}",
             f"Command   : {check.get('command', '')}",
             f"ReturnCode: {check.get('returncode', '')}",

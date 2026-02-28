@@ -25,7 +25,7 @@
           "check_type": "command",
           "name": "Processes Acting on behalf of Authorized Users",
           "sub_control": "b",
-          "command": "cs_f{access_control.process_identity_wc}",
+          "command": "cs_f(access_control.process_identity_wc)",
           "expected_result": "True",
           "purpose": "To ensure no process is acting anonymously"
         },
@@ -33,7 +33,7 @@
           "check_type": "command",
           "name": "Authorized Devices are identified",
           "sub_control": "c",
-          "command": "cs_f{access_control.domain_joined_wc}",
+          "command": "cs_f(access_control.domain_joined_wc)",
           "expected_result": "True",
           "purpose": "See if they are domained joined"
         },
@@ -41,7 +41,7 @@
           "check_type": "command",
           "name": "System access is limited to authorized users",
           "sub_control": "d",
-          "command": "cs_f{access_control.system_access_wc}",
+          "command": "cs_f(access_control.system_access_wc)",
           "expected_result": "True",
           "purpose": "Checks to see if there is a list of authorized Users"
         },
@@ -61,7 +61,7 @@
           "check_type": "command",
           "name": "Authorized users are identified",
           "sub_control": "a",
-          "command": "cs_f{access_control.authorized_user_ws}",
+          "command": "cs_f(access_control.authorized_user_ws)",
           "expected_result": "True",
           "purpose": "To see if Authorized Users Exist"
         },
@@ -69,7 +69,7 @@
           "check_type": "command",
           "name": "Processes Acting on behalf of Authorized Users",
           "sub_control": "b",
-          "command": "cs_f{access_control.process_identity_wc}",
+          "command": "cs_f(access_control.process_identity_wc)",
           "expected_result": "True",
           "purpose": "To ensure no process is acting anonymously"
         },

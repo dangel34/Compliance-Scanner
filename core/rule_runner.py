@@ -128,6 +128,7 @@ class RuleRunner:
 
         for check in self.get_checks():
             name = check.get("name", "Unnamed Check")
+            sub_control = check.get("sub_control", "Unnamed Subcontrol")
 
             if check_type == "service" and scanner is not None:
                 service_name = check.get("service") or check.get("name")
@@ -135,6 +136,7 @@ class RuleRunner:
                     out = scanner.check_service(service_name)
                     results.append({
                         "check_name": name,
+                        "sub_control": sub_control,
                         "command": f"check_service({service_name})",
                         "status": "PASS" if out else "FAIL",
                         "returncode": 0 if out else -1,
@@ -144,6 +146,7 @@ class RuleRunner:
                 except Exception as e:
                     results.append({
                         "check_name": name,
+                        "sub_control": sub_control,
                         "command": f"check_service({service_name})",
                         "status": "FAIL",
                         "returncode": -1,
@@ -156,6 +159,7 @@ class RuleRunner:
                     out = scanner.check_file_permissions(path)
                     results.append({
                         "check_name": name,
+                        "sub_control": sub_control,
                         "command": f"check_file_permissions({path})",
                         "status": "PASS" if out else "FAIL",
                         "returncode": 0 if out else -1,
@@ -165,6 +169,7 @@ class RuleRunner:
                 except Exception as e:
                     results.append({
                         "check_name": name,
+                        "sub_control": sub_control,
                         "command": f"check_file_permissions({path})",
                         "status": "FAIL",
                         "returncode": -1,
@@ -183,6 +188,7 @@ class RuleRunner:
                 passed = execution["returncode"] == 0
                 results.append({
                     "check_name": name,
+                    "sub_control": sub_control,
                     "command": cmd,
                     "status": "PASS" if passed else "FAIL",
                     "returncode": execution["returncode"],
