@@ -110,30 +110,45 @@ def format_rule_details(result: RunResult) -> str:
     :param result: Rule execution result dictionary.
     :return: Multi-line human-readable string describing checks and status.
     """
+    # Handle rule execution errors (e.g. file not found, parse error)
+    if "error" in result:
+        return (
+            "\n  " + "=" * 66 + "\n"
+            f"  ERROR: {result.get('error', 'Unknown error')}\n"
+            "  " + "=" * 66 + "\n"
+            f"  Rule ID: {result.get('rule_id', '')}\n"
+            f"  Title  : {result.get('title', '')}\n"
+        )
+
     overall_status = get_rule_status(result)
+    checks_run = result.get("checks_run", 0)
+    checks_skipped = result.get("checks_skipped", 0)
 
     lines: List[str] = [
-        "=" * 70,
-        f"OVERALL STATUS: {overall_status}",
-        "=" * 70,
         "",
-        f"Rule ID   : {result.get('rule_id', '')}",
-        f"Title     : {result.get('title', '')}",
-        f"OS        : {result.get('os', '')}",
-        f"Checks Run: {result.get('checks_run', 0)}",
+        "  " + "=" * 66,
+        f"  OVERALL STATUS: {overall_status}",
+        "  " + "=" * 66,
         "",
-        "-" * 70,
+        f"  Rule ID       : {result.get('rule_id', '')}",
+        f"  Title         : {result.get('title', '')}",
+        f"  OS            : {result.get('os', '')}",
+        f"  Checks Run    : {checks_run}",
+        f"  Checks Skipped: {checks_skipped} (NA subcontrols)",
+        "",
+        "  " + "-" * 66,
     ]
 
     for i, check in enumerate(result.get("checks", []), start=1):
-
         lines.extend([
-            f"Check #{i}",
-            "-" * 70,
-            f"Name      : {check.get('check_name', '')}",
-            f"Status    : {check.get('status', '')}",
-            f"Command   : {check.get('command', '')}",
-            f"ReturnCode: {check.get('returncode', '')}",
+            "",
+            f"  CHECK #{i}  |  {check.get('check_name', '')}",
+            "  " + "-" * 66,
+            f"  Subcontrol     : {check.get('sub_control', '')}",
+            f"  Status         : {check.get('status', '')}",
+            f"  Command Run    : {check.get('command', '')}",
+            f"  Expected Result: {check.get('expected_result', '')}",
+            f"  Return Code    : {check.get('returncode', '')}",
         ])
 
         stdout = check.get("stdout", "")
@@ -142,20 +157,23 @@ def format_rule_details(result: RunResult) -> str:
         if stdout:
             lines.extend([
                 "",
-                "STDOUT:",
-                stdout,
+                "  Command Output (stdout):",
+                "  " + "-" * 40,
+                "  " + stdout.replace("\n", "\n  "),
             ])
 
         if stderr:
             lines.extend([
                 "",
-                "STDERR:",
-                stderr,
+                "  Command Error (stderr):",
+                "  " + "-" * 40,
+                "  " + stderr.replace("\n", "\n  "),
             ])
 
-        lines.append("\n" + "=" * 70 + "\n")
+        lines.append("")
+        lines.append("  " + "=" * 66)
 
-    return "\n".join(lines)
+    return "\n".join(lines) + "\n"
 
 
 class ComplianceApp(ctk.CTk):
@@ -177,6 +195,7 @@ class ComplianceApp(ctk.CTk):
         self.selected_rule_path: Optional[str] = None
         self.rule_buttons: Dict[str, ctk.CTkButton] = {}
         self.theme: str = "dark"
+        self.progress_bar: Optional[ctk.CTkProgressBar] = None
 
         # Build UI
         self._build_layout()
@@ -268,6 +287,11 @@ class ComplianceApp(ctk.CTk):
             state="disabled",
         )
         self.run_selected_btn.pack(side="left", padx=(5, 10), pady=8)
+
+        # Progress bar for long-running rule scans
+        self.progress_bar = ctk.CTkProgressBar(bottom)
+        self.progress_bar.pack(side="left", fill="x", expand=True, padx=10, pady=14)
+        self.progress_bar.set(0.0)
 
         self.status_label = ctk.CTkLabel(bottom, text="Status: Idle")
         self.status_label.pack(side="right", padx=10, pady=8)
@@ -370,6 +394,16 @@ class ComplianceApp(ctk.CTk):
         # Enable run selected button
         self.run_selected_btn.configure(state="normal")
 
+        # Show details if we already have results for this rule
+        result = self.results_by_path.get(rule_path)
+        self.details_text.configure(state="normal")
+        self.details_text.delete("1.0", "end")
+        if result:
+            self.details_text.insert("1.0", format_rule_details(result))
+        else:
+            self.details_text.insert("1.0", "Select a rule and click 'Run Selected Rule' to view results.\n")
+        self.details_text.configure(state="disabled")
+
         self.set_status(f"Selected: {os.path.basename(rule_path)}")
 
     def run_selected_rule(self):
@@ -405,6 +439,7 @@ class ComplianceApp(ctk.CTk):
                 "title": meta["title"],
                 "os": os_scan(),
                 "checks_run": 0,
+                "checks_skipped": 0,
                 "checks": [],
                 "error": str(e),
             }
@@ -427,6 +462,11 @@ class ComplianceApp(ctk.CTk):
         self.details_text.insert("1.0", format_rule_details(result))
         self.details_text.configure(state="disabled")
 
+        # Selected rule is done – show a full bar briefly, then reset
+        if self.progress_bar is not None:
+            self.progress_bar.set(1.0)
+            self.update_idletasks()
+
         self.set_status("Done")
 
     def run_all_rules(self):
@@ -437,9 +477,15 @@ class ComplianceApp(ctk.CTk):
         """
         self.set_status("Running...")
 
-        results: Dict[str, RunResult] = {}
+        # Reset progress bar
+        if self.progress_bar is not None:
+            self.progress_bar.set(0.0)
+            self.update_idletasks()
 
-        for meta in self.rules:
+        results: Dict[str, RunResult] = {}
+        total = len(self.rules) or 1
+
+        for index, meta in enumerate(self.rules, start=1):
             try:
                 r = RuleRunner(rule_path=meta["path"], os_type=None).run_checks()
                 results[meta["path"]] = r
@@ -449,9 +495,15 @@ class ComplianceApp(ctk.CTk):
                     "title": meta["title"],
                     "os": os_scan(),
                     "checks_run": 0,
+                    "checks_skipped": 0,
                     "checks": [],
                     "error": str(e),
                 }
+
+            # Update progress after each rule
+            if self.progress_bar is not None:
+                self.progress_bar.set(index / total)
+                self.update_idletasks()
 
         self.results_by_path = results
 
@@ -479,15 +531,25 @@ class ComplianceApp(ctk.CTk):
             )
         )
 
+        # All rules finished
+        if self.progress_bar is not None:
+            self.progress_bar.set(1.0)
+            self.update_idletasks()
+
         self.set_status("Done")
 
-        # Display first result automatically
+        # Display result: selected rule if it was run, otherwise first result
         if results:
-            first_result = next(iter(results.values()))
-            self.details_text.configure(state="normal")
-            self.details_text.delete("1.0", "end")
-            self.details_text.insert("1.0", format_rule_details(first_result))
-            self.details_text.configure(state="disabled")
+            result_to_show = (
+                results.get(self.selected_rule_path)
+                if self.selected_rule_path
+                else next(iter(results.values()))
+            )
+            if result_to_show:
+                self.details_text.configure(state="normal")
+                self.details_text.delete("1.0", "end")
+                self.details_text.insert("1.0", format_rule_details(result_to_show))
+                self.details_text.configure(state="disabled")
 
 
 def main():
