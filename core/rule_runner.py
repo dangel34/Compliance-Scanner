@@ -121,14 +121,27 @@ class RuleRunner:
                 "stderr": str(e),
                 "returncode": -1
             }
+    def _is_na_check(self, check: Dict[str, Any]) -> bool:
+        """Return True if this check should be skipped (command is NA)."""
+        cmd = check.get("command")
+        if cmd is None:
+            return True
+        return str(cmd).strip().upper() == "NA"
+
     def run_checks(self) -> Dict[str, Any]:
         results = []
         check_type = self.rule.get("check_type", "command")
         scanner = self._get_scanner()
+        checks_skipped = 0
 
         for check in self.get_checks():
             name = check.get("name", "Unnamed Check")
             sub_control = check.get("sub_control", "Unnamed Subcontrol")
+
+            # Skip NA subcontrols for speed (no executable command)
+            if self._is_na_check(check):
+                checks_skipped += 1
+                continue
 
             if check_type == "service" and scanner is not None:
                 service_name = check.get("service") or check.get("name")
@@ -138,6 +151,7 @@ class RuleRunner:
                         "check_name": name,
                         "sub_control": sub_control,
                         "command": f"check_service({service_name})",
+                        "expected_result": check.get("expected_result", ""),
                         "status": "PASS" if out else "FAIL",
                         "returncode": 0 if out else -1,
                         "stdout": out or "",
@@ -148,6 +162,7 @@ class RuleRunner:
                         "check_name": name,
                         "sub_control": sub_control,
                         "command": f"check_service({service_name})",
+                        "expected_result": check.get("expected_result", ""),
                         "status": "FAIL",
                         "returncode": -1,
                         "stdout": "",
@@ -161,6 +176,7 @@ class RuleRunner:
                         "check_name": name,
                         "sub_control": sub_control,
                         "command": f"check_file_permissions({path})",
+                        "expected_result": check.get("expected_result", ""),
                         "status": "PASS" if out else "FAIL",
                         "returncode": 0 if out else -1,
                         "stdout": out or "",
@@ -171,6 +187,7 @@ class RuleRunner:
                         "check_name": name,
                         "sub_control": sub_control,
                         "command": f"check_file_permissions({path})",
+                        "expected_result": check.get("expected_result", ""),
                         "status": "FAIL",
                         "returncode": -1,
                         "stdout": "",
@@ -190,6 +207,7 @@ class RuleRunner:
                     "check_name": name,
                     "sub_control": sub_control,
                     "command": cmd,
+                    "expected_result": check.get("expected_result", ""),
                     "status": "PASS" if passed else "FAIL",
                     "returncode": execution["returncode"],
                     "stdout": execution.get("stdout", ""),
@@ -201,6 +219,7 @@ class RuleRunner:
             "title": self.rule.get("title"),
             "os": self.os_type,
             "checks_run": len(results),
+            "checks_skipped": checks_skipped,
             "checks": results
         }
 
