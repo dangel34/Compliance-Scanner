@@ -195,6 +195,7 @@ class ComplianceApp(ctk.CTk):
         self.selected_rule_path: Optional[str] = None
         self.rule_buttons: Dict[str, ctk.CTkButton] = {}
         self.theme: str = "dark"
+        self.progress_bar: Optional[ctk.CTkProgressBar] = None
 
         # Build UI
         self._build_layout()
@@ -286,6 +287,11 @@ class ComplianceApp(ctk.CTk):
             state="disabled",
         )
         self.run_selected_btn.pack(side="left", padx=(5, 10), pady=8)
+
+        # Progress bar for long-running rule scans
+        self.progress_bar = ctk.CTkProgressBar(bottom)
+        self.progress_bar.pack(side="left", fill="x", expand=True, padx=10, pady=14)
+        self.progress_bar.set(0.0)
 
         self.status_label = ctk.CTkLabel(bottom, text="Status: Idle")
         self.status_label.pack(side="right", padx=10, pady=8)
@@ -456,6 +462,11 @@ class ComplianceApp(ctk.CTk):
         self.details_text.insert("1.0", format_rule_details(result))
         self.details_text.configure(state="disabled")
 
+        # Selected rule is done – show a full bar briefly, then reset
+        if self.progress_bar is not None:
+            self.progress_bar.set(1.0)
+            self.update_idletasks()
+
         self.set_status("Done")
 
     def run_all_rules(self):
@@ -466,9 +477,15 @@ class ComplianceApp(ctk.CTk):
         """
         self.set_status("Running...")
 
-        results: Dict[str, RunResult] = {}
+        # Reset progress bar
+        if self.progress_bar is not None:
+            self.progress_bar.set(0.0)
+            self.update_idletasks()
 
-        for meta in self.rules:
+        results: Dict[str, RunResult] = {}
+        total = len(self.rules) or 1
+
+        for index, meta in enumerate(self.rules, start=1):
             try:
                 r = RuleRunner(rule_path=meta["path"], os_type=None).run_checks()
                 results[meta["path"]] = r
@@ -482,6 +499,11 @@ class ComplianceApp(ctk.CTk):
                     "checks": [],
                     "error": str(e),
                 }
+
+            # Update progress after each rule
+            if self.progress_bar is not None:
+                self.progress_bar.set(index / total)
+                self.update_idletasks()
 
         self.results_by_path = results
 
@@ -508,6 +530,11 @@ class ComplianceApp(ctk.CTk):
                 f"- FAIL: {fail_count}"
             )
         )
+
+        # All rules finished
+        if self.progress_bar is not None:
+            self.progress_bar.set(1.0)
+            self.update_idletasks()
 
         self.set_status("Done")
 
