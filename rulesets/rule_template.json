@@ -1,33 +1,101 @@
 {
-  "id": "CMMC_AC_1",
-  "control_number": "AC.1.001",
-  "title": "Short Title of the Control",
-  "description": "Full description of the control, what is required to be compliant.",
-  "category": "Access Control",
-  "target_os": ["windows-client", "windows-server", "linux"],
-  "check_type": "type of check being done (authorized_services, privileged_users, command, etc.)",
+  "id": "",
+  "control_number": "",
+  "title": "Title of Control",
+  "description": "Descripton  of Control ",
+  "category": "AC",
+  "target_os": [
+    "debian",
+    "linux",
+    "windows-client",
+    "windows-server"
+  ],
   "check_details": {
     "windows-client": {
       "checks": [
         {
-          "name": "what the check is looking at",
-          "command": "command ran to check",
-          "purpose": "purpose of the check"
+          "check_type": "command",
+          "name": "TITLE OF CHECK",
+          "sub_control": "a",
+          "command": "NA",
+          "expected_result": "NA",
+          "purpose": "NA"
+        },
+        {
+          "check_type": "command",
+          "name": "TITLE OF CHECK",
+          "sub_control": "b",
+          "command": "NA",
+          "expected_result": "NA",
+          "purpose": "NA"
         }
       ]
     },
     "windows-server": {
-      "checks": []
-    },
-    "debian": {
-      "checks": []
+      "checks": [
+        {
+          "check_type": "command",
+          "name": "TITLE OF CHECK",
+          "sub_control": "a",
+          "command": "NA",
+          "expected_result": "NA",
+          "purpose": "NA"
+        },
+        {
+          "check_type": "command",
+          "name": "TITLE OF CHECK",
+          "sub_control": "b",
+          "command": "NA",
+          "expected_result": "NA",
+          "purpose": "NA"
+        }
+      ]
     },
     "linux": {
-      "checks": []
+      "checks": [
+        {
+          "check_type": "command",
+          "name": "TITLE OF CHECK",
+          "sub_control": "a",
+          "command": "NA",
+          "expected_result": "NA",
+          "purpose": "NA"
+        },
+        {
+          "check_type": "command",
+          "name": "TITLE OF CHECK",
+          "sub_control": "b",
+          "command": "NA",
+          "expected_result": "NA",
+          "purpose": "NA"
+        }
+      ]
+    },
+    "debian": {
+      "checks": [
+        {
+          "check_type": "command",
+          "name": "TITLE OF CHECK",
+          "sub_control": "a",
+          "command": "NA",
+          "expected_result": "NA",
+          "purpose": "NA"
+        },
+        {
+          "check_type": "command",
+          "name": "TITLE OF CHECK",
+          "sub_control": "b",
+          "command": "NA",
+          "expected_result": "NA",
+          "purpose": "NA"
+        }
+      ]
     }
   },
-  "expected_result": "Describe what a compliant result looks like",
   "severity": "High",
   "remediation": "Instructions to remediate non-compliance",
-  "tags": ["example_tag_1", "example_tag_2"]
+  "tags": [
+    "AC",
+    "AC.L2-3.1.2"
+  ]
 }

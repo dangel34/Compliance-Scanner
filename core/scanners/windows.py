@@ -6,28 +6,34 @@ class WindowsModule(ScannerTarget):
     def __init__(self):
         ScannerTarget.__init__(self)
 
-    def run_cmd(self, cmd=str, is_windowless=True) -> str:
+    def run_cmd(self, cmd: str, is_windowless: bool = True) -> dict:
         """
-        Uses powershell command and returns output (Windowless by default)
+        Uses powershell command and returns a result dict (windowless by default).
         :param cmd: Input command
         :param is_windowless: By default True, makes the powershell headless
-        :return:
+        :return: {'stdout': str, 'stderr': str, 'returncode': int}
         """
-        if is_windowless:
-            result = subprocess.run(
-            cmd,
-            capture_output=True,
-            text=True,
-            creationflags=subprocess.CREATE_NO_WINDOW
-            )
-            return result.stdout.strip()
-        else:
+        creation_flag = (
+            subprocess.CREATE_NO_WINDOW if is_windowless else subprocess.CREATE_NEW_CONSOLE
+        )
+        try:
             result = subprocess.run(
                 cmd,
                 capture_output=True,
                 text=True,
-                creationflags=subprocess.CREATE_NEW_CONSOLE)
-            return result.stdout.strip()
+                creationflags=creation_flag,
+            )
+            return {
+                "stdout": result.stdout.strip(),
+                "stderr": result.stderr.strip(),
+                "returncode": result.returncode,
+            }
+        except Exception as e:
+            return {
+                "stdout": "",
+                "stderr": str(e),
+                "returncode": -1,
+            }
 
     def check_service(self, name: str) -> str:
         pass
