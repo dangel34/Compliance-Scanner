@@ -1,0 +1,141 @@
+{
+  "id": "AU.L2-3.3.7",
+  "control_number": "AU.L2-3.3.7",
+  "title": "Provide System Capability to Compare and Synchronize Internal Clocks",
+  "description": "Provide a system capability that compares and synchronizes internal system clocks with an authoritative source to generate time stamps for audit records.",
+  "category": "AU",
+  "target_os": [
+    "debian",
+    "linux",
+    "windows-client",
+    "windows-server"
+  ],
+  "check_details": {
+    "windows_client": {
+      "checks": [
+        {
+          "check_type": "command",
+          "name": "Windows Time Service is Running",
+          "sub_control": "a",
+          "command": "cs_f(audit_accountability.w32tm_running_wc)",
+          "expected_result": "True",
+          "purpose": "Verify the Windows Time (w32tm) service is running and set to start automatically"
+        },
+        {
+          "check_type": "command",
+          "name": "NTP Source is Configured",
+          "sub_control": "b",
+          "command": "cs_f(audit_accountability.ntp_source_wc)",
+          "expected_result": "True",
+          "purpose": "Confirm the system is configured to sync time from an authoritative NTP source (domain hierarchy or external NTP server)"
+        },
+        {
+          "check_type": "command",
+          "name": "Time Sync is Occurring Successfully",
+          "sub_control": "c",
+          "command": "cs_f(audit_accountability.time_sync_status_wc)",
+          "expected_result": "True",
+          "purpose": "Verify w32tm reports a successful last sync and the clock offset is within acceptable bounds"
+        }
+      ]
+    },
+    "windows_server": {
+      "checks": [
+        {
+          "check_type": "command",
+          "name": "Windows Time Service is Running",
+          "sub_control": "a",
+          "command": "cs_f(audit_accountability.w32tm_running_ws)",
+          "expected_result": "True",
+          "purpose": "Verify the Windows Time (w32tm) service is running and set to start automatically"
+        },
+        {
+          "check_type": "command",
+          "name": "NTP Source is Configured",
+          "sub_control": "b",
+          "command": "cs_f(audit_accountability.ntp_source_ws)",
+          "expected_result": "True",
+          "purpose": "Confirm the server is configured to sync from the domain PDC emulator or a designated authoritative NTP source"
+        },
+        {
+          "check_type": "command",
+          "name": "Time Sync is Occurring Successfully",
+          "sub_control": "c",
+          "command": "cs_f(audit_accountability.time_sync_status_ws)",
+          "expected_result": "True",
+          "purpose": "Verify w32tm reports a successful last sync and clock offset is within acceptable bounds (typically < 5 minutes for Kerberos)"
+        },
+        {
+          "check_type": "command",
+          "name": "PDC Emulator Syncs to External Authoritative NTP Source",
+          "sub_control": "d",
+          "command": "cs_f(audit_accountability.pdc_ntp_source_ws)",
+          "expected_result": "True",
+          "purpose": "On domain controllers, verify the PDC emulator role holder is configured to sync from an external authoritative NTP server (e.g., time.nist.gov or pool.ntp.org)"
+        }
+      ]
+    },
+    "linux": {
+      "checks": [
+        {
+          "check_type": "command",
+          "name": "NTP Daemon or Chrony is Running",
+          "sub_control": "a",
+          "command": "cs_f(audit_accountability.ntp_running_lx)",
+          "expected_result": "True",
+          "purpose": "Verify chronyd, ntpd, or systemd-timesyncd is active and enabled at boot"
+        },
+        {
+          "check_type": "command",
+          "name": "Authoritative NTP Server is Configured",
+          "sub_control": "b",
+          "command": "cs_f(audit_accountability.ntp_source_lx)",
+          "expected_result": "True",
+          "purpose": "Confirm /etc/chrony.conf or /etc/ntp.conf contains at least one authoritative NTP server (e.g., time.nist.gov or internal NTP hierarchy)"
+        },
+        {
+          "check_type": "command",
+          "name": "Time Synchronization is Active and Within Bounds",
+          "sub_control": "c",
+          "command": "cs_f(audit_accountability.time_sync_status_lx)",
+          "expected_result": "True",
+          "purpose": "Verify chronyc tracking or ntpq -p reports successful sync with an offset within acceptable limits"
+        }
+      ]
+    },
+    "debian": {
+      "checks": [
+        {
+          "check_type": "command",
+          "name": "NTP Daemon or Chrony is Running",
+          "sub_control": "a",
+          "command": "cs_f(audit_accountability.ntp_running_lx)",
+          "expected_result": "True",
+          "purpose": "Verify chronyd, ntpd, or systemd-timesyncd is active and enabled at boot"
+        },
+        {
+          "check_type": "command",
+          "name": "Authoritative NTP Server is Configured",
+          "sub_control": "b",
+          "command": "cs_f(audit_accountability.ntp_source_lx)",
+          "expected_result": "True",
+          "purpose": "Confirm /etc/chrony.conf or /etc/ntp.conf contains at least one authoritative NTP server"
+        },
+        {
+          "check_type": "command",
+          "name": "Time Synchronization is Active and Within Bounds",
+          "sub_control": "c",
+          "command": "cs_f(audit_accountability.time_sync_status_lx)",
+          "expected_result": "True",
+          "purpose": "Verify chronyc tracking or timedatectl reports successful NTP sync with an offset within acceptable limits"
+        }
+      ]
+    }
+  },
+  "severity": "Medium",
+  "remediation": "Enable and configure the Windows Time service to sync from the domain NTP hierarchy. Configure the PDC emulator to sync from an external authoritative NTP source. On Linux, install and configure chrony or ntpd with authoritative server entries. Verify sync status and clock offset.",
+  "tags": [
+    "AU",
+    "AU.L2-3.3.7"
+  ]
+}

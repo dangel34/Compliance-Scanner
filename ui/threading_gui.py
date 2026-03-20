@@ -81,8 +81,15 @@ def get_rule_status(result: RunResult) -> str:
     """
     Compute overall status for a rule result.
 
+    If all subcontrols pass -> ``PASS``
+    If all subcontrols fail -> ``FAIL``
+    If some pass but not all -> ``PARTIAL``
+    If the rule has no checks for this OS -> ``SKIP``
+    If the rule errored -> ``ERROR``
+    If the rule has not been run -> ``NOT_RUN``
+
     :param result: Rule execution result dictionary.
-    :return: 'PASS', 'FAIL', 'ERROR', 'SKIP', or 'NOT_RUN'.
+    :return: One of 'PASS', 'FAIL', 'PARTIAL', 'ERROR', 'SKIP', or 'NOT_RUN'.
     """
     if result is None:
         return "NOT_RUN"
@@ -91,10 +98,13 @@ def get_rule_status(result: RunResult) -> str:
     checks = result.get("checks", [])
     if not checks:
         return "SKIP"
-    for c in checks:
-        if c.get("status") != "PASS":
-            return "FAIL"
-    return "PASS"
+
+    statuses = [c.get("status") for c in checks]
+    if all(s == "PASS" for s in statuses):
+        return "PASS"
+    if all(s == "FAIL" for s in statuses):
+        return "FAIL"
+    return "PARTIAL"
 
 
 def format_rule_details(result: RunResult) -> str:
@@ -209,6 +219,8 @@ class ComplianceDebugApp(ctk.CTk):
         self.rule_buttons: Dict[str, ctk.CTkButton] = {}
         self.theme: str = "dark"
         self.running: bool = False
+        self.refresh_btn: Optional[ctk.CTkButton] = None
+        self.run_all_btn: Optional[ctk.CTkButton] = None
 
         self._build_layout()
         self.refresh_rules()
@@ -233,8 +245,10 @@ class ComplianceDebugApp(ctk.CTk):
         )
         self.theme_button.pack(side="right", padx=10, pady=8)
 
-        refresh_btn = ctk.CTkButton(top, text="Refresh Rules", command=self.refresh_rules)
-        refresh_btn.pack(side="right", padx=10, pady=8)
+        self.refresh_btn = ctk.CTkButton(
+            top, text="Refresh Rules", command=self.refresh_rules
+        )
+        self.refresh_btn.pack(side="right", padx=10, pady=8)
 
         # ---------- MAIN ----------
         main = ctk.CTkFrame(self)
@@ -270,8 +284,10 @@ class ComplianceDebugApp(ctk.CTk):
         bottom = ctk.CTkFrame(self)
         bottom.pack(fill="x", padx=10, pady=(6, 10))
 
-        run_all_btn = ctk.CTkButton(bottom, text="Run All Rules", command=self.run_all_rules)
-        run_all_btn.pack(side="left", padx=(10, 5), pady=8)
+        self.run_all_btn = ctk.CTkButton(
+            bottom, text="Run All Rules", command=self.run_all_rules
+        )
+        self.run_all_btn.pack(side="left", padx=(10, 5), pady=8)
 
         self.run_selected_btn = ctk.CTkButton(
             bottom,
@@ -307,7 +323,8 @@ class ComplianceDebugApp(ctk.CTk):
         """Update progress bar (thread-safe via after)."""
         if self.progress_bar is not None:
             self.progress_bar.set(value)
-            self.update_idletasks()
+            # Avoid forcing a full UI idle update for every rule
+            # (keeps main thread responsive).
 
     def refresh_rules(self):
         """Re-scan rulesets and rebuild the rule list."""
@@ -349,9 +366,13 @@ class ComplianceDebugApp(ctk.CTk):
             if result:
                 status = get_rule_status(result)
                 if status == "PASS":
-                    btn.configure(fg_color="#1f6f43")
+                    btn.configure(fg_color="#1f6f43")  # green
+                elif status == "PARTIAL":
+                    btn.configure(fg_color="#d1a800")  # yellow
+                elif status == "FAIL" or status == "ERROR":
+                    btn.configure(fg_color="#8b1e1e")  # red
                 else:
-                    btn.configure(fg_color="#8b1e1e")
+                    btn.configure(fg_color="transparent")
             else:
                 btn.configure(fg_color="transparent")
 
@@ -388,6 +409,13 @@ class ComplianceDebugApp(ctk.CTk):
 
         self.running = True
         self.set_status("Running selected rule...")
+        if self.run_all_btn is not None:
+            self.run_all_btn.configure(state="disabled")
+        if self.refresh_btn is not None:
+            self.refresh_btn.configure(state="disabled")
+        self.run_selected_btn.configure(state="disabled")
+        if hasattr(self, "theme_button") and self.theme_button is not None:
+            self.theme_button.configure(state="disabled")
         self._update_progress(0.0)
 
         def worker():
@@ -420,8 +448,12 @@ class ComplianceDebugApp(ctk.CTk):
         if btn:
             if status == "PASS":
                 btn.configure(text=f"{result['rule_id']}  ✓", fg_color="#1f6f43")
-            else:
+            elif status == "PARTIAL":
+                btn.configure(text=f"{result['rule_id']}  !", fg_color="#d1a800")
+            elif status == "FAIL" or status == "ERROR":
                 btn.configure(text=f"{result['rule_id']}  ✗", fg_color="#8b1e1e")
+            else:
+                btn.configure(text=f"{result['rule_id']}", fg_color="transparent")
 
         self._update_progress(1.0)
         self.details_text.configure(state="normal")
@@ -429,6 +461,13 @@ class ComplianceDebugApp(ctk.CTk):
         self.details_text.insert("1.0", format_rule_details(result))
         self.details_text.configure(state="disabled")
         self.set_status("Done")
+        if self.run_all_btn is not None:
+            self.run_all_btn.configure(state="normal")
+        if self.refresh_btn is not None:
+            self.refresh_btn.configure(state="normal")
+        self.run_selected_btn.configure(state="normal" if self.selected_rule_path else "disabled")
+        if hasattr(self, "theme_button") and self.theme_button is not None:
+            self.theme_button.configure(state="normal")
 
     def run_all_rules(self):
         """Run all rules in a background thread."""
@@ -438,13 +477,21 @@ class ComplianceDebugApp(ctk.CTk):
 
         self.running = True
         self.set_status("Running...")
+        if self.run_all_btn is not None:
+            self.run_all_btn.configure(state="disabled")
+        if self.refresh_btn is not None:
+            self.refresh_btn.configure(state="disabled")
+        self.run_selected_btn.configure(state="disabled")
+        if hasattr(self, "theme_button") and self.theme_button is not None:
+            self.theme_button.configure(state="disabled")
         self._update_progress(0.0)
 
         rule_paths = [m["path"] for m in self.rules]
 
         def progress_cb(i: int, total: int, _path: str):
-            self.after(0, lambda: self.set_status(f"Running… ({i}/{total})"))
-            self.after(0, lambda: self._update_progress(i / total if total else 0))
+            progress = i / total if total else 0
+            status_text = f"Running… ({i}/{total})"
+            self.after(0, lambda: (self.set_status(status_text), self._update_progress(progress)))
 
         def worker():
             results = run_rules_blocking(rule_paths, progress_cb=progress_cb)
@@ -459,6 +506,7 @@ class ComplianceDebugApp(ctk.CTk):
 
         pass_count = 0
         fail_count = 0
+        skip_count = 0
         for path, result in results.items():
             status = get_rule_status(result)
             btn = self.rule_buttons.get(path)
@@ -466,16 +514,23 @@ class ComplianceDebugApp(ctk.CTk):
                 if status == "PASS":
                     btn.configure(text=f"{result['rule_id']}  ✓", fg_color="#1f6f43")
                     pass_count += 1
-                else:
+                elif status == "PARTIAL":
+                    btn.configure(text=f"{result['rule_id']}  !", fg_color="#d1a800")
+                    fail_count += 1
+                elif status == "FAIL" or status == "ERROR":
                     btn.configure(text=f"{result['rule_id']}  ✗", fg_color="#8b1e1e")
                     fail_count += 1
+                else:
+                    btn.configure(text=f"{result['rule_id']}", fg_color="transparent")
+                    skip_count += 1
 
         self.summary_label.configure(
             text=(
                 "Summary\n"
                 f"- Total rules: {len(results)}\n"
                 f"- PASS: {pass_count}\n"
-                f"- FAIL: {fail_count}"
+                f"- FAIL/PARTIAL: {fail_count}\n"
+                f"- SKIP: {skip_count}"
             )
         )
         self._update_progress(1.0)
@@ -491,6 +546,13 @@ class ComplianceDebugApp(ctk.CTk):
             self.details_text.delete("1.0", "end")
             self.details_text.insert("1.0", format_rule_details(result_to_show))
             self.details_text.configure(state="disabled")
+        if self.run_all_btn is not None:
+            self.run_all_btn.configure(state="normal")
+        if self.refresh_btn is not None:
+            self.refresh_btn.configure(state="normal")
+        self.run_selected_btn.configure(state="normal" if self.selected_rule_path else "disabled")
+        if hasattr(self, "theme_button") and self.theme_button is not None:
+            self.theme_button.configure(state="normal")
 
 
 def main():

@@ -1,0 +1,189 @@
+{
+  "id": "AU.L2-3.3.1",
+  "control_number": "AU.L2-3.3.1",
+  "title": "Create and Retain System Audit Logs",
+  "description": "Create and retain system audit logs and records to the extent needed to enable the monitoring, analysis, investigation, and reporting of unlawful or unauthorized system activity.",
+  "category": "AU",
+  "target_os": [
+    "debian",
+    "linux",
+    "windows-client",
+    "windows-server"
+  ],
+  "check_details": {
+    "windows_client": {
+      "checks": [
+        {
+          "check_type": "command",
+          "name": "Audit Policy is Enabled",
+          "sub_control": "a",
+          "command": "cs_f(audit_accountability.audit_policy_enabled_wc)",
+          "expected_result": "True",
+          "purpose": "Verify that advanced audit policy subcategories are configured and enabled on the Windows client"
+        },
+        {
+          "check_type": "command",
+          "name": "Security Event Log Exists and is Active",
+          "sub_control": "b",
+          "command": "cs_f(audit_accountability.security_log_active_wc)",
+          "expected_result": "True",
+          "purpose": "Confirm the Security event log is enabled, writable, and actively receiving events"
+        },
+        {
+          "check_type": "command",
+          "name": "Audit Log Retention Policy is Configured",
+          "sub_control": "c",
+          "command": "cs_f(audit_accountability.log_retention_wc)",
+          "expected_result": "True",
+          "purpose": "Verify the Security event log is configured with a minimum retention size and retention method (overwrite by days or do not overwrite)"
+        },
+        {
+          "check_type": "command",
+          "name": "Audit Logs are Being Written",
+          "sub_control": "d",
+          "command": "cs_f(audit_accountability.log_writing_wc)",
+          "expected_result": "True",
+          "purpose": "Confirm recent events are present in the Security log to verify active logging is occurring"
+        }
+      ]
+    },
+    "windows_server": {
+      "checks": [
+        {
+          "check_type": "command",
+          "name": "Audit Policy is Enabled",
+          "sub_control": "a",
+          "command": "cs_f(audit_accountability.audit_policy_enabled_ws)",
+          "expected_result": "True",
+          "purpose": "Verify that advanced audit policy subcategories are configured and enabled on the Windows server"
+        },
+        {
+          "check_type": "command",
+          "name": "Security Event Log Exists and is Active",
+          "sub_control": "b",
+          "command": "cs_f(audit_accountability.security_log_active_ws)",
+          "expected_result": "True",
+          "purpose": "Confirm the Security event log is enabled, writable, and actively receiving events"
+        },
+        {
+          "check_type": "command",
+          "name": "Audit Log Retention Policy is Configured",
+          "sub_control": "c",
+          "command": "cs_f(audit_accountability.log_retention_ws)",
+          "expected_result": "True",
+          "purpose": "Verify the Security event log is configured with a minimum retention size and days-based retention policy"
+        },
+        {
+          "check_type": "command",
+          "name": "Audit Logs are Being Written",
+          "sub_control": "d",
+          "command": "cs_f(audit_accountability.log_writing_ws)",
+          "expected_result": "True",
+          "purpose": "Confirm recent events are present in the Security log to verify active logging is occurring"
+        },
+        {
+          "check_type": "command",
+          "name": "Logs are Forwarded to Centralized Log Store",
+          "sub_control": "e",
+          "command": "cs_f(audit_accountability.log_forwarding_ws)",
+          "expected_result": "True",
+          "purpose": "Verify Windows Event Forwarding (WEF) or a SIEM agent is configured to ship logs off the host for centralized retention"
+        }
+      ]
+    },
+    "linux": {
+      "checks": [
+        {
+          "check_type": "command",
+          "name": "Auditd Service is Running",
+          "sub_control": "a",
+          "command": "cs_f(audit_accountability.auditd_running_lx)",
+          "expected_result": "True",
+          "purpose": "Verify the auditd daemon is active and enabled at boot"
+        },
+        {
+          "check_type": "command",
+          "name": "Audit Rules are Loaded",
+          "sub_control": "b",
+          "command": "auditctl -l",
+          "expected_result": "Non-empty list of audit rules covering file access, user actions, and privilege escalation",
+          "purpose": "Confirm audit rules are loaded and actively monitoring required event categories"
+        },
+        {
+          "check_type": "command",
+          "name": "Audit Log File Exists and is Being Written",
+          "sub_control": "c",
+          "command": "cs_f(audit_accountability.audit_log_active_lx)",
+          "expected_result": "True",
+          "purpose": "Verify /var/log/audit/audit.log exists, is non-empty, and has recent entries"
+        },
+        {
+          "check_type": "command",
+          "name": "Audit Log Retention is Configured",
+          "sub_control": "d",
+          "command": "cs_f(audit_accountability.log_retention_lx)",
+          "expected_result": "True",
+          "purpose": "Check /etc/audit/auditd.conf for max_log_file, num_logs, and max_log_file_action to confirm retention meets policy"
+        },
+        {
+          "check_type": "command",
+          "name": "Logs are Forwarded to Centralized Log Store",
+          "sub_control": "e",
+          "command": "cs_f(audit_accountability.log_forwarding_lx)",
+          "expected_result": "True",
+          "purpose": "Verify rsyslog, syslog-ng, or auditd audisp-remote plugin is configured to ship logs to a centralized SIEM or log server"
+        }
+      ]
+    },
+    "debian": {
+      "checks": [
+        {
+          "check_type": "command",
+          "name": "Auditd Service is Running",
+          "sub_control": "a",
+          "command": "cs_f(audit_accountability.auditd_running_lx)",
+          "expected_result": "True",
+          "purpose": "Verify the auditd daemon is active and enabled at boot"
+        },
+        {
+          "check_type": "command",
+          "name": "Audit Rules are Loaded",
+          "sub_control": "b",
+          "command": "auditctl -l",
+          "expected_result": "Non-empty list of audit rules covering file access, user actions, and privilege escalation",
+          "purpose": "Confirm audit rules are loaded and actively monitoring required event categories"
+        },
+        {
+          "check_type": "command",
+          "name": "Audit Log File Exists and is Being Written",
+          "sub_control": "c",
+          "command": "cs_f(audit_accountability.audit_log_active_lx)",
+          "expected_result": "True",
+          "purpose": "Verify /var/log/audit/audit.log exists, is non-empty, and has recent entries"
+        },
+        {
+          "check_type": "command",
+          "name": "Audit Log Retention is Configured",
+          "sub_control": "d",
+          "command": "cs_f(audit_accountability.log_retention_lx)",
+          "expected_result": "True",
+          "purpose": "Check /etc/audit/auditd.conf for max_log_file, num_logs, and max_log_file_action to confirm retention meets policy"
+        },
+        {
+          "check_type": "command",
+          "name": "Logs are Forwarded to Centralized Log Store",
+          "sub_control": "e",
+          "command": "cs_f(audit_accountability.log_forwarding_lx)",
+          "expected_result": "True",
+          "purpose": "Verify rsyslog or auditd audisp-remote plugin is configured to ship logs to a centralized SIEM or log server"
+        }
+      ]
+    }
+  },
+  "severity": "High",
+  "remediation": "Enable advanced audit policies via Group Policy or auditpol. Configure auditd on Linux with appropriate rules. Set log retention size and duration. Configure log forwarding to a centralized SIEM.",
+  "tags": [
+    "AU",
+    "AU.L2-3.3.1"
+  ]
+}

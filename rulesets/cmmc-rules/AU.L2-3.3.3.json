@@ -1,0 +1,109 @@
+{
+  "id": "AU.L2-3.3.3",
+  "control_number": "AU.L2-3.3.3",
+  "title": "Review and Update Logged Events",
+  "description": "Review and update logged events.",
+  "category": "AU",
+  "target_os": [
+    "debian",
+    "linux",
+    "windows-client",
+    "windows-server"
+  ],
+  "check_details": {
+    "windows_client": {
+      "checks": [
+        {
+          "check_type": "command",
+          "name": "Advanced Audit Policy Subcategories are Configured",
+          "sub_control": "a",
+          "command": "cs_f(audit_accountability.advanced_audit_policy_wc)",
+          "expected_result": "True",
+          "purpose": "Verify all relevant advanced audit policy subcategories (Account Logon, Account Management, Detailed Tracking, Logon/Logoff, Object Access, Policy Change, Privilege Use, System) are explicitly configured"
+        },
+        {
+          "check_type": "command",
+          "name": "Audit Policy Covers Minimum Required Event Categories",
+          "sub_control": "b",
+          "command": "cs_f(audit_accountability.audit_coverage_wc)",
+          "expected_result": "True",
+          "purpose": "Confirm the current audit policy includes success and failure tracking for all CMMC-required event types"
+        }
+      ]
+    },
+    "windows_server": {
+      "checks": [
+        {
+          "check_type": "command",
+          "name": "Advanced Audit Policy Subcategories are Configured",
+          "sub_control": "a",
+          "command": "cs_f(audit_accountability.advanced_audit_policy_ws)",
+          "expected_result": "True",
+          "purpose": "Verify all relevant advanced audit policy subcategories are explicitly configured via Group Policy or auditpol"
+        },
+        {
+          "check_type": "command",
+          "name": "Audit Policy Covers Minimum Required Event Categories",
+          "sub_control": "b",
+          "command": "cs_f(audit_accountability.audit_coverage_ws)",
+          "expected_result": "True",
+          "purpose": "Confirm the current audit policy includes success and failure tracking for all CMMC-required event types"
+        },
+        {
+          "check_type": "command",
+          "name": "GPO-Enforced Audit Policy is Applied",
+          "sub_control": "c",
+          "command": "cs_f(audit_accountability.gpo_audit_policy_ws)",
+          "expected_result": "True",
+          "purpose": "Verify the audit policy is enforced via Group Policy Object and not subject to local override"
+        }
+      ]
+    },
+    "linux": {
+      "checks": [
+        {
+          "check_type": "command",
+          "name": "Audit Rules Cover Required Event Categories",
+          "sub_control": "a",
+          "command": "cs_f(audit_accountability.audit_rules_coverage_lx)",
+          "expected_result": "True",
+          "purpose": "Verify /etc/audit/rules.d/ contains rules covering file access, user/group changes, privilege escalation, network configuration changes, and system calls"
+        },
+        {
+          "check_type": "command",
+          "name": "Audit Rules are Immutable or Locked",
+          "sub_control": "b",
+          "command": "cs_f(audit_accountability.audit_rules_locked_lx)",
+          "expected_result": "True",
+          "purpose": "Confirm auditd rules include -e 2 (immutable) flag to prevent runtime modification without a reboot"
+        }
+      ]
+    },
+    "debian": {
+      "checks": [
+        {
+          "check_type": "command",
+          "name": "Audit Rules Cover Required Event Categories",
+          "sub_control": "a",
+          "command": "cs_f(audit_accountability.audit_rules_coverage_lx)",
+          "expected_result": "True",
+          "purpose": "Verify /etc/audit/rules.d/ contains rules covering file access, user/group changes, privilege escalation, network configuration changes, and system calls"
+        },
+        {
+          "check_type": "command",
+          "name": "Audit Rules are Immutable or Locked",
+          "sub_control": "b",
+          "command": "cs_f(audit_accountability.audit_rules_locked_lx)",
+          "expected_result": "True",
+          "purpose": "Confirm auditd rules include -e 2 (immutable) flag to prevent runtime modification without a reboot"
+        }
+      ]
+    }
+  },
+  "severity": "Medium",
+  "remediation": "Review and configure advanced audit policy subcategories via Group Policy (Windows) or /etc/audit/rules.d/ (Linux). Ensure all required CMMC event categories are covered with both success and failure tracking. Lock Linux audit rules with -e 2.",
+  "tags": [
+    "AU",
+    "AU.L2-3.3.3"
+  ]
+}
