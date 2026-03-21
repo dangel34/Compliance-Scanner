@@ -13,6 +13,7 @@ import sys
 import threading
 import re
 import tkinter as tk
+import tkinter.font as tkfont
 from tkinter import filedialog
 from typing import Any, Dict, List, Optional
 
@@ -43,6 +44,19 @@ from core.rule_runner import RuleRunner
 
 RunResult = Dict[str, Any]
 
+# Module-level font cache — created once, reused everywhere
+
+_FONT_NORMAL: Optional[tkfont.Font] = None
+_FONT_BOLD:   Optional[tkfont.Font] = None
+
+def _get_fonts() -> tuple:
+    """Return (normal_font, bold_font), creating them once per process."""
+    global _FONT_NORMAL, _FONT_BOLD
+    if _FONT_NORMAL is None:
+        _FONT_NORMAL = tkfont.Font(family="Consolas", size=10)
+        _FONT_BOLD   = tkfont.Font(family="Consolas", size=10, weight="bold")
+    return _FONT_NORMAL, _FONT_BOLD
+
 
 def get_project_root() -> str:
     return os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -52,8 +66,15 @@ def format_os_name(os_name: str) -> str:
     return os_name.replace("_", " ").title()
 
 
-def discover_rule_files(rules_dir: str) -> Dict[str, List[str]]:
-    categories: Dict[str, List[str]] = {}
+def discover_rule_files(rules_dir: str) -> Dict[str, List[Dict[str, str]]]:
+    """
+    Walk rules_dir, read each JSON once, and return:
+        { category: [ {path, rule_id, title}, ... ], ... }
+
+    This replaces the old two-pass approach (discover then load_metadata),
+    halving the number of file reads.
+    """
+    categories: Dict[str, List[Dict[str, str]]] = {}
     if not os.path.isdir(rules_dir):
         return categories
 
@@ -67,41 +88,30 @@ def discover_rule_files(rules_dir: str) -> Dict[str, List[str]]:
             try:
                 with open(full_path, "r", encoding="utf-8") as f:
                     data = json.load(f)
-                category = str(data.get("category") or "Uncategorised").strip()
-                if not category:
-                    category = "Uncategorised"
+                category = str(data.get("category") or "Uncategorised").strip() or "Uncategorised"
+                rule_id  = str(data.get("id") or data.get("rule_id") or name)
+                title    = str(data.get("title") or data.get("control_number") or name)
             except Exception:
-                category = "Uncategorised"
-            categories.setdefault(category, []).append(full_path)
+                category, rule_id, title = "Uncategorised", name, name
+
+            categories.setdefault(category, []).append(
+                {"path": full_path, "rule_id": rule_id, "title": title}
+            )
 
     def _cat_sort_key(cat: str) -> tuple:
         return (cat.lower() == "uncategorised", cat.lower())
 
-    def _natural_key(path: str) -> list:
-        name = os.path.basename(path)
+    def _natural_key(meta: Dict[str, str]) -> list:
+        name = os.path.basename(meta["path"])
         return [
             int(chunk) if chunk.isdigit() else chunk.lower()
             for chunk in re.split(r"(\d+)", name)
         ]
 
     return {
-        cat: sorted(paths, key=_natural_key)
-        for cat, paths in sorted(categories.items(), key=lambda kv: _cat_sort_key(kv[0]))
+        cat: sorted(metas, key=_natural_key)
+        for cat, metas in sorted(categories.items(), key=lambda kv: _cat_sort_key(kv[0]))
     }
-
-
-def load_rule_metadata(rule_path: str) -> Dict[str, str]:
-    filename = os.path.basename(rule_path)
-    try:
-        with open(rule_path, "r", encoding="utf-8") as f:
-            data = json.load(f)
-        return {
-            "path":    rule_path,
-            "rule_id": str(data.get("id") or data.get("rule_id") or filename),
-            "title":   str(data.get("title") or data.get("control_number") or filename),
-        }
-    except Exception:
-        return {"path": rule_path, "rule_id": filename, "title": filename}
 
 
 def get_rule_status(result: RunResult) -> str:
@@ -122,52 +132,46 @@ def get_rule_status(result: RunResult) -> str:
 
 # Coloured details renderer
 
+# tag -> (fg_dark, bg_dark, fg_light, bg_light, bold)
+_TAG_DEFS: Dict[str, tuple] = {
+    "rule_id":        ("#5dade2", None,      "#1a6fa8", None,       True),
+    "title":          ("#aab7b8", None,      "#555e65", None,       False),
+    "label":          ("#7f8c8d", None,      "#666e75", None,       False),
+    "value":          ("#e8e8e8", None,      "#1a1a1a", None,       False),
+    "status_pass":    ("#2ecc71", None,      "#1a7a3a", None,       True),
+    "status_fail":    ("#e74c3c", None,      "#a01010", None,       True),
+    "status_partial": ("#f0c040", None,      "#7a5c00", None,       True),
+    "status_skip":    ("#95a5a6", None,      "#555e65", None,       True),
+    "status_error":   ("#e74c3c", None,      "#a01010", None,       True),
+    "check_header":   ("#ffffff", "#1e3a5f", "#ffffff", "#1e3a5f",  True),
+    "divider":        ("#3d5166", None,      "#9baab8", None,       False),
+    "stdout_label":   ("#27ae60", None,      "#1a7a3a", None,       True),
+    "stderr_label":   ("#e67e22", None,      "#b05010", None,       True),
+    "stdout_text":    ("#abebc6", None,      "#1a5c30", None,       False),
+    "stderr_text":    ("#f0b27a", None,      "#7a3800", None,       False),
+    "error_banner":   ("#e74c3c", "#2c1515", "#cc0000", "#ffe0e0",  True),
+    "meta":           ("#85929e", None,      "#666e75", None,       False),
+}
+
+
 def _configure_tags(widget: tk.Text, mode: str = "dark") -> None:
     """
-    Apply all named colour/font tags to a tk.Text widget.
-    Call again with mode='light'/'dark' whenever the theme changes.
+    Apply all named color/font tags to a tk.Text widget.
+    Reuses cached Font objects — safe to call on every theme toggle.
     """
-    import tkinter.font as tkfont
-    normal_font = tkfont.Font(family="Consolas", size=10)
-    bold_font   = tkfont.Font(family="Consolas", size=10, weight="bold")
+    normal_font, bold_font = _get_fonts()
+    dark    = mode == "dark"
+    widget_bg = widget.cget("bg")
 
-    # Each entry: tag -> (fg_dark, bg_dark, fg_light, bg_light, bold)
-    tag_defs: Dict[str, tuple] = {
-        #                         dark-fg      dark-bg    light-fg     light-bg   bold
-        "rule_id":        ("#5dade2", None,      "#1a6fa8", None,       True),
-        "title":          ("#aab7b8", None,      "#555e65", None,       False),
-        "label":          ("#7f8c8d", None,      "#666e75", None,       False),
-        "value":          ("#e8e8e8", None,      "#1a1a1a", None,       False),
-        "status_pass":    ("#2ecc71", None,      "#1a7a3a", None,       True),
-        "status_fail":    ("#e74c3c", None,      "#a01010", None,       True),
-        "status_partial": ("#f0c040", None,      "#7a5c00", None,       True),
-        "status_skip":    ("#95a5a6", None,      "#555e65", None,       True),
-        "status_error":   ("#e74c3c", None,      "#a01010", None,       True),
-        "check_header":   ("#ffffff", "#1e3a5f", "#ffffff", "#1e3a5f",  True),
-        "divider":        ("#3d5166", None,      "#9baab8", None,       False),
-        "stdout_label":   ("#27ae60", None,      "#1a7a3a", None,       True),
-        "stderr_label":   ("#e67e22", None,      "#b05010", None,       True),
-        "stdout_text":    ("#abebc6", None,      "#1a5c30", None,       False),
-        "stderr_text":    ("#f0b27a", None,      "#7a3800", None,       False),
-        "error_banner":   ("#e74c3c", "#2c1515",  "#cc0000", "#ffe0e0", True),
-        "meta":           ("#85929e", None,      "#666e75", None,       False),
-    }
-
-    dark = mode == "dark"
-    for tag, vals in tag_defs.items():
-        fg_dark, bg_dark, fg_light, bg_light, bold = vals
-        fg = fg_dark if dark else fg_light
-        bg = bg_dark if dark else bg_light
-        opts: Dict[str, Any] = {
-            "foreground": fg,
-            "font":       bold_font if bold else normal_font,
-        }
-        if bg:
-            opts["background"] = bg
-        else:
-            # explicitly clear any previous background so it inherits the widget bg
-            opts["background"] = widget.cget("bg")
-        widget.tag_configure(tag, **opts)
+    for tag, (fg_dark, bg_dark, fg_light, bg_light, bold) in _TAG_DEFS.items():
+        fg = fg_dark  if dark else fg_light
+        bg = bg_dark  if dark else bg_light
+        widget.tag_configure(
+            tag,
+            foreground=fg,
+            background=bg if bg else widget_bg,
+            font=bold_font if bold else normal_font,
+        )
 
     widget.tag_configure("check_header", spacing1=8, spacing3=6, lmargin1=4, lmargin2=4)
     widget.tag_configure("divider",      spacing1=2, spacing3=2)
@@ -184,72 +188,81 @@ def _status_tag(status: str) -> str:
 
 
 def render_rule_details(widget: tk.Text, result: RunResult) -> None:
-    """Clear *widget* and write a colour-formatted rule result into it."""
+    """
+    Clear *widget* and write a color-formatted rule result.
+    Batches all text into a single list and inserts in one pass per tag
+    segment to minimise Tcl round-trips.
+    """
     widget.configure(state="normal")
     widget.delete("1.0", "end")
 
-    def w(text: str, tag: str = "value") -> None:
-        widget.insert("end", text, tag)
+    # Accumulate (text, tag) pairs then flush in one insert call per segment.
+    segments: List[tuple] = []
 
-    # ---- error case ----
+    def w(text: str, tag: str = "value") -> None:
+        segments.append((text, tag))
+
     if "error" in result:
-        w("\n  ERROR\n", "error_banner")
-        w(f"\n  {result.get('error', '')}\n", "stderr_text")
+        w("\n  ERROR\n",                              "error_banner")
+        w(f"\n  {result.get('error', '')}\n",         "stderr_text")
         w(f"\n  Rule ID : {result.get('rule_id', '')}\n", "meta")
         w(f"  Title   : {result.get('title',   '')}\n",   "meta")
-        widget.configure(state="disabled")
-        return
-
-    status     = get_rule_status(result)
-    status_tag = _status_tag(status)
-
-    # ---- rule header ----
-    w("\n")
-    w(f"  {result.get('rule_id', '')}", "rule_id")
-    w("  —  ", "divider")
-    w(f"{result.get('title', '')}\n", "title")
-    w("\n")
-    w("  Overall status   : ", "label");  w(f"{status}\n",                            status_tag)
-    w("  OS               : ", "label");  w(f"{result.get('os', '')}\n",              "value")
-    w("  Checks run       : ", "label");  w(f"{result.get('checks_run', 0)}\n",       "value")
-    w("  Checks skipped   : ", "label");  w(f"{result.get('checks_skipped', 0)} (NA subcontrols)\n", "value")
-    w("\n")
-
-    # ---- per-check blocks ----
-    for i, check in enumerate(result.get("checks", []), start=1):
-        chk_status = check.get("status", "")
-        chk_tag    = _status_tag(chk_status)
-
-        w(f"  CHECK #{i}  |  {check.get('check_name', '')}\n", "check_header")
-
-        w("  Subcontrol       : ", "label");  w(f"{check.get('sub_control',     '')}\n", "value")
-        w("  Status           : ", "label");  w(f"{chk_status}\n",                        chk_tag)
-        w("  Command          : ", "label");  w(f"{check.get('command',         '')}\n", "value")
-        w("  Expected result  : ", "label");  w(f"{check.get('expected_result', '')}\n", "value")
-        w("  Return code      : ", "label");  w(f"{check.get('returncode',      '')}\n", "value")
-
-        stdout = check.get("stdout", "").strip()
-        stderr = check.get("stderr", "").strip()
-
-        if stdout:
-            w("\n  stdout:\n", "stdout_label")
-            for line in stdout.splitlines():
-                w(f"    {line}\n", "stdout_text")
-
-        if stderr:
-            w("\n  stderr:\n", "stderr_label")
-            for line in stderr.splitlines():
-                w(f"    {line}\n", "stderr_text")
+    else:
+        status     = get_rule_status(result)
+        status_tag = _status_tag(status)
 
         w("\n")
-        w("  " + "─" * 62 + "\n", "divider")
+        w(f"  {result.get('rule_id', '')}", "rule_id")
+        w("  —  ", "divider")
+        w(f"{result.get('title', '')}\n",   "title")
         w("\n")
+        w("  Overall status   : ", "label");  w(f"{status}\n",                                        status_tag)
+        w("  OS               : ", "label");  w(f"{result.get('os', '')}\n",                          "value")
+        w("  Checks run       : ", "label");  w(f"{result.get('checks_run', 0)}\n",                   "value")
+        w("  Checks skipped   : ", "label");  w(f"{result.get('checks_skipped', 0)} (NA subcontrols)\n", "value")
+        w("\n")
+
+        for i, check in enumerate(result.get("checks", []), start=1):
+            chk_status = check.get("status", "")
+            chk_tag    = _status_tag(chk_status)
+
+            w(f"  CHECK #{i}  |  {check.get('check_name', '')}\n", "check_header")
+            w("  Subcontrol       : ", "label");  w(f"{check.get('sub_control',     '')}\n", "value")
+            w("  Status           : ", "label");  w(f"{chk_status}\n",                        chk_tag)
+            w("  Command          : ", "label");  w(f"{check.get('command',         '')}\n", "value")
+            w("  Expected result  : ", "label");  w(f"{check.get('expected_result', '')}\n", "value")
+            w("  Return code      : ", "label");  w(f"{check.get('returncode',      '')}\n", "value")
+
+            stdout = check.get("stdout", "").strip()
+            stderr = check.get("stderr", "").strip()
+            if stdout:
+                w("\n  stdout:\n", "stdout_label")
+                for line in stdout.splitlines():
+                    w(f"    {line}\n", "stdout_text")
+            if stderr:
+                w("\n  stderr:\n", "stderr_label")
+                for line in stderr.splitlines():
+                    w(f"    {line}\n", "stderr_text")
+
+            w("\n")
+            w("  " + "─" * 62 + "\n", "divider")
+            w("\n")
+
+    # Single-pass insert: merge consecutive same-tag segments to reduce calls
+    if segments:
+        merged: List[tuple] = [segments[0]]
+        for text, tag in segments[1:]:
+            if tag == merged[-1][1]:
+                merged[-1] = (merged[-1][0] + text, tag)
+            else:
+                merged.append((text, tag))
+        for text, tag in merged:
+            widget.insert("end", text, tag)
 
     widget.configure(state="disabled")
 
 
 def render_placeholder(widget: tk.Text, message: str) -> None:
-    """Write a simple placeholder message into the details widget."""
     widget.configure(state="normal")
     widget.delete("1.0", "end")
     widget.insert("1.0", f"\n  {message}\n", "meta")
@@ -281,7 +294,9 @@ def run_rules_blocking(
     return results
 
 
+# ---------------------------------------------------------------------------
 # PDF report generation
+# ---------------------------------------------------------------------------
 
 _COL_PASS    = colors.HexColor("#1a7a3a")
 _COL_FAIL    = colors.HexColor("#7a1a1a")
@@ -295,34 +310,27 @@ _COL_WHITE   = colors.white
 _COL_LIGHT   = colors.HexColor("#dee2e6")
 
 _STATUS_COLOR: Dict[str, Any] = {
-    "PASS":    _COL_PASS,
-    "FAIL":    _COL_FAIL,
-    "PARTIAL": _COL_PARTIAL,
-    "ERROR":   _COL_ERROR,
-    "SKIP":    _COL_SKIP,
-    "NOT_RUN": _COL_SKIP,
+    "PASS":    _COL_PASS,  "FAIL":    _COL_FAIL,
+    "PARTIAL": _COL_PARTIAL, "ERROR": _COL_ERROR,
+    "SKIP":    _COL_SKIP,  "NOT_RUN": _COL_SKIP,
 }
-
 _STATUS_BG: Dict[str, Any] = {
-    "PASS":    colors.HexColor("#d4edda"),
-    "FAIL":    colors.HexColor("#f8d7da"),
-    "PARTIAL": colors.HexColor("#fff3cd"),
-    "ERROR":   colors.HexColor("#f8d7da"),
-    "SKIP":    colors.HexColor("#e2e3e5"),
-    "NOT_RUN": colors.HexColor("#e2e3e5"),
+    "PASS":    colors.HexColor("#d4edda"), "FAIL":    colors.HexColor("#f8d7da"),
+    "PARTIAL": colors.HexColor("#fff3cd"), "ERROR":   colors.HexColor("#f8d7da"),
+    "SKIP":    colors.HexColor("#e2e3e5"), "NOT_RUN": colors.HexColor("#e2e3e5"),
 }
 
 
 def _make_styles() -> Dict[str, ParagraphStyle]:
     base = getSampleStyleSheet()
     return {
-        "title":       ParagraphStyle("ReportTitle",    parent=base["Title"],    fontSize=22, textColor=_COL_WHITE,                         spaceAfter=4),
-        "subtitle":    ParagraphStyle("ReportSubtitle", parent=base["Normal"],   fontSize=9,  textColor=colors.HexColor("#cccccc"),          spaceAfter=2),
+        "title":       ParagraphStyle("ReportTitle",    parent=base["Title"],    fontSize=22, textColor=_COL_WHITE, spaceAfter=4),
+        "subtitle":    ParagraphStyle("ReportSubtitle", parent=base["Normal"],   fontSize=9,  textColor=colors.HexColor("#cccccc"), spaceAfter=2),
         "category":    ParagraphStyle("Category",       parent=base["Heading1"], fontSize=13, textColor=_COL_HEADER, spaceBefore=14, spaceAfter=6, borderPad=4),
         "rule_id":     ParagraphStyle("RuleID",         parent=base["Normal"],   fontSize=10, textColor=_COL_HEADER, fontName="Helvetica-Bold"),
         "rule_title":  ParagraphStyle("RuleTitle",      parent=base["Normal"],   fontSize=9,  textColor=colors.HexColor("#444444")),
         "cell":        ParagraphStyle("Cell",           parent=base["Normal"],   fontSize=8,  leading=11),
-        "cell_mono":   ParagraphStyle("CellMono",       parent=base["Normal"],   fontSize=7.5,fontName="Courier",   leading=10),
+        "cell_mono":   ParagraphStyle("CellMono",       parent=base["Normal"],   fontSize=7.5,fontName="Courier", leading=10),
         "cell_label":  ParagraphStyle("CellLabel",      parent=base["Normal"],   fontSize=8,  textColor=colors.HexColor("#555555"), leading=11),
         "status_text": ParagraphStyle("StatusText",     parent=base["Normal"],   fontSize=8,  fontName="Helvetica-Bold", alignment=TA_CENTER),
         "error_text":  ParagraphStyle("ErrorText",      parent=base["Normal"],   fontSize=8,  textColor=_COL_FAIL, leading=11),
@@ -344,7 +352,7 @@ def generate_report_pdf(
     error_count   = sum(1 for r in results_by_path.values() if get_rule_status(r) == "ERROR")
     skip_count    = sum(1 for r in results_by_path.values() if get_rule_status(r) == "SKIP")
 
-    S         = _make_styles()
+    S = _make_styles()
     page_w, page_h = A4
     margin    = 18 * mm
     content_w = page_w - 2 * margin
@@ -380,9 +388,9 @@ def generate_report_pdf(
     story.append(header_table)
     story.append(Spacer(1, 8 * mm))
 
-    stat_labels  = ["Total",      "Pass",     "Fail",     "Partial",      "Skip",     "Error"    ]
-    stat_values  = [total,        pass_count, fail_count, partial_count,  skip_count, error_count]
-    stat_colours = [_COL_ACCENT,  _COL_PASS,  _COL_FAIL,  _COL_PARTIAL,  _COL_SKIP,  _COL_ERROR ]
+    stat_labels  = ["Total",     "Pass",     "Fail",     "Partial",     "Skip",     "Error"    ]
+    stat_values  = [total,       pass_count, fail_count, partial_count, skip_count, error_count]
+    stat_colours = [_COL_ACCENT, _COL_PASS,  _COL_FAIL,  _COL_PARTIAL,  _COL_SKIP,  _COL_ERROR ]
 
     def _hex(col: Any) -> str:
         if hasattr(col, "hexval"):
@@ -519,11 +527,11 @@ def generate_report_pdf(
                     chk_fg   = _STATUS_COLOR.get(chk_stat, colors.black)
 
                     check_rows_data.append([
-                        Paragraph(str(idx),                          S["cell"]),
-                        Paragraph(check.get("check_name",       ""), S["cell"]),
-                        Paragraph(check.get("sub_control",      ""), S["cell"]),
-                        Paragraph(check.get("expected_result",  ""), S["cell"]),
-                        Paragraph(str(check.get("returncode",   "")),S["cell"]),
+                        Paragraph(str(idx),                         S["cell"]),
+                        Paragraph(check.get("check_name",      ""), S["cell"]),
+                        Paragraph(check.get("sub_control",     ""), S["cell"]),
+                        Paragraph(check.get("expected_result", ""), S["cell"]),
+                        Paragraph(str(check.get("returncode",  "")),S["cell"]),
                         Paragraph(f'<font color="#{_hex(chk_fg)}"><b>{chk_stat}</b></font>',
                                   S["status_text"]),
                     ])
@@ -554,9 +562,20 @@ def generate_report_pdf(
     doc.build(story, onFirstPage=_draw_header, onLaterPages=_draw_later)
 
 
+# ---------------------------------------------------------------------------
 # Accordion widget
+# ---------------------------------------------------------------------------
 
 class AccordionSection:
+    # Class-level colour/icon maps — defined once, not per-instance
+    _COLOR_MAP = {
+        "PASS":    ("#1f6f43", "#1f6f43"),
+        "PARTIAL": ("#d1a800", "#d1a800"),
+        "FAIL":    ("#8b1e1e", "#8b1e1e"),
+        "ERROR":   ("#8b1e1e", "#8b1e1e"),
+    }
+    _ICON_MAP = {"PASS": "  ✓", "PARTIAL": "  !", "FAIL": "  ✗", "ERROR": "  ✗"}
+
     def __init__(
         self,
         parent: ctk.CTkScrollableFrame,
@@ -564,9 +583,7 @@ class AccordionSection:
         rule_metas: List[Dict[str, str]],
         on_rule_select: callable,
     ):
-        self.parent         = parent
         self.category       = category
-        self.rule_metas     = rule_metas
         self.on_rule_select = on_rule_select
         self.expanded: bool = False
         self.rule_buttons: Dict[str, ctk.CTkButton] = {}
@@ -618,15 +635,8 @@ class AccordionSection:
         btn = self.rule_buttons.get(path)
         if btn is None:
             return
-        COLOR_MAP = {
-            "PASS":    ("#1f6f43", "#1f6f43"),
-            "PARTIAL": ("#d1a800", "#d1a800"),
-            "FAIL":    ("#8b1e1e", "#8b1e1e"),
-            "ERROR":   ("#8b1e1e", "#8b1e1e"),
-        }
-        ICON_MAP = {"PASS": "  ✓", "PARTIAL": "  !", "FAIL": "  ✗", "ERROR": "  ✗"}
-        icon     = ICON_MAP.get(status, "")
-        color    = COLOR_MAP.get(status, ("transparent", "transparent"))
+        icon     = self._ICON_MAP.get(status, "")
+        color    = self._COLOR_MAP.get(status, ("transparent", "transparent"))
         text_col = ("white", "white") if color != ("transparent", "transparent") else ("#1a1a1a", "#e0e0e0")
         btn.configure(text=f"{rule_id}{icon}", fg_color=color, text_color=text_col)
 
@@ -634,11 +644,10 @@ class AccordionSection:
         for path, btn in self.rule_buttons.items():
             if path == selected_path:
                 btn.configure(fg_color=("#3b8ed0", "#3b8ed0"), text_color=("white", "white"))
-                continue
-            result = results_by_path.get(path)
-            if result:
-                status = get_rule_status(result)
-                self.set_button_color(path, status, result.get("rule_id", os.path.basename(path)))
+            elif path in results_by_path:
+                status = get_rule_status(results_by_path[path])
+                self.set_button_color(path, status,
+                                      results_by_path[path].get("rule_id", os.path.basename(path)))
             else:
                 btn.configure(fg_color="transparent", text_color=("#1a1a1a", "#e0e0e0"))
 
@@ -663,6 +672,8 @@ class ComplianceDebugApp(ctk.CTk):
         self.selected_rule_path: Optional[str]                    = None
         self.accordion_sections: Dict[str, AccordionSection]      = {}
 
+        self._path_to_section:   Dict[str, AccordionSection]      = {}
+
         self.theme:        str  = "dark"
         self.running:      bool = False
         self.all_rules_run:bool = False
@@ -676,7 +687,6 @@ class ComplianceDebugApp(ctk.CTk):
 
     # ------------------------------------------------------------------
     def _build_layout(self):
-        # TOP
         top = ctk.CTkFrame(self)
         top.pack(fill="x", padx=10, pady=(10, 6))
 
@@ -688,19 +698,14 @@ class ComplianceDebugApp(ctk.CTk):
         self.os_label.pack(side="left", padx=10, pady=8)
 
         self.theme_button = ctk.CTkButton(
-            top,
-            text="☽",
-            command=self.toggle_theme,
-            width=36,
-            height=36,
-            font=ctk.CTkFont(size=16),
+            top, text="☽", command=self.toggle_theme,
+            width=36, height=36, font=ctk.CTkFont(size=16),
         )
         self.theme_button.pack(side="right", padx=10, pady=8)
 
         self.refresh_btn = ctk.CTkButton(top, text="Refresh Rules", command=self.refresh_rules)
         self.refresh_btn.pack(side="right", padx=10, pady=8)
 
-        # MAIN
         main = ctk.CTkFrame(self)
         main.pack(fill="both", expand=True, padx=10, pady=6)
 
@@ -723,7 +728,6 @@ class ComplianceDebugApp(ctk.CTk):
         )
         self.summary_label.pack(anchor="w", padx=10, pady=(10, 6))
 
-        # ---- coloured details pane (raw tk.Text + CTkScrollbar) ----
         details_frame = ctk.CTkFrame(right, fg_color="transparent")
         details_frame.pack(fill="both", expand=True, padx=10, pady=(0, 10))
 
@@ -746,13 +750,11 @@ class ComplianceDebugApp(ctk.CTk):
 
         details_scroll = ctk.CTkScrollbar(details_frame, command=self.details_text.yview)
         self.details_text.configure(yscrollcommand=details_scroll.set)
-
         details_scroll.pack(side="right", fill="y")
         self.details_text.pack(side="left", fill="both", expand=True)
 
         render_placeholder(self.details_text, "Run rules to view results.")
 
-        # BOTTOM
         bottom = ctk.CTkFrame(self)
         bottom.pack(fill="x", padx=10, pady=(6, 10))
 
@@ -809,30 +811,25 @@ class ComplianceDebugApp(ctk.CTk):
         return [m["path"] for m in self.rules]
 
     def _section_for_path(self, path: str) -> Optional[AccordionSection]:
-        for section in self.accordion_sections.values():
-            if path in section.rule_buttons:
-                return section
-        return None
+        """O(1) lookup via reverse-index dict."""
+        return self._path_to_section.get(path)
 
     # ------------------------------------------------------------------
     def refresh_rules(self):
         rules_dir  = os.path.join(PROJECT_ROOT, "rulesets")
         categories = discover_rule_files(rules_dir)
 
-        self.rules_by_category = {}
-        self.rules = []
-        for category, paths in categories.items():
-            metas = [load_rule_metadata(p) for p in paths]
-            self.rules_by_category[category] = metas
-            self.rules.extend(metas)
+        self.rules_by_category = categories
+        self.rules = [m for metas in categories.values() for m in metas]
 
         for section in self.accordion_sections.values():
             section.wrapper.destroy()
         self.accordion_sections.clear()
+        self._path_to_section.clear()
         self.results_by_path.clear()
         self._update_progress(0.0)
 
-        for category, metas in self.rules_by_category.items():
+        for category, metas in categories.items():
             section = AccordionSection(
                 parent=self.rules_scroll,
                 category=category,
@@ -840,6 +837,9 @@ class ComplianceDebugApp(ctk.CTk):
                 on_rule_select=self.select_rule,
             )
             self.accordion_sections[category] = section
+            # Build reverse-lookup at construction time — O(1) later
+            for meta in metas:
+                self._path_to_section[meta["path"]] = section
 
         total     = len(self.rules)
         cat_count = len(self.rules_by_category)
@@ -922,11 +922,19 @@ class ComplianceDebugApp(ctk.CTk):
         self._set_controls_enabled(False)
         self._update_progress(0.0)
         rule_paths = self._all_rule_paths()
+        total_rules = len(rule_paths)
+
+        _last_update: List[float] = [0.0]
 
         def progress_cb(i: int, total: int, _path: str):
-            progress    = i / total if total else 0
-            status_text = f"Running… ({i}/{total})"
-            self.after(0, lambda: (self.set_status(status_text), self._update_progress(progress)))
+            import time
+            now = time.monotonic()
+            if i == total or (now - _last_update[0]) >= 0.1:
+                _last_update[0] = now
+                progress    = i / total if total else 0
+                status_text = f"Running… ({i}/{total})"
+                self.after(0, lambda p=progress, s=status_text:
+                           (self.set_status(s), self._update_progress(p)))
 
         def worker():
             results = run_rules_blocking(rule_paths, progress_cb=progress_cb)
@@ -941,7 +949,7 @@ class ComplianceDebugApp(ctk.CTk):
 
         for path, result in results.items():
             status  = get_rule_status(result)
-            section = self._section_for_path(path)
+            section = self._section_for_path(path)   # O(1) now
             if section:
                 section.set_button_color(path, status,
                                          result.get("rule_id", os.path.basename(path)))
@@ -992,13 +1000,31 @@ class ComplianceDebugApp(ctk.CTk):
         if not save_path:
             return
 
+        # Freeze controls and show progress while PDF builds in background
         self.set_status("Generating PDF…")
+        self._set_controls_enabled(False)
+        self._update_progress(0.0)
         self.update_idletasks()
-        try:
-            generate_report_pdf(save_path, self.results_by_path, self.rules_by_category)
-            self.set_status(f"Report saved: {os.path.basename(save_path)}")
-        except Exception as exc:
-            self.set_status(f"Export failed: {exc}")
+
+        results_snapshot  = dict(self.results_by_path)
+        category_snapshot = dict(self.rules_by_category)
+
+        def worker():
+            try:
+                generate_report_pdf(save_path, results_snapshot, category_snapshot)
+                self.after(0, lambda: (
+                    self._update_progress(1.0),
+                    self.set_status(f"Report saved: {os.path.basename(save_path)}"),
+                    self._set_controls_enabled(True),
+                ))
+            except Exception as exc:
+                self.after(0, lambda: (
+                    self._update_progress(0.0),
+                    self.set_status(f"Export failed: {exc}"),
+                    self._set_controls_enabled(True),
+                ))
+
+        threading.Thread(target=worker, daemon=True).start()
 
     # ------------------------------------------------------------------
     def _set_controls_enabled(self, enabled: bool):
