@@ -1,0 +1,125 @@
+{
+  "id": "IA.L2-3.5.7",
+  "control_number": "IA.L2-3.5.7",
+  "title": "Enforce Minimum Password Complexity and Change Requirements",
+  "description": "Enforce a minimum password complexity and change of characters when new passwords are created.",
+  "category": "IA",
+  "target_os": [
+    "debian",
+    "linux",
+    "windows-client",
+    "windows-server"
+  ],
+  "check_details": {
+    "windows_client": {
+      "checks": [
+        {
+          "check_type": "command",
+          "name": "Password Complexity is Enabled",
+          "sub_control": "a",
+          "command": "cs_f(identification_authentication.password_complexity_wc)",
+          "expected_result": "True",
+          "purpose": "Verify Password must meet complexity requirements is enabled in the local or domain password policy"
+        },
+        {
+          "check_type": "command",
+          "name": "Minimum Password Length Meets Requirement",
+          "sub_control": "b",
+          "command": "cs_f(identification_authentication.password_min_length_wc)",
+          "expected_result": "True",
+          "purpose": "Confirm minimum password length is set to at least 14 characters in the local or domain password policy"
+        }
+      ]
+    },
+    "windows_server": {
+      "checks": [
+        {
+          "check_type": "command",
+          "name": "Password Complexity is Enabled",
+          "sub_control": "a",
+          "command": "cs_f(identification_authentication.password_complexity_ws)",
+          "expected_result": "True",
+          "purpose": "Verify Password must meet complexity requirements is enabled in the domain password policy"
+        },
+        {
+          "check_type": "command",
+          "name": "Minimum Password Length Meets Requirement",
+          "sub_control": "b",
+          "command": "cs_f(identification_authentication.password_min_length_ws)",
+          "expected_result": "True",
+          "purpose": "Confirm minimum password length is set to at least 14 characters in the domain password policy"
+        },
+        {
+          "check_type": "command",
+          "name": "Fine-Grained Password Policy Enforces Stricter Rules for Admins",
+          "sub_control": "c",
+          "command": "cs_f(identification_authentication.fgpp_admin_policy_ws)",
+          "expected_result": "True",
+          "purpose": "Verify a Fine-Grained Password Policy (FGPP) applies stricter length and complexity requirements to privileged accounts"
+        }
+      ]
+    },
+    "linux": {
+      "checks": [
+        {
+          "check_type": "command",
+          "name": "PAM Password Quality Requirements are Configured",
+          "sub_control": "a",
+          "command": "cs_f(identification_authentication.pam_pwquality_wc)",
+          "expected_result": "True",
+          "purpose": "Verify pam_pwquality or pam_cracklib is configured in /etc/pam.d/common-password with minlen and minclass requirements"
+        },
+        {
+          "check_type": "command",
+          "name": "Minimum Password Length Meets Requirement",
+          "sub_control": "b",
+          "command": "cs_f(identification_authentication.password_min_length_lx)",
+          "expected_result": "True",
+          "purpose": "Confirm minlen in /etc/security/pwquality.conf is set to at least 14 characters"
+        },
+        {
+          "check_type": "command",
+          "name": "Password Complexity Classes are Enforced",
+          "sub_control": "c",
+          "command": "cs_f(identification_authentication.password_complexity_lx)",
+          "expected_result": "True",
+          "purpose": "Verify minclass is set to at least 3 in /etc/security/pwquality.conf to require mixed character classes"
+        }
+      ]
+    },
+    "debian": {
+      "checks": [
+        {
+          "check_type": "command",
+          "name": "PAM Password Quality Requirements are Configured",
+          "sub_control": "a",
+          "command": "cs_f(identification_authentication.pam_pwquality_wc)",
+          "expected_result": "True",
+          "purpose": "Verify pam_pwquality is configured in /etc/pam.d/common-password with minlen and minclass on Debian"
+        },
+        {
+          "check_type": "command",
+          "name": "Minimum Password Length Meets Requirement",
+          "sub_control": "b",
+          "command": "cs_f(identification_authentication.password_min_length_lx)",
+          "expected_result": "True",
+          "purpose": "Confirm minlen in /etc/security/pwquality.conf is set to at least 14 characters on Debian"
+        },
+        {
+          "check_type": "command",
+          "name": "Password Complexity Classes are Enforced",
+          "sub_control": "c",
+          "command": "cs_f(identification_authentication.password_complexity_lx)",
+          "expected_result": "True",
+          "purpose": "Verify minclass is set to at least 3 in /etc/security/pwquality.conf on Debian"
+        }
+      ]
+    }
+  },
+  "severity": "Medium",
+  "remediation": "Enable password complexity requirements and set minimum length to 14+ characters via GPO. Configure Fine-Grained Password Policies for privileged accounts. On Linux, install libpam-pwquality and configure minlen=14 and minclass=3 in /etc/security/pwquality.conf.",
+  "tags": [
+    "IA",
+    "IA.L2-3.5.7"
+  ]
+}

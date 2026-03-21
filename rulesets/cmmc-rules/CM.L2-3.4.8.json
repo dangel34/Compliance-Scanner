@@ -1,0 +1,133 @@
+{
+  "id": "CM.L2-3.4.8",
+  "control_number": "CM.L2-3.4.8",
+  "title": "Apply Deny-by-Exception Policy to Prevent Use of Unauthorized Software",
+  "description": "Apply deny-by-exception (blacklisting) policy to prevent use of unauthorized software or deny-all, permit-by-exception (whitelisting) policy to allow execution of authorized software.",
+  "category": "CM",
+  "target_os": [
+    "debian",
+    "linux",
+    "windows-client",
+    "windows-server"
+  ],
+  "check_details": {
+    "windows_client": {
+      "checks": [
+        {
+          "check_type": "command",
+          "name": "AppLocker or WDAC Policy is Configured",
+          "sub_control": "a",
+          "command": "cs_f(configuration_management.applocker_wdac_enabled_wc)",
+          "expected_result": "True",
+          "purpose": "Verify AppLocker or Windows Defender Application Control (WDAC) is configured and enforcing an allow or deny policy for executable files"
+        },
+        {
+          "check_type": "command",
+          "name": "AppLocker or WDAC Policy is in Enforce Mode",
+          "sub_control": "b",
+          "command": "cs_f(configuration_management.applocker_enforce_mode_wc)",
+          "expected_result": "True",
+          "purpose": "Confirm the application control policy is in Enforce mode and not Audit-only mode"
+        },
+        {
+          "check_type": "command",
+          "name": "Application Control Rules Cover Executables, Scripts, and Installers",
+          "sub_control": "c",
+          "command": "cs_f(configuration_management.applocker_rule_coverage_wc)",
+          "expected_result": "True",
+          "purpose": "Verify application control rules cover EXE, DLL, Script, and MSI rule collections to prevent bypass"
+        }
+      ]
+    },
+    "windows_server": {
+      "checks": [
+        {
+          "check_type": "command",
+          "name": "AppLocker or WDAC Policy is Configured",
+          "sub_control": "a",
+          "command": "cs_f(configuration_management.applocker_wdac_enabled_ws)",
+          "expected_result": "True",
+          "purpose": "Verify AppLocker or WDAC is configured and enforcing an allow or deny policy on this server"
+        },
+        {
+          "check_type": "command",
+          "name": "AppLocker or WDAC Policy is in Enforce Mode",
+          "sub_control": "b",
+          "command": "cs_f(configuration_management.applocker_enforce_mode_ws)",
+          "expected_result": "True",
+          "purpose": "Confirm the application control policy is in Enforce mode and not Audit-only mode"
+        },
+        {
+          "check_type": "command",
+          "name": "Application Control Rules Cover Executables, Scripts, and Installers",
+          "sub_control": "c",
+          "command": "cs_f(configuration_management.applocker_rule_coverage_ws)",
+          "expected_result": "True",
+          "purpose": "Verify application control rules cover EXE, DLL, Script, and MSI rule collections"
+        }
+      ]
+    },
+    "linux": {
+      "checks": [
+        {
+          "check_type": "command",
+          "name": "Application Whitelisting or Execution Control is Configured",
+          "sub_control": "a",
+          "command": "cs_f(configuration_management.app_whitelist_lx)",
+          "expected_result": "True",
+          "purpose": "Verify SELinux, AppArmor, or an equivalent MAC framework is enforcing execution control policies"
+        },
+        {
+          "check_type": "command",
+          "name": "SELinux or AppArmor is in Enforcing Mode",
+          "sub_control": "b",
+          "command": "cs_f(configuration_management.mac_enforcing_lx)",
+          "expected_result": "True",
+          "purpose": "Confirm SELinux is set to Enforcing or AppArmor profiles are in enforce mode and not disabled or permissive"
+        },
+        {
+          "check_type": "command",
+          "name": "No Unauthorized SUID or SGID Binaries Exist",
+          "sub_control": "c",
+          "command": "cs_f(configuration_management.suid_sgid_audit_lx)",
+          "expected_result": "True",
+          "purpose": "Scan the filesystem for SUID/SGID binaries and verify all found binaries are in the approved list"
+        }
+      ]
+    },
+    "debian": {
+      "checks": [
+        {
+          "check_type": "command",
+          "name": "Application Whitelisting or Execution Control is Configured",
+          "sub_control": "a",
+          "command": "cs_f(configuration_management.app_whitelist_lx)",
+          "expected_result": "True",
+          "purpose": "Verify AppArmor is installed and enforcing execution control profiles on this Debian system"
+        },
+        {
+          "check_type": "command",
+          "name": "AppArmor is in Enforcing Mode",
+          "sub_control": "b",
+          "command": "cs_f(configuration_management.mac_enforcing_lx)",
+          "expected_result": "True",
+          "purpose": "Confirm AppArmor profiles are loaded and in enforce mode and not in complain or disabled state"
+        },
+        {
+          "check_type": "command",
+          "name": "No Unauthorized SUID or SGID Binaries Exist",
+          "sub_control": "c",
+          "command": "cs_f(configuration_management.suid_sgid_audit_lx)",
+          "expected_result": "True",
+          "purpose": "Scan the filesystem for SUID/SGID binaries and verify all found binaries are in the approved list"
+        }
+      ]
+    }
+  },
+  "severity": "High",
+  "remediation": "Deploy and enforce AppLocker or WDAC policies on Windows covering EXE, DLL, Script, and MSI rule collections. Set policies to Enforce mode. On Linux, enable and enforce SELinux or AppArmor. Audit and remediate unauthorized SUID/SGID binaries. Maintain an approved application and binary list.",
+  "tags": [
+    "CM",
+    "CM.L2-3.4.8"
+  ]
+}

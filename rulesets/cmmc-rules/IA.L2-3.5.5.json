@@ -1,0 +1,141 @@
+{
+  "id": "IA.L2-3.5.5",
+  "control_number": "IA.L2-3.5.5",
+  "title": "Employ Identifier Management",
+  "description": "Employ identifier management for users and devices by receiving authorization before assigning an identifier, preventing reuse of identifiers, and disabling identifiers after a defined period of inactivity.",
+  "category": "IA",
+  "target_os": [
+    "debian",
+    "linux",
+    "windows-client",
+    "windows-server"
+  ],
+  "check_details": {
+    "windows_client": {
+      "checks": [
+        {
+          "check_type": "command",
+          "name": "Inactive User Accounts are Disabled",
+          "sub_control": "a",
+          "command": "cs_f(identification_authentication.inactive_accounts_disabled_wc)",
+          "expected_result": "True",
+          "purpose": "Verify accounts that have not logged in within the defined inactivity period (e.g., 60 days) are disabled"
+        },
+        {
+          "check_type": "command",
+          "name": "Guest Account is Disabled",
+          "sub_control": "b",
+          "command": "cs_f(identification_authentication.guest_account_disabled_wc)",
+          "expected_result": "True",
+          "purpose": "Confirm the built-in Guest account is disabled on this system"
+        },
+        {
+          "check_type": "command",
+          "name": "Account Naming Follows a Defined Convention",
+          "sub_control": "c",
+          "command": "cs_f(identification_authentication.account_naming_convention_wc)",
+          "expected_result": "True",
+          "purpose": "Verify local accounts follow a defined naming convention that prevents ambiguity or reuse of identifiers"
+        }
+      ]
+    },
+    "windows_server": {
+      "checks": [
+        {
+          "check_type": "command",
+          "name": "Inactive User Accounts are Disabled",
+          "sub_control": "a",
+          "command": "cs_f(identification_authentication.inactive_accounts_disabled_ws)",
+          "expected_result": "True",
+          "purpose": "Verify accounts that have not logged in within the defined inactivity period are disabled in AD or locally"
+        },
+        {
+          "check_type": "command",
+          "name": "Guest Account is Disabled",
+          "sub_control": "b",
+          "command": "cs_f(identification_authentication.guest_account_disabled_ws)",
+          "expected_result": "True",
+          "purpose": "Confirm the built-in Guest account is disabled on this server"
+        },
+        {
+          "check_type": "command",
+          "name": "Account Naming Follows a Defined Convention",
+          "sub_control": "c",
+          "command": "cs_f(identification_authentication.account_naming_convention_ws)",
+          "expected_result": "True",
+          "purpose": "Verify accounts follow a defined naming convention preventing reuse of identifiers for different users"
+        },
+        {
+          "check_type": "command",
+          "name": "Terminated User Accounts are Promptly Disabled or Removed",
+          "sub_control": "d",
+          "command": "cs_f(identification_authentication.terminated_accounts_disabled_ws)",
+          "expected_result": "True",
+          "purpose": "Confirm no active accounts exist for users who are no longer authorized by checking last logon against HR records or an IAM system"
+        }
+      ]
+    },
+    "linux": {
+      "checks": [
+        {
+          "check_type": "command",
+          "name": "Inactive User Accounts are Locked",
+          "sub_control": "a",
+          "command": "cs_f(identification_authentication.inactive_accounts_disabled_lx)",
+          "expected_result": "True",
+          "purpose": "Verify the INACTIVE field in /etc/shadow or useradd defaults is set to lock accounts after the defined inactivity period"
+        },
+        {
+          "check_type": "command",
+          "name": "Guest and Anonymous Accounts are Locked or Removed",
+          "sub_control": "b",
+          "command": "cs_f(identification_authentication.guest_account_disabled_lx)",
+          "expected_result": "True",
+          "purpose": "Confirm accounts named guest, nobody, or anonymous have no valid shell and are locked in /etc/shadow"
+        },
+        {
+          "check_type": "command",
+          "name": "Unique UIDs are Not Reused",
+          "sub_control": "c",
+          "command": "cs_f(identification_authentication.uid_not_reused_lx)",
+          "expected_result": "True",
+          "purpose": "Verify no UID has been reused across current and recently removed accounts by checking /etc/passwd against deleted account UIDs"
+        }
+      ]
+    },
+    "debian": {
+      "checks": [
+        {
+          "check_type": "command",
+          "name": "Inactive User Accounts are Locked",
+          "sub_control": "a",
+          "command": "cs_f(identification_authentication.inactive_accounts_disabled_lx)",
+          "expected_result": "True",
+          "purpose": "Verify the INACTIVE field in /etc/shadow is set to lock accounts after the defined inactivity period on Debian"
+        },
+        {
+          "check_type": "command",
+          "name": "Guest and Anonymous Accounts are Locked or Removed",
+          "sub_control": "b",
+          "command": "cs_f(identification_authentication.guest_account_disabled_lx)",
+          "expected_result": "True",
+          "purpose": "Confirm accounts named guest or nobody have no valid shell and are locked in /etc/shadow on Debian"
+        },
+        {
+          "check_type": "command",
+          "name": "Unique UIDs are Not Reused",
+          "sub_control": "c",
+          "command": "cs_f(identification_authentication.uid_not_reused_lx)",
+          "expected_result": "True",
+          "purpose": "Verify no UID has been reused across current and recently removed accounts on Debian"
+        }
+      ]
+    }
+  },
+  "severity": "Medium",
+  "remediation": "Configure account inactivity lockout policy via GPO (disable after 60 days of inactivity). Disable the Guest account. Establish and enforce an account naming convention. On Linux, set INACTIVE in /etc/default/useradd and use passwd -l to lock inactive accounts. Implement an offboarding process to promptly disable departed user accounts.",
+  "tags": [
+    "IA",
+    "IA.L2-3.5.5"
+  ]
+}
