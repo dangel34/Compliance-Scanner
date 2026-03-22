@@ -1,0 +1,101 @@
+{
+  "id": "AC.L2-3.1.8",
+  "control_number": "AC.L2-3.1.8",
+  "title": "Limit Unsuccessful Logon Attempts",
+  "description": "limit unsuccessful logon attempts",
+  "category": "AC",
+  "target_os": [
+    "debian",
+    "linux",
+    "windows-client",
+    "windows-server"
+  ],
+  "check_details": {
+    "windows-client": {
+      "checks": [
+        {
+          "check_type": "command",
+          "name": "Means of Limiting Unsuccessful Logon Attempts is Defined",
+          "sub_control": "a",
+          "command": "NA",
+          "expected_result": "NA",
+          "purpose": "Definition of the means for limiting unsuccessful logon attempts on Windows Client is a GRC documentation concern and is not technically verifiable via automated check"
+        },
+        {
+          "check_type": "command",
+          "name": "Defined Means of Limiting Unsuccessful Logon Attempts is Implemented",
+          "sub_control": "b",
+          "command": "cs_f{access_control.logon_attempt_limit_wc}",
+          "expected_result": "True",
+          "purpose": "Verify that account lockout policy is configured with an acceptable threshold, lockout duration, and observation window via local security policy"
+        }
+      ]
+    },
+    "windows-server": {
+      "checks": [
+        {
+          "check_type": "command",
+          "name": "Means of Limiting Unsuccessful Logon Attempts is Defined",
+          "sub_control": "a",
+          "command": "cs_f{access_control.logon_attempt_limit_defined_ws}",
+          "expected_result": "True",
+          "purpose": "Verify that account lockout policy is defined and enforced via Group Policy at the domain level with documented threshold, duration, and observation window values"
+        },
+        {
+          "check_type": "command",
+          "name": "Defined Means of Limiting Unsuccessful Logon Attempts is Implemented",
+          "sub_control": "b",
+          "command": "cs_f{access_control.logon_attempt_limit_ws}",
+          "expected_result": "True",
+          "purpose": "Confirm that the domain-level account lockout policy is actively enforced with acceptable threshold, lockout duration, and observation window values"
+        }
+      ]
+    },
+    "linux": {
+      "checks": [
+        {
+          "check_type": "command",
+          "name": "Means of Limiting Unsuccessful Logon Attempts is Defined",
+          "sub_control": "a",
+          "command": "grep -E 'deny|unlock_time|fail_interval' /etc/security/faillock.conf /etc/pam.d/common-auth 2>/dev/null",
+          "expected_result": "deny and unlock_time values present and non-zero in faillock.conf or PAM configuration",
+          "purpose": "Verify that the means of limiting unsuccessful logon attempts is defined via pam_faillock or pam_tally2 configuration with explicit deny and unlock_time values"
+        },
+        {
+          "check_type": "command",
+          "name": "Defined Means of Limiting Unsuccessful Logon Attempts is Implemented",
+          "sub_control": "b",
+          "command": "cs_f{access_control.logon_attempt_limit_lx}",
+          "expected_result": "True",
+          "purpose": "Confirm that pam_faillock or pam_tally2 is active in PAM stack with an acceptable deny threshold and unlock time, and that SSH MaxAuthTries is configured"
+        }
+      ]
+    },
+    "debian": {
+      "checks": [
+        {
+          "check_type": "command",
+          "name": "Means of Limiting Unsuccessful Logon Attempts is Defined",
+          "sub_control": "a",
+          "command": "grep -E 'deny|unlock_time|fail_interval' /etc/security/faillock.conf /etc/pam.d/common-auth 2>/dev/null",
+          "expected_result": "deny and unlock_time values present and non-zero in faillock.conf or PAM configuration",
+          "purpose": "Verify that the means of limiting unsuccessful logon attempts is defined via pam_faillock or pam_tally2 configuration with explicit deny and unlock_time values"
+        },
+        {
+          "check_type": "command",
+          "name": "Defined Means of Limiting Unsuccessful Logon Attempts is Implemented",
+          "sub_control": "b",
+          "command": "cs_f{access_control.logon_attempt_limit_lx}",
+          "expected_result": "True",
+          "purpose": "Confirm that pam_faillock or pam_tally2 is active in PAM stack with an acceptable deny threshold and unlock time, and that SSH MaxAuthTries is configured"
+        }
+      ]
+    }
+  },
+  "severity": "Medium",
+  "remediation": "Instructions to remediate non-compliance",
+  "tags": [
+    "AC",
+    "AC.L2-3.1.8"
+  ]
+}

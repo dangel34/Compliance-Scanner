@@ -679,9 +679,6 @@ def firewall_rules_lx() -> bool:
 def function_restriction_wc() -> bool:
     """
     AC.L2-3.1.2b - System Access is Limited to Defined Transactions and Functions (Windows Client)
-    Checks that AppLocker or Software Restriction Policies are configured
-    and enforced to limit users to permitted functions.
-    Returns True if at least one application control mechanism is active.
     """
     try:
         applocker_active = False
@@ -732,10 +729,6 @@ def function_restriction_wc() -> bool:
 def function_restriction_ws() -> bool:
     """
     AC.L2-3.1.2b - System Access is Limited to Defined Transactions and Functions (Windows Server)
-    Checks that NTFS permissions and share permissions do not grant
-    broad access to Everyone or Authenticated Users, and that
-    AD role assignments are scoped to named groups.
-    Returns True if no overly permissive NTFS or share permissions are found.
     """
     try:
         broad_principals = {"everyone", "authenticated users", "users"}
@@ -796,11 +789,6 @@ def function_restriction_ws() -> bool:
 def function_restriction_lx() -> bool:
     """
     AC.L2-3.1.2b - System Access is Limited to Defined Transactions and Functions (Linux/Debian)
-    Checks three enforcement mechanisms:
-    1. Sudoers does not contain unrestricted ALL=(ALL) ALL entries for non-root users
-    2. PAM is configured with at least one access control module
-    3. SELinux or AppArmor is active and enforcing
-    Returns True if all three conditions are met.
     """
     try:
         sudoers_clean = False
@@ -878,9 +866,6 @@ def function_restriction_lx() -> bool:
 def cui_flow_policy_wc() -> bool:
     """
     AC.L2-3.1.3a - Information Flow Control Policies are Defined (Windows Client)
-    Checks that Group Policy and/or Windows Defender Firewall have defined
-    rules governing the flow of information, indicating a policy exists.
-    Returns True if at least one flow control policy mechanism is configured.
     """
     try:
         policy_defined = False
@@ -933,9 +918,6 @@ def cui_flow_policy_wc() -> bool:
 def cui_flow_enforcement_wc() -> bool:
     """
     AC.L2-3.1.3b - Methods and Enforcement Mechanisms for CUI Flow are Defined (Windows Client)
-    Checks that Windows Defender Firewall is active, outbound rules exist,
-    and removable media write access is restricted via Group Policy or registry.
-    Returns True if all enforcement mechanisms are active.
     """
     try:
         firewall_enforced = False
@@ -995,10 +977,6 @@ def cui_flow_enforcement_wc() -> bool:
 def cui_flow_authorization_wc() -> bool:
     """
     AC.L2-3.1.3d - Authorizations for Controlling CUI Flow are Defined (Windows Client)
-    Checks that Windows Defender Firewall outbound block rules and any
-    DLP-style registry policies are scoped to named users or groups
-    rather than broad principals.
-    Returns True if CUI flow authorizations are scoped to named identities.
     """
     try:
         broad_principals = {"everyone", "authenticated users", "users", ""}
@@ -1047,9 +1025,6 @@ def cui_flow_authorization_wc() -> bool:
 def cui_flow_policy_ws() -> bool:
     """
     AC.L2-3.1.3a - Information Flow Control Policies are Defined (Windows Server)
-    Checks that Windows Defender Firewall has outbound block rules and
-    IPSec policies are configured, indicating defined CUI flow control policies.
-    Returns True if at least one flow control policy mechanism is configured.
     """
     try:
         policy_defined = False
@@ -1089,9 +1064,6 @@ def cui_flow_policy_ws() -> bool:
 def cui_flow_enforcement_ws() -> bool:
     """
     AC.L2-3.1.3b - Methods and Enforcement Mechanisms for CUI Flow are Defined (Windows Server)
-    Checks that Windows Defender Firewall is active on all profiles,
-    IPSec rules exist, and share/NTFS permissions are not overly permissive.
-    Returns True if all enforcement mechanisms are active.
     """
     try:
         # Check firewall enabled on all profiles
@@ -1155,9 +1127,6 @@ def cui_flow_enforcement_ws() -> bool:
 def cui_flow_authorization_ws() -> bool:
     """
     AC.L2-3.1.3d - Authorizations for Controlling CUI Flow are Defined (Windows Server)
-    Checks that AD group assignments, NTFS permissions, and share permissions
-    are scoped to named authorized groups rather than broad principals.
-    Returns True if CUI flow authorizations are scoped to named identities.
     """
     try:
         broad_principals = {"everyone", "authenticated users", "users"}
@@ -1216,9 +1185,6 @@ def cui_flow_authorization_ws() -> bool:
 def cui_flow_policy_lx() -> bool:
     """
     AC.L2-3.1.3a - Information Flow Control Policies are Defined (Linux/Debian)
-    Checks that SELinux or AppArmor policy definitions exist and that
-    firewall rules are configured, indicating a defined flow control policy.
-    Returns True if at least one MAC policy and firewall configuration exist.
     """
     try:
         mac_policy_defined = False
@@ -1271,9 +1237,6 @@ def cui_flow_policy_lx() -> bool:
 def cui_flow_enforcement_lx() -> bool:
     """
     AC.L2-3.1.3b - Methods and Enforcement Mechanisms for CUI Flow are Defined (Linux/Debian)
-    Checks that iptables/nftables/firewalld is active with inbound rules,
-    SELinux or AppArmor is enforcing, and file permissions follow least privilege.
-    Returns True if all three enforcement mechanisms are active.
     """
     try:
         firewall_enforcing = False
@@ -1350,9 +1313,6 @@ def cui_flow_enforcement_lx() -> bool:
 def cui_flow_authorization_lx() -> bool:
     """
     AC.L2-3.1.3d - Authorizations for Controlling CUI Flow are Defined (Linux/Debian)
-    Checks that file ownership, group permissions, and ACLs on sensitive
-    directories are scoped to named users and roles, not world-accessible.
-    Returns True if sensitive directories are properly owned and not world-readable.
     """
     try:
         sensitive_dirs = ["/etc/sudoers", "/etc/ssh", "/etc/pam.d", "/var/log"]
@@ -1416,10 +1376,6 @@ def cui_flow_authorization_lx() -> bool:
 def separation_of_duties_defined_wc() -> bool:
     """
     AC.L2-3.1.4a - Duties Requiring Separation are Defined (Windows Client)
-    Checks that distinct local groups exist representing separated roles
-    (Administrators vs standard Users) and that Group Policy enforces
-    user rights assignments to named groups rather than broad principals.
-    Returns True if separated role definitions are in place.
     """
     try:
         broad_principals = {"everyone", "authenticated users"}
@@ -1471,11 +1427,6 @@ def separation_of_duties_defined_wc() -> bool:
 def separation_of_duties_assigned_wc() -> bool:
     """
     AC.L2-3.1.4b - Responsibilities for Separated Duties are Assigned to
-    Separate Individuals (Windows Client)
-    Checks that no single local user account is a member of both the
-    Administrators group and the standard Users group simultaneously,
-    and that no standard user has been granted admin-level user rights.
-    Returns True if no cross-role membership conflicts are found.
     """
     try:
         # Get Administrators group members
@@ -1558,10 +1509,6 @@ def separation_of_duties_assigned_wc() -> bool:
 def separation_of_duties_defined_ws() -> bool:
     """
     AC.L2-3.1.4a - Duties Requiring Separation are Defined (Windows Server)
-    Checks that high-privilege AD groups representing separated roles exist
-    and are non-empty, and that no single group conflates multiple
-    high-privilege roles such as Domain Admins and Backup Operators.
-    Returns True if separated role definitions are in place.
     """
     try:
         # High privilege groups that should have distinct, non-overlapping membership
@@ -1621,11 +1568,6 @@ def separation_of_duties_defined_ws() -> bool:
 def separation_of_duties_assigned_ws() -> bool:
     """
     AC.L2-3.1.4b - Responsibilities for Separated Duties are Assigned to
-    Separate Individuals (Windows Server)
-    Checks that no single AD user account is simultaneously a member of
-    multiple high-privilege groups such as Domain Admins and Backup Operators,
-    which would undermine separation of duties.
-    Returns True if no cross-role high-privilege membership conflicts are found.
     """
     try:
         # Groups that should have mutually exclusive membership
@@ -1690,11 +1632,6 @@ def separation_of_duties_assigned_ws() -> bool:
 def separation_of_duties_defined_lx() -> bool:
     """
     AC.L2-3.1.4a - Duties Requiring Separation are Defined (Linux/Debian)
-    Checks that distinct groups exist for elevated and standard access
-    (sudo/wheel vs regular users), that sudoers entries are scoped to
-    named users or groups, and that no wildcard or ALL entries exist
-    without explicit scoping.
-    Returns True if separated role definitions are in place.
     """
     try:
         # Check sudo or wheel group exists and is non-empty
@@ -1757,10 +1694,6 @@ def separation_of_duties_assigned_lx() -> bool:
     """
     AC.L2-3.1.4b - Responsibilities for Separated Duties are Assigned to
     Separate Individuals (Linux/Debian)
-    Checks that no single user account is simultaneously a member of
-    sudo/wheel and other sensitive groups such as shadow, adm, or docker,
-    which would indicate a concentration of privileges in one identity.
-    Returns True if no cross-role membership conflicts are found.
     """
     try:
         # Groups that indicate elevated or sensitive access
@@ -1822,10 +1755,6 @@ def separation_of_duties_assigned_lx() -> bool:
 def privileged_accounts_identified_wc() -> bool:
     """
     AC.L2-3.1.5a - Privileged Accounts are Identified (Windows Client)
-    Enumerates local Administrators group members and checks for any
-    accounts with elevated user rights assignments via secedit.
-    Returns True if privileged accounts are identified and no anonymous
-    or broad principals hold administrative access.
     """
     try:
         broad_principals = {"everyone", "authenticated users", "users"}
@@ -1883,10 +1812,6 @@ def privileged_accounts_identified_wc() -> bool:
 def privileged_accounts_identified_ws() -> bool:
     """
     AC.L2-3.1.5a - Privileged Accounts are Identified (Windows Server)
-    Enumerates Domain Admins, Schema Admins, Enterprise Admins, and
-    local Administrator accounts. Returns True if all privileged groups
-    are non-empty, contain only named accounts, and no broad principals
-    hold membership in any high-privilege group.
     """
     try:
         broad_principals = {"everyone", "authenticated users", "users"}
@@ -1949,10 +1874,6 @@ def privileged_accounts_identified_ws() -> bool:
 def privileged_accounts_identified_lx() -> bool:
     """
     AC.L2-3.1.5a - Privileged Accounts are Identified (Linux/Debian)
-    Enumerates sudo/wheel group members, UID 0 accounts, and sudoers
-    entries to confirm all privileged accounts are named and identified.
-    Returns True if all privileged accounts are explicitly named with
-    no anonymous or wildcard privilege grants.
     """
     try:
         # Check for any non-root UID 0 accounts
@@ -2020,10 +1941,6 @@ def privileged_accounts_identified_lx() -> bool:
 def security_functions_identified_wc() -> bool:
     """
     AC.L2-3.1.5c - Security Functions are Identified (Windows Client)
-    Checks that key security functions — audit policy, Windows Defender
-    Firewall, and sensitive user rights — are configured and mapped to
-    specific privileged roles rather than left at default or unmanaged.
-    Returns True if all three security function areas are configured.
     """
     try:
         audit_configured = False
@@ -2092,10 +2009,6 @@ def security_functions_identified_wc() -> bool:
 def security_functions_identified_ws() -> bool:
     """
     AC.L2-3.1.5c - Security Functions are Identified (Windows Server)
-    Checks that audit policy, Windows Defender Firewall, AD administrative
-    role assignments, and GPO security settings are configured and mapped
-    to specific privileged groups.
-    Returns True if all security function areas are configured.
     """
     try:
         audit_configured = False
@@ -2156,10 +2069,6 @@ def security_functions_identified_ws() -> bool:
 def security_functions_identified_lx() -> bool:
     """
     AC.L2-3.1.5c - Security Functions are Identified (Linux/Debian)
-    Checks that firewall management, audit logging (auditd), and
-    SELinux/AppArmor administration are active and mapped to
-    named privileged accounts via sudoers or group membership.
-    Returns True if all three security function areas are identified.
     """
     try:
         auditd_configured = False
@@ -2228,10 +2137,6 @@ def security_functions_enforcement_wc() -> bool:
     """
     AC.L2-3.1.5d - Access to Security Functions is Authorized per Least
     Privilege (Windows Client)
-    Checks that sensitive user rights (audit management, security policy,
-    debug privilege) are restricted to named privileged accounts and
-    explicitly denied to standard users via Group Policy.
-    Returns True if security function access is properly restricted.
     """
     try:
         broad_principals = {"everyone", "authenticated users", "users"}
@@ -2293,10 +2198,6 @@ def security_functions_enforcement_ws() -> bool:
     """
     AC.L2-3.1.5d - Access to Security Functions is Authorized per Least
     Privilege (Windows Server)
-    Checks that sensitive AD and GP security function rights are restricted
-    to named privileged groups, UAC is enforced, and standard users are
-    explicitly denied administrative user rights via Group Policy.
-    Returns True if security function access is properly restricted.
     """
     try:
         broad_principals = {"everyone", "authenticated users", "users"}
@@ -2379,10 +2280,7 @@ def security_functions_enforcement_lx() -> bool:
     """
     AC.L2-3.1.5d - Access to Security Functions is Authorized per Least
     Privilege (Linux/Debian)
-    Checks that sudoers entries for security functions (firewall, auditd,
-    SELinux/AppArmor) are scoped to named privileged accounts, sensitive
-    group membership is controlled, and MAC policy is enforcing.
-    Returns True if all three enforcement conditions are met.
+
     """
     try:
         sudoers_scoped = False
@@ -2485,6 +2383,1913 @@ def security_functions_enforcement_lx() -> bool:
         sensitive_groups_clean = bool(not flagged_members)
 
         return bool(sudoers_scoped and mac_enforcing and sensitive_groups_clean)
+
+    except Exception:
+        return False
+
+def nonprivileged_access_wc() -> bool:
+    """
+    AC.L2-3.1.6b - Users are Required to Use Non-Privileged Accounts for
+    Nonsecurity Functions (Windows Client)
+    """
+    try:
+        broad_principals = {"everyone", "authenticated users", "users"}
+
+        # Check UAC is enabled and standard users are prompted
+        uac_result = subprocess.run(
+            ["powershell", "-Command",
+             "Get-ItemProperty -Path "
+             "'HKLM:\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Policies\\System' "
+             "| Select-Object EnableLUA, ConsentPromptBehaviorUser, "
+             "ConsentPromptBehaviorAdmin | ConvertTo-Json"],
+            capture_output=True, text=True, timeout=30
+        )
+        if uac_result.returncode != 0:
+            return False
+
+        uac_data = json.loads(uac_result.stdout) if uac_result.stdout.strip() else {}
+        if not uac_data:
+            return False
+
+        # EnableLUA must be 1
+        if not bool(uac_data.get("EnableLUA", 0) == 1):
+            return False
+
+        # ConsentPromptBehaviorUser must not be 0 (silent elevation)
+        # 0 = auto-elevate without prompt (fail)
+        # 1 = prompt for credentials (pass)
+        # 3 = prompt for consent (pass)
+        if bool(uac_data.get("ConsentPromptBehaviorUser", 0) == 0):
+            return False
+
+        # Check standard Users group does not overlap with Administrators
+        admin_result = subprocess.run(
+            ["powershell", "-Command",
+             "Get-LocalGroupMember -Group 'Administrators' | "
+             "Select-Object Name, PrincipalSource | ConvertTo-Json"],
+            capture_output=True, text=True, timeout=30
+        )
+        if admin_result.returncode != 0:
+            return False
+
+        admins = json.loads(admin_result.stdout) if admin_result.stdout.strip() else []
+        if isinstance(admins, dict):
+            admins = [admins]
+        if not admins:
+            return False
+
+        users_result = subprocess.run(
+            ["powershell", "-Command",
+             "Get-LocalGroupMember -Group 'Users' | "
+             "Select-Object Name | ConvertTo-Json"],
+            capture_output=True, text=True, timeout=30
+        )
+        if users_result.returncode != 0:
+            return False
+
+        users = json.loads(users_result.stdout) if users_result.stdout.strip() else []
+        if isinstance(users, dict):
+            users = [users]
+
+        admin_names = {
+            a.get("Name", "").lower().split("\\")[-1]
+            for a in admins
+        }
+        user_names = {
+            u.get("Name", "").lower().split("\\")[-1]
+            for u in users
+        }
+
+        # Flag any account in both groups indicating an admin
+        # is also being used as a standard daily-use account
+        cross_role = admin_names.intersection(user_names) - {"administrator"}
+        if cross_role:
+            return False
+
+        # Check no broad principal holds admin rights
+        flagged_admins = [
+            a for a in admins
+            if (a.get("Name") or "").lower().split("\\")[-1] in broad_principals
+        ]
+        if flagged_admins:
+            return False
+
+        # Check sensitive privileges are not assigned to standard users
+        secedit_result = subprocess.run(
+            ["powershell", "-Command",
+             "secedit /export /cfg $env:TEMP\\secpol.cfg /quiet; "
+             "Get-Content $env:TEMP\\secpol.cfg | "
+             "Select-String 'SeDebugPrivilege|SeTakeOwnershipPrivilege|"
+             "SeLoadDriverPrivilege|SeBackupPrivilege'"],
+            capture_output=True, text=True, timeout=30
+        )
+        if secedit_result.returncode != 0:
+            return False
+
+        priv_lines = secedit_result.stdout.strip().splitlines()
+        flagged_privs = [
+            l for l in priv_lines
+            if any(u in l.lower() for u in user_names - {"administrator", "guest"})
+        ]
+
+        return bool(not flagged_privs)
+
+    except Exception:
+        return False
+
+
+def nonprivileged_access_ws() -> bool:
+    """
+    AC.L2-3.1.6b - Users are Required to Use Non-Privileged Accounts for
+    Nonsecurity Functions (Windows Server)
+
+    """
+    try:
+        # Check UAC is enforced on the server
+        uac_result = subprocess.run(
+            ["powershell", "-Command",
+             "Get-ItemProperty -Path "
+             "'HKLM:\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Policies\\System' "
+             "| Select-Object EnableLUA, ConsentPromptBehaviorAdmin | ConvertTo-Json"],
+            capture_output=True, text=True, timeout=30
+        )
+        if uac_result.returncode != 0:
+            return False
+
+        uac_data = json.loads(uac_result.stdout) if uac_result.stdout.strip() else {}
+        if not uac_data:
+            return False
+
+        if not bool(uac_data.get("EnableLUA", 0) == 1):
+            return False
+
+        # ConsentPromptBehaviorAdmin must not be 0 (silent elevation)
+        admin_prompt = uac_data.get("ConsentPromptBehaviorAdmin", 0)
+        if not bool(admin_prompt in {1, 2, 5}):
+            return False
+
+        # Check Domain Admins do not have mailbox-style accounts
+        # by verifying no DA account has a standard UPN suffix
+        # or is also listed as a standard enabled user with a description
+        # suggesting daily use
+        da_result = subprocess.run(
+            ["powershell", "-Command",
+             "Get-ADGroupMember -Identity 'Domain Admins' -Recursive | "
+             "ForEach-Object { Get-ADUser $_.SamAccountName "
+             "-Properties Description, EmailAddress, LastLogonDate } | "
+             "Select-Object SamAccountName, Description, "
+             "EmailAddress, Enabled | ConvertTo-Json"],
+            capture_output=True, text=True, timeout=30
+        )
+        if da_result.returncode != 0:
+            return False
+
+        da_members = json.loads(da_result.stdout) if da_result.stdout.strip() else []
+        if isinstance(da_members, dict):
+            da_members = [da_members]
+        if not da_members:
+            return False
+
+        # Flag DA accounts that have email addresses assigned
+        # indicating they are being used as daily-use accounts
+        flagged_da = [
+            m for m in da_members
+            if (m.get("EmailAddress") or "").strip() != ""
+        ]
+        if flagged_da:
+            return False
+
+        # Check interactive logon is restricted for DA accounts
+        # by verifying "Allow log on locally" is not open to Domain Admins
+        # on non-DC machines via secedit
+        secedit_result = subprocess.run(
+            ["powershell", "-Command",
+             "secedit /export /cfg $env:TEMP\\secpol.cfg /quiet; "
+             "Get-Content $env:TEMP\\secpol.cfg | "
+             "Select-String 'SeInteractiveLogonRight|"
+             "SeDenyInteractiveLogonRight'"],
+            capture_output=True, text=True, timeout=30
+        )
+        if secedit_result.returncode != 0:
+            return False
+
+        logon_lines = secedit_result.stdout.strip().splitlines()
+
+        # Fail if interactive logon is open to Everyone or broad principals
+        broad_principals = {"everyone", "authenticated users", "users"}
+        flagged_logon = [
+            l for l in logon_lines
+            if "SeInteractiveLogonRight" in l
+            and any(p in l.lower() for p in broad_principals)
+        ]
+
+        return bool(not flagged_logon)
+
+    except Exception:
+        return False
+
+
+def nonprivileged_access_lx() -> bool:
+    """
+    AC.L2-3.1.6b - Users are Required to Use Non-Privileged Accounts for
+    Nonsecurity Functions (Linux/Debian)
+    """
+    try:
+        root_login_disabled = False
+        no_unrestricted_sudo = False
+        no_standard_priv_overlap = False
+
+        # Check root SSH login is disabled
+        sshd_result = subprocess.run(
+            ["sshd", "-T"],
+            capture_output=True, text=True, timeout=30
+        )
+        if sshd_result.returncode == 0:
+            output = sshd_result.stdout.lower()
+            permit_root = re.search(
+                r"^permitrootlogin\s+(\S+)", output, re.MULTILINE
+            )
+            if permit_root:
+                root_login_disabled = bool(
+                    permit_root.group(1).lower() in {"no", "prohibit-password"}
+                )
+
+        # Check standard users do not have unrestricted sudo access
+        sudoers_result = subprocess.run(
+            ["sudo", "cat", "/etc/sudoers"],
+            capture_output=True, text=True, timeout=30
+        )
+        if sudoers_result.returncode != 0:
+            return False
+
+        active_lines = [
+            l.strip() for l in sudoers_result.stdout.splitlines()
+            if l.strip() and not l.strip().startswith("#")
+        ]
+
+        # Get standard users (UID >= 1000)
+        passwd_result = subprocess.run(
+            ["awk", "-F:", '$3 >= 1000 && $1 != "nobody" {print $1}',
+             "/etc/passwd"],
+            capture_output=True, text=True, timeout=10
+        )
+        if passwd_result.returncode != 0:
+            return False
+
+        standard_users = {
+            l.strip() for l in passwd_result.stdout.strip().splitlines()
+            if l.strip()
+        }
+
+        if not standard_users:
+            return False
+
+        # Flag any standard user with an unrestricted ALL=(ALL) ALL entry
+        unrestricted = [
+            l for l in active_lines
+            if re.search(r"ALL\s*=\s*\(ALL(:ALL)?\)\s*ALL", l)
+            and not l.startswith("%")
+            and not l.startswith("root")
+            and any(u in l for u in standard_users)
+        ]
+        no_unrestricted_sudo = bool(not unrestricted)
+
+        # Also check sudoers.d
+        sudoersd_result = subprocess.run(
+            ["sudo", "grep", "-r",
+             r"ALL=(ALL) ALL", "/etc/sudoers.d/"],
+            capture_output=True, text=True, timeout=30
+        )
+        if sudoersd_result.returncode == 0 and sudoersd_result.stdout.strip():
+            unscoped_d = [
+                l for l in sudoersd_result.stdout.splitlines()
+                if l.strip()
+                and not l.strip().startswith("#")
+                and not l.strip().startswith("%")
+                and any(u in l for u in standard_users)
+            ]
+            if unscoped_d:
+                no_unrestricted_sudo = False
+
+        # Check standard users are not members of privileged security groups
+        security_groups = ["sudo", "wheel", "shadow", "adm", "docker", "disk"]
+        flagged_users = set()
+
+        for group in security_groups:
+            result = subprocess.run(
+                ["getent", "group", group],
+                capture_output=True, text=True, timeout=10
+            )
+            if result.returncode != 0:
+                continue
+
+            parts = result.stdout.strip().split(":")
+            members = parts[3].split(",") if len(parts) > 3 else []
+            members = {m.strip() for m in members if m.strip()}
+
+            # Flag standard users (UID >= 1000) found in security groups
+            overlap = standard_users & members
+            flagged_users.update(overlap)
+
+        no_standard_priv_overlap = bool(not flagged_users)
+
+        return bool(
+            root_login_disabled
+            and no_unrestricted_sudo
+            and no_standard_priv_overlap
+        )
+
+    except Exception:
+        return False
+
+
+# AC.L2-3.1.7 Funcs
+def privileged_function_prevention_wc() -> bool:
+    """
+    AC.L2-3.1.7c - Non-Privileged Users are Prevented from Executing
+    Privileged Functions (Windows Client)
+    """
+    try:
+        uac_enforced = False
+        applocker_or_srp_active = False
+        rights_restricted = False
+
+        broad_principals = {"everyone", "authenticated users", "users"}
+
+        # Check UAC is fully enforced
+        uac_result = subprocess.run(
+            ["powershell", "-Command",
+             "Get-ItemProperty -Path "
+             "'HKLM:\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Policies\\System' "
+             "| Select-Object EnableLUA, ConsentPromptBehaviorUser, "
+             "ConsentPromptBehaviorAdmin | ConvertTo-Json"],
+            capture_output=True, text=True, timeout=30
+        )
+        if uac_result.returncode != 0:
+            return False
+
+        uac_data = json.loads(uac_result.stdout) if uac_result.stdout.strip() else {}
+        if not uac_data:
+            return False
+
+        lua_enabled = bool(uac_data.get("EnableLUA", 0) == 1)
+        user_prompt = uac_data.get("ConsentPromptBehaviorUser", 0)
+        # User prompt must not be 0 (silent elevation)
+        uac_enforced = bool(lua_enabled and user_prompt != 0)
+
+        # Check AppLocker has enforced rules
+        applocker_result = subprocess.run(
+            ["powershell", "-Command",
+             "Get-AppLockerPolicy -Effective | "
+             "Select-Object -ExpandProperty RuleCollections | "
+             "Select-Object RuleCollectionType, EnforcementMode | ConvertTo-Json"],
+            capture_output=True, text=True, timeout=30
+        )
+        if applocker_result.returncode == 0 and applocker_result.stdout.strip():
+            rules = json.loads(applocker_result.stdout)
+            if isinstance(rules, dict):
+                rules = [rules]
+            if rules:
+                enforced = [
+                    r for r in rules
+                    if (r.get("EnforcementMode") or "").lower() == "enabled"
+                ]
+                applocker_or_srp_active = bool(enforced)
+
+        # Fall back to SRP if AppLocker not active
+        if not applocker_or_srp_active:
+            srp_result = subprocess.run(
+                ["powershell", "-Command",
+                 "Get-ItemProperty -Path "
+                 "'HKLM:\\SOFTWARE\\Policies\\Microsoft\\Windows\\Safer\\CodeIdentifiers' "
+                 "-ErrorAction SilentlyContinue | "
+                 "Select-Object DefaultLevel | ConvertTo-Json"],
+                capture_output=True, text=True, timeout=30
+            )
+            if srp_result.returncode == 0 and srp_result.stdout.strip():
+                srp_data = json.loads(srp_result.stdout)
+                applocker_or_srp_active = bool(
+                    srp_data.get("DefaultLevel", 131072) == 0
+                )
+
+        # Check sensitive user rights are not assigned to broad principals
+        secedit_result = subprocess.run(
+            ["powershell", "-Command",
+             "secedit /export /cfg $env:TEMP\\secpol.cfg /quiet; "
+             "Get-Content $env:TEMP\\secpol.cfg | "
+             "Select-String 'SeDebugPrivilege|SeTakeOwnershipPrivilege|"
+             "SeLoadDriverPrivilege|SeBackupPrivilege|"
+             "SeRestorePrivilege|SeSecurityPrivilege'"],
+            capture_output=True, text=True, timeout=30
+        )
+        if secedit_result.returncode != 0:
+            return False
+
+        priv_lines = secedit_result.stdout.strip().splitlines()
+        flagged = [
+            l for l in priv_lines
+            if any(p in l.lower() for p in broad_principals)
+        ]
+        rights_restricted = bool(not flagged)
+
+        return bool(uac_enforced and applocker_or_srp_active and rights_restricted)
+
+    except Exception:
+        return False
+
+
+def privileged_function_prevention_ws() -> bool:
+    """
+    AC.L2-3.1.7c - Non-Privileged Users are Prevented from Executing
+    Privileged Functions (Windows Server)
+    """
+    try:
+        broad_principals = {"everyone", "authenticated users", "users"}
+
+        # Check UAC is enforced
+        uac_result = subprocess.run(
+            ["powershell", "-Command",
+             "Get-ItemProperty -Path "
+             "'HKLM:\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Policies\\System' "
+             "| Select-Object EnableLUA, "
+             "ConsentPromptBehaviorAdmin | ConvertTo-Json"],
+            capture_output=True, text=True, timeout=30
+        )
+        if uac_result.returncode != 0:
+            return False
+
+        uac_data = json.loads(uac_result.stdout) if uac_result.stdout.strip() else {}
+        if not uac_data:
+            return False
+
+        lua_enabled = bool(uac_data.get("EnableLUA", 0) == 1)
+        admin_prompt = uac_data.get("ConsentPromptBehaviorAdmin", 0)
+        uac_enforced = bool(lua_enabled and admin_prompt in {1, 2, 5})
+
+        if not uac_enforced:
+            return False
+
+        # Check sensitive user rights are not assigned to broad principals
+        secedit_result = subprocess.run(
+            ["powershell", "-Command",
+             "secedit /export /cfg $env:TEMP\\secpol.cfg /quiet; "
+             "Get-Content $env:TEMP\\secpol.cfg | "
+             "Select-String 'SeDebugPrivilege|SeTakeOwnershipPrivilege|"
+             "SeLoadDriverPrivilege|SeBackupPrivilege|SeRestorePrivilege|"
+             "SeSecurityPrivilege|SeAuditPrivilege|"
+             "SeSystemEnvironmentPrivilege'"],
+            capture_output=True, text=True, timeout=30
+        )
+        if secedit_result.returncode != 0:
+            return False
+
+        priv_lines = secedit_result.stdout.strip().splitlines()
+        if not priv_lines:
+            return False
+
+        flagged_privs = [
+            l for l in priv_lines
+            if any(p in l.lower() for p in broad_principals)
+        ]
+        if flagged_privs:
+            return False
+
+        # Check Administrators group does not contain broad principals
+        admin_result = subprocess.run(
+            ["powershell", "-Command",
+             "Get-LocalGroupMember -Group 'Administrators' | "
+             "Select-Object Name | ConvertTo-Json"],
+            capture_output=True, text=True, timeout=30
+        )
+        if admin_result.returncode != 0:
+            return False
+
+        admins = json.loads(admin_result.stdout) if admin_result.stdout.strip() else []
+        if isinstance(admins, dict):
+            admins = [admins]
+        if not admins:
+            return False
+
+        flagged_admins = [
+            a for a in admins
+            if (a.get("Name") or "").lower().split("\\")[-1] in broad_principals
+        ]
+
+        return bool(not flagged_admins)
+
+    except Exception:
+        return False
+
+
+def privileged_function_prevention_lx() -> bool:
+    """
+    AC.L2-3.1.7c - Non-Privileged Users are Prevented from Executing
+    Privileged Functions (Linux/Debian)
+    """
+    try:
+        sudoers_restricted = False
+        pam_configured = False
+        mac_enforcing = False
+        suid_controlled = False
+
+        # Check sudoers has no unscoped ALL=(ALL) ALL for standard users
+        passwd_result = subprocess.run(
+            ["awk", "-F:", '$3 >= 1000 && $1 != "nobody" {print $1}',
+             "/etc/passwd"],
+            capture_output=True, text=True, timeout=10
+        )
+        if passwd_result.returncode != 0:
+            return False
+
+        standard_users = {
+            l.strip() for l in passwd_result.stdout.strip().splitlines()
+            if l.strip()
+        }
+
+        sudoers_result = subprocess.run(
+            ["sudo", "cat", "/etc/sudoers"],
+            capture_output=True, text=True, timeout=30
+        )
+        if sudoers_result.returncode != 0:
+            return False
+
+        active_lines = [
+            l.strip() for l in sudoers_result.stdout.splitlines()
+            if l.strip() and not l.strip().startswith("#")
+        ]
+
+        unrestricted = [
+            l for l in active_lines
+            if re.search(r"ALL\s*=\s*\(ALL(:ALL)?\)\s*ALL", l)
+            and not l.startswith("%")
+            and not l.startswith("root")
+            and any(u in l for u in standard_users)
+        ]
+        sudoers_restricted = bool(not unrestricted)
+
+        # Check PAM has at least one access control module configured
+        pam_result = subprocess.run(
+            ["grep", "-r",
+             "pam_access\\|pam_listfile\\|pam_wheel",
+             "/etc/pam.d/"],
+            capture_output=True, text=True, timeout=30
+        )
+        if pam_result.returncode == 0 and pam_result.stdout.strip():
+            active_pam = [
+                l for l in pam_result.stdout.splitlines()
+                if l.strip() and not l.strip().startswith("#")
+            ]
+            pam_configured = bool(active_pam)
+
+        # Check SELinux or AppArmor is enforcing
+        selinux_result = subprocess.run(
+            ["getenforce"], capture_output=True, text=True, timeout=10
+        )
+        if selinux_result.returncode == 0:
+            mac_enforcing = bool(
+                selinux_result.stdout.strip().lower() == "enforcing"
+            )
+
+        if not mac_enforcing:
+            aa_result = subprocess.run(
+                ["aa-status", "--enabled"],
+                capture_output=True, text=True, timeout=10
+            )
+            mac_enforcing = bool(aa_result.returncode == 0)
+
+        # Check SUID/SGID binaries are limited to known system paths
+        # and not present in user-writable directories
+        suid_result = subprocess.run(
+            ["find", "/home", "/tmp", "/var/tmp",
+             "-type", "f", "-perm", "/6000"],
+            capture_output=True, text=True, timeout=30
+        )
+        if suid_result.returncode == 0:
+            suid_files = [
+                l.strip() for l in suid_result.stdout.strip().splitlines()
+                if l.strip()
+            ]
+            # Any SUID/SGID binary in user-writable dirs is a hard fail
+            suid_controlled = bool(not suid_files)
+
+        return bool(
+            sudoers_restricted
+            and pam_configured
+            and mac_enforcing
+            and suid_controlled
+        )
+
+    except Exception:
+        return False
+
+
+def privileged_function_audit_wc() -> bool:
+    """
+    AC.L2-3.1.7d - Execution of Privileged Functions is Captured in
+    Audit Logs (Windows Client)
+    """
+    try:
+        required_categories = {
+            "privilege use",
+            "account management",
+            "policy change",
+            "logon"
+        }
+
+        audit_result = subprocess.run(
+            ["auditpol", "/get", "/category:*"],
+            capture_output=True, text=True, timeout=30
+        )
+        if audit_result.returncode != 0:
+            return False
+
+        output = audit_result.stdout.lower()
+        lines = output.strip().splitlines()
+
+        # Build a map of category -> audit setting
+        category_settings = {}
+        for line in lines:
+            parts = line.split()
+            if len(parts) >= 2:
+                # Lines follow format: "  Category Name    Success/Failure/Both/No Auditing"
+                setting = parts[-1].lower()
+                name = " ".join(parts[:-1]).strip()
+                category_settings[name] = setting
+
+        # Check each required category has Success, Failure, or both enabled
+        missing = []
+        for category in required_categories:
+            matched = [
+                k for k in category_settings
+                if category in k
+            ]
+            if not matched:
+                missing.append(category)
+                continue
+
+            # At least one subcategory must be auditing success or failure
+            audited = [
+                k for k in matched
+                if category_settings[k] in {
+                    "success", "failure", "success and failure"
+                }
+            ]
+            if not audited:
+                missing.append(category)
+
+        return bool(not missing)
+
+    except Exception:
+        return False
+
+
+def privileged_function_audit_ws() -> bool:
+    """
+    AC.L2-3.1.7d - Execution of Privileged Functions is Captured in
+    Audit Logs (Windows Server)
+    """
+    try:
+        required_categories = {
+            "privilege use",
+            "account management",
+            "policy change",
+            "logon",
+            "directory service access",
+            "system"
+        }
+
+        audit_result = subprocess.run(
+            ["auditpol", "/get", "/category:*"],
+            capture_output=True, text=True, timeout=30
+        )
+        if audit_result.returncode != 0:
+            return False
+
+        output = audit_result.stdout.lower()
+        lines = output.strip().splitlines()
+
+        category_settings = {}
+        for line in lines:
+            parts = line.split()
+            if len(parts) >= 2:
+                setting = parts[-1].lower()
+                name = " ".join(parts[:-1]).strip()
+                category_settings[name] = setting
+
+        missing = []
+        for category in required_categories:
+            matched = [
+                k for k in category_settings
+                if category in k
+            ]
+            if not matched:
+                missing.append(category)
+                continue
+
+            audited = [
+                k for k in matched
+                if category_settings[k] in {
+                    "success", "failure", "success and failure"
+                }
+            ]
+            if not audited:
+                missing.append(category)
+
+        # Additionally check audit log size is sufficient
+        # to retain privileged function records
+        log_result = subprocess.run(
+            ["powershell", "-Command",
+             "Get-WinEvent -ListLog Security | "
+             "Select-Object MaximumSizeInBytes | ConvertTo-Json"],
+            capture_output=True, text=True, timeout=30
+        )
+        if log_result.returncode == 0 and log_result.stdout.strip():
+            log_data = json.loads(log_result.stdout)
+            max_size = log_data.get("MaximumSizeInBytes", 0)
+            # Security log should be at least 128MB (134217728 bytes)
+            if max_size < 134217728:
+                return False
+
+        return bool(not missing)
+
+    except Exception:
+        return False
+
+
+def privileged_function_audit_lx() -> bool:
+    """
+    AC.L2-3.1.7d - Execution of Privileged Functions is Captured in
+    Audit Logs (Linux/Debian)
+    """
+    try:
+        auditd_active = False
+        has_sudo_rules = False
+        has_priv_rules = False
+        has_file_rules = False
+
+        # Check auditd is running
+        auditd_result = subprocess.run(
+            ["systemctl", "is-active", "auditd"],
+            capture_output=True, text=True, timeout=10
+        )
+        auditd_active = bool(
+            auditd_result.returncode == 0
+            and auditd_result.stdout.strip().lower() == "active"
+        )
+
+        if not auditd_active:
+            return False
+
+        # Get all active auditd rules
+        rules_result = subprocess.run(
+            ["auditctl", "-l"],
+            capture_output=True, text=True, timeout=10
+        )
+        if rules_result.returncode != 0:
+            return False
+
+        rules = rules_result.stdout.lower()
+
+        if "no rules" in rules or not rules.strip():
+            return False
+
+        # Check for sudo/su execution capture rules
+        # Looking for rules watching /usr/bin/sudo or /bin/su
+        has_sudo_rules = bool(
+            re.search(r"(\/usr\/bin\/sudo|\/bin\/su|\/usr\/bin\/su)", rules)
+        )
+
+        # Check for privilege escalation capture
+        # Looking for rules on setuid, execve with elevated context
+        has_priv_rules = bool(
+            re.search(
+                r"(execve|setuid|setgid|privileged|priv_esc)",
+                rules
+            )
+        )
+
+        # Check for sensitive file access rules
+        # Looking for rules watching /etc/passwd, /etc/shadow, /etc/sudoers
+        has_file_rules = bool(
+            re.search(
+                r"(\/etc\/passwd|\/etc\/shadow|\/etc\/sudoers|\/etc\/group)",
+                rules
+            )
+        )
+
+        # Check audit log exists and is being written to
+        log_result = subprocess.run(
+            ["test", "-f", "/var/log/audit/audit.log"],
+            capture_output=True, text=True, timeout=10
+        )
+        log_exists = bool(log_result.returncode == 0)
+
+        if not log_exists:
+            return False
+
+        # Check audit log is non-empty
+        size_result = subprocess.run(
+            ["stat", "-c", "%s", "/var/log/audit/audit.log"],
+            capture_output=True, text=True, timeout=10
+        )
+        if size_result.returncode == 0:
+            try:
+                log_size = int(size_result.stdout.strip())
+                if log_size == 0:
+                    return False
+            except ValueError:
+                return False
+
+        return bool(
+            auditd_active
+            and has_sudo_rules
+            and has_priv_rules
+            and has_file_rules
+            and log_exists
+        )
+
+    except Exception:
+        return False
+
+# AC.L2-3.1.8
+def logon_attempt_limit_wc() -> bool:
+    """
+    AC.L2-3.1.8b - Defined Means of Limiting Unsuccessful Logon Attempts
+    is Implemented (Windows Client)
+    Checks that local account lockout policy is configured with an
+    acceptable threshold (3-5 attempts), lockout duration (>= 15 minutes),
+    and observation window (>= 15 minutes) via secedit.
+    Returns True if all three lockout policy values meet minimum requirements.
+    """
+    try:
+        # Export local security policy via secedit
+        secedit_result = subprocess.run(
+            ["powershell", "-Command",
+             "secedit /export /cfg $env:TEMP\\secpol.cfg /quiet; "
+             "Get-Content $env:TEMP\\secpol.cfg | "
+             "Select-String 'LockoutBadCount|LockoutDuration|"
+             "ResetLockoutCount'"],
+            capture_output=True, text=True, timeout=30
+        )
+        if secedit_result.returncode != 0:
+            return False
+
+        lines = secedit_result.stdout.strip().splitlines()
+        if not lines:
+            return False
+
+        # Parse key value pairs from secedit output
+        policy = {}
+        for line in lines:
+            if "=" in line:
+                key, _, value = line.partition("=")
+                policy[key.strip().lower()] = value.strip()
+
+        # LockoutBadCount must be between 1 and 5 (0 = never lockout = fail)
+        bad_count = int(policy.get("lockoutbadcount", 0))
+        if not bool(1 <= bad_count <= 5):
+            return False
+
+        # LockoutDuration must be >= 15 minutes (0 = admin unlock only,
+        # which is acceptable but we require >= 15 for automation purposes)
+        lockout_duration = int(policy.get("lockoutduration", 0))
+        if not bool(lockout_duration >= 15):
+            return False
+
+        # ResetLockoutCount (observation window) must be >= 15 minutes
+        reset_count = int(policy.get("resetlockoutcount", 0))
+        if not bool(reset_count >= 15):
+            return False
+
+        return True
+
+    except Exception:
+        return False
+
+
+def logon_attempt_limit_defined_ws() -> bool:
+    """
+    AC.L2-3.1.8a - Means of Limiting Unsuccessful Logon Attempts is
+    Defined (Windows Server)
+    """
+    try:
+        # Check Default Domain Policy lockout settings via Get-ADDefaultDomainPasswordPolicy
+        policy_result = subprocess.run(
+            ["powershell", "-Command",
+             "Get-ADDefaultDomainPasswordPolicy | "
+             "Select-Object LockoutThreshold, LockoutDuration, "
+             "LockoutObservationWindow | ConvertTo-Json"],
+            capture_output=True, text=True, timeout=30
+        )
+        if policy_result.returncode != 0:
+            return False
+
+        policy = json.loads(policy_result.stdout) if policy_result.stdout.strip() else {}
+        if not policy:
+            return False
+
+        # LockoutThreshold must be between 1 and 5
+        threshold = int(policy.get("LockoutThreshold", 0))
+        if not bool(1 <= threshold <= 5):
+            return False
+
+        # LockoutDuration is returned as an ISO 8601 duration string
+        # e.g. "00:15:00" — must be >= 15 minutes
+        duration_str = policy.get("LockoutDuration", "00:00:00")
+        duration_parts = str(duration_str).split(":")
+        if len(duration_parts) >= 2:
+            try:
+                duration_minutes = (
+                    int(duration_parts[0]) * 60 +
+                    int(duration_parts[1])
+                )
+            except ValueError:
+                return False
+        else:
+            return False
+
+        if not bool(duration_minutes >= 15):
+            return False
+
+        # LockoutObservationWindow must be >= 15 minutes
+        window_str = policy.get("LockoutObservationWindow", "00:00:00")
+        window_parts = str(window_str).split(":")
+        if len(window_parts) >= 2:
+            try:
+                window_minutes = (
+                    int(window_parts[0]) * 60 +
+                    int(window_parts[1])
+                )
+            except ValueError:
+                return False
+        else:
+            return False
+
+        if not bool(window_minutes >= 15):
+            return False
+
+        return True
+
+    except Exception:
+        return False
+
+
+def logon_attempt_limit_ws() -> bool:
+    """
+    AC.L2-3.1.8b - Defined Means of Limiting Unsuccessful Logon Attempts
+    is Implemented (Windows Server)
+    Checks that the domain account lockout policy is actively enforced
+    with acceptable values and that the local secedit policy on the
+    server also reflects the lockout configuration.
+    Returns True if both domain and local lockout policies are enforced.
+    """
+    try:
+        # Check domain policy is defined first by reusing the logic
+        # from logon_attempt_limit_defined_ws
+        domain_policy_ok = logon_attempt_limit_defined_ws()
+        if not domain_policy_ok:
+            return False
+
+        # Additionally verify local secedit reflects lockout policy
+        # to confirm GPO has been applied to this specific server
+        secedit_result = subprocess.run(
+            ["powershell", "-Command",
+             "secedit /export /cfg $env:TEMP\\secpol.cfg /quiet; "
+             "Get-Content $env:TEMP\\secpol.cfg | "
+             "Select-String 'LockoutBadCount|LockoutDuration|"
+             "ResetLockoutCount'"],
+            capture_output=True, text=True, timeout=30
+        )
+        if secedit_result.returncode != 0:
+            return False
+
+        lines = secedit_result.stdout.strip().splitlines()
+        if not lines:
+            return False
+
+        policy = {}
+        for line in lines:
+            if "=" in line:
+                key, _, value = line.partition("=")
+                policy[key.strip().lower()] = value.strip()
+
+        # Verify local policy reflects domain lockout settings
+        bad_count = int(policy.get("lockoutbadcount", 0))
+        if not bool(1 <= bad_count <= 5):
+            return False
+
+        lockout_duration = int(policy.get("lockoutduration", 0))
+        if not bool(lockout_duration >= 15):
+            return False
+
+        reset_count = int(policy.get("resetlockoutcount", 0))
+        if not bool(reset_count >= 15):
+            return False
+
+        # Check RDP lockout is also enforced via registry
+        # MaxConnectionTime and related settings for RDP sessions
+        rdp_result = subprocess.run(
+            ["powershell", "-Command",
+             "Get-ItemProperty -Path "
+             "'HKLM:\\SYSTEM\\CurrentControlSet\\Services\\"
+             "RemoteDesktop\\WinStations\\RDP-Tcp' "
+             "-ErrorAction SilentlyContinue | "
+             "Select-Object MaxFailedLogins | ConvertTo-Json"],
+            capture_output=True, text=True, timeout=30
+        )
+
+        # RDP lockout is optional but preferred — not a hard fail
+        # if registry key does not exist as domain policy covers it
+        if rdp_result.returncode == 0 and rdp_result.stdout.strip():
+            rdp_data = json.loads(rdp_result.stdout)
+            max_failed = rdp_data.get("MaxFailedLogins", 0)
+            if max_failed == 0:
+                # 0 means no RDP-specific limit but domain policy still applies
+                pass
+
+        return True
+
+    except Exception:
+        return False
+
+
+def logon_attempt_limit_lx() -> bool:
+    """
+    AC.L2-3.1.8b - Defined Means of Limiting Unsuccessful Logon Attempts
+    is Implemented (Linux/Debian)
+    """
+    try:
+        pam_lockout_active = False
+        ssh_limited = False
+
+        # Check pam_faillock configuration
+        faillock_result = subprocess.run(
+            ["cat", "/etc/security/faillock.conf"],
+            capture_output=True, text=True, timeout=10
+        )
+
+        if faillock_result.returncode == 0 and faillock_result.stdout.strip():
+            conf = faillock_result.stdout.lower()
+            active_lines = [
+                l.strip() for l in conf.splitlines()
+                if l.strip() and not l.strip().startswith("#")
+            ]
+
+            deny_value = None
+            unlock_value = None
+
+            for line in active_lines:
+                if line.startswith("deny"):
+                    match = re.search(r"deny\s*=\s*(\d+)", line)
+                    if match:
+                        deny_value = int(match.group(1))
+                if line.startswith("unlock_time"):
+                    match = re.search(r"unlock_time\s*=\s*(\d+)", line)
+                    if match:
+                        unlock_value = int(match.group(1))
+
+            if deny_value is not None and unlock_value is not None:
+                # deny must be between 1 and 5
+                # unlock_time must be >= 900 seconds (15 minutes)
+                pam_lockout_active = bool(
+                    1 <= deny_value <= 5
+                    and unlock_value >= 900
+                )
+
+        # Fall back to checking PAM stack directly for pam_faillock
+        if not pam_lockout_active:
+            pam_result = subprocess.run(
+                ["grep", "-r", "pam_faillock", "/etc/pam.d/"],
+                capture_output=True, text=True, timeout=30
+            )
+            if pam_result.returncode == 0 and pam_result.stdout.strip():
+                active_pam = [
+                    l for l in pam_result.stdout.splitlines()
+                    if l.strip() and not l.strip().startswith("#")
+                    and "preauth" in l.lower() or "authfail" in l.lower()
+                ]
+
+                for line in active_pam:
+                    deny_match = re.search(r"deny=(\d+)", line)
+                    unlock_match = re.search(r"unlock_time=(\d+)", line)
+                    if deny_match and unlock_match:
+                        deny_val = int(deny_match.group(1))
+                        unlock_val = int(unlock_match.group(1))
+                        if 1 <= deny_val <= 5 and unlock_val >= 900:
+                            pam_lockout_active = True
+                            break
+
+        # Fall back to pam_tally2 if pam_faillock not found
+        if not pam_lockout_active:
+            tally_result = subprocess.run(
+                ["grep", "-r", "pam_tally2", "/etc/pam.d/"],
+                capture_output=True, text=True, timeout=30
+            )
+            if tally_result.returncode == 0 and tally_result.stdout.strip():
+                active_tally = [
+                    l for l in tally_result.stdout.splitlines()
+                    if l.strip() and not l.strip().startswith("#")
+                ]
+                for line in active_tally:
+                    deny_match = re.search(r"deny=(\d+)", line)
+                    unlock_match = re.search(r"unlock_time=(\d+)", line)
+                    if deny_match and unlock_match:
+                        deny_val = int(deny_match.group(1))
+                        unlock_val = int(unlock_match.group(1))
+                        if 1 <= deny_val <= 5 and unlock_val >= 900:
+                            pam_lockout_active = True
+                            break
+
+        # Check SSH MaxAuthTries is configured and <= 4
+        sshd_result = subprocess.run(
+            ["sshd", "-T"],
+            capture_output=True, text=True, timeout=30
+        )
+        if sshd_result.returncode == 0:
+            output = sshd_result.stdout.lower()
+            max_auth = re.search(r"^maxauthtries\s+(\d+)", output, re.MULTILINE)
+            if max_auth:
+                ssh_limited = bool(int(max_auth.group(1)) <= 4)
+
+        return bool(pam_lockout_active and ssh_limited)
+
+    except Exception:
+        return False
+
+# AC.L2-3.1.9
+
+def login_banner_wc() -> bool:
+    """
+    AC.L2-3.1.9b - Privacy and Security Notices are Displayed (Windows Client)
+    """
+    try:
+        # Check registry keys for logon banner
+        banner_result = subprocess.run(
+            ["powershell", "-Command",
+             "Get-ItemProperty -Path "
+             "'HKLM:\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\"
+             "Policies\\System' | "
+             "Select-Object LegalNoticeCaption, "
+             "LegalNoticeText | ConvertTo-Json"],
+            capture_output=True, text=True, timeout=30
+        )
+        if banner_result.returncode != 0:
+            return False
+
+        banner_data = json.loads(banner_result.stdout) if banner_result.stdout.strip() else {}
+        if not banner_data:
+            return False
+
+        caption = (banner_data.get("LegalNoticeCaption") or "").strip()
+        text = (banner_data.get("LegalNoticeText") or "").strip()
+
+        # Both caption and text must be non-empty
+        if not caption or not text:
+            return False
+
+        # Check banner text contains at least some meaningful content
+        # Minimum length of 20 characters to avoid placeholder text
+        if len(text) < 20:
+            return False
+
+        # Check for common placeholder values that indicate
+        # the banner has not been properly configured
+        placeholder_values = {
+            "insert notice here",
+            "banner text",
+            "legal notice",
+            "enter text here",
+            "tbd",
+            "todo"
+        }
+        if text.lower() in placeholder_values or caption.lower() in placeholder_values:
+            return False
+
+        return True
+
+    except Exception:
+        return False
+
+
+def login_banner_ws() -> bool:
+    """
+    AC.L2-3.1.9b - Privacy and Security Notices are Displayed (Windows Server)
+    """
+    try:
+        # Check registry keys for interactive logon banner
+        banner_result = subprocess.run(
+            ["powershell", "-Command",
+             "Get-ItemProperty -Path "
+             "'HKLM:\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\"
+             "Policies\\System' | "
+             "Select-Object LegalNoticeCaption, "
+             "LegalNoticeText | ConvertTo-Json"],
+            capture_output=True, text=True, timeout=30
+        )
+        if banner_result.returncode != 0:
+            return False
+
+        banner_data = json.loads(banner_result.stdout) if banner_result.stdout.strip() else {}
+        if not banner_data:
+            return False
+
+        caption = (banner_data.get("LegalNoticeCaption") or "").strip()
+        text = (banner_data.get("LegalNoticeText") or "").strip()
+
+        if not caption or not text:
+            return False
+
+        if len(text) < 20:
+            return False
+
+        placeholder_values = {
+            "insert notice here",
+            "banner text",
+            "legal notice",
+            "enter text here",
+            "tbd",
+            "todo"
+        }
+        if text.lower() in placeholder_values or caption.lower() in placeholder_values:
+            return False
+
+        # Check GPO is enforcing the banner via the same registry path
+        # under HKLM\SOFTWARE\Policies (GPO-managed path)
+        gpo_banner_result = subprocess.run(
+            ["powershell", "-Command",
+             "Get-ItemProperty -Path "
+             "'HKLM:\\SOFTWARE\\Policies\\Microsoft\\Windows\\"
+             "System' -ErrorAction SilentlyContinue | "
+             "Select-Object legalnoticecaption, "
+             "legalnoticetext | ConvertTo-Json"],
+            capture_output=True, text=True, timeout=30
+        )
+
+        # GPO enforcement is preferred but not required if local policy is set
+        gpo_enforced = False
+        if gpo_banner_result.returncode == 0 and gpo_banner_result.stdout.strip():
+            gpo_data = json.loads(gpo_banner_result.stdout)
+            gpo_caption = (gpo_data.get("legalnoticecaption") or "").strip()
+            gpo_text = (gpo_data.get("legalnoticetext") or "").strip()
+            gpo_enforced = bool(gpo_caption and gpo_text and len(gpo_text) >= 20)
+
+        # Check RDP session banner is configured via registry
+        rdp_banner_result = subprocess.run(
+            ["powershell", "-Command",
+             "Get-ItemProperty -Path "
+             "'HKLM:\\SYSTEM\\CurrentControlSet\\Control\\"
+             "Terminal Server\\WinStations\\RDP-Tcp' "
+             "-ErrorAction SilentlyContinue | "
+             "Select-Object fDisableCam | ConvertTo-Json"],
+            capture_output=True, text=True, timeout=30
+        )
+
+        # For RDP we check that NLA is enforced which requires
+        # authentication before the session is established
+        # ensuring the banner is seen before access is granted
+        nla_result = subprocess.run(
+            ["powershell", "-Command",
+             "Get-ItemProperty -Path "
+             "'HKLM:\\SYSTEM\\CurrentControlSet\\Control\\"
+             "Terminal Server\\WinStations\\RDP-Tcp' "
+             "-ErrorAction SilentlyContinue | "
+             "Select-Object UserAuthentication | ConvertTo-Json"],
+            capture_output=True, text=True, timeout=30
+        )
+
+        rdp_configured = False
+        if nla_result.returncode == 0 and nla_result.stdout.strip():
+            nla_data = json.loads(nla_result.stdout)
+            # UserAuthentication 1 = NLA required
+            rdp_configured = bool(nla_data.get("UserAuthentication", 0) == 1)
+
+        # Pass if local banner is set and either GPO enforces it
+        # or RDP NLA is configured
+        return bool(
+            caption and text and len(text) >= 20
+            and (gpo_enforced or rdp_configured)
+        )
+
+    except Exception:
+        return False
+
+
+def login_banner_lx() -> bool:
+    """
+    AC.L2-3.1.9b - Privacy and Security Notices are Displayed (Linux/Debian)
+    """
+    try:
+        issue_configured = False
+        ssh_banner_configured = False
+
+        placeholder_values = {
+            "insert notice here",
+            "banner text",
+            "legal notice",
+            "enter text here",
+            "tbd",
+            "todo",
+            "welcome",
+            "ubuntu",
+            "debian",
+            "linux"
+        }
+
+        # Check /etc/issue for local console banner
+        issue_result = subprocess.run(
+            ["cat", "/etc/issue"],
+            capture_output=True, text=True, timeout=10
+        )
+        if issue_result.returncode == 0:
+            issue_text = issue_result.stdout.strip()
+            # Strip escape sequences like \n \l \s \r commonly
+            # found in default /etc/issue files
+            clean_text = re.sub(r"\\[a-zA-Z]", "", issue_text).strip()
+
+            if (
+                clean_text
+                and len(clean_text) >= 20
+                and clean_text.lower() not in placeholder_values
+                and not any(p in clean_text.lower() for p in placeholder_values)
+            ):
+                issue_configured = True
+
+        # Check /etc/issue.net for network login banner
+        issue_net_result = subprocess.run(
+            ["cat", "/etc/issue.net"],
+            capture_output=True, text=True, timeout=10
+        )
+        issue_net_configured = False
+        if issue_net_result.returncode == 0:
+            net_text = issue_net_result.stdout.strip()
+            clean_net = re.sub(r"\\[a-zA-Z]", "", net_text).strip()
+            if (
+                clean_net
+                and len(clean_net) >= 20
+                and not any(p in clean_net.lower() for p in placeholder_values)
+            ):
+                issue_net_configured = True
+
+        # Check SSH Banner directive points to a valid non-empty file
+        sshd_result = subprocess.run(
+            ["sshd", "-T"],
+            capture_output=True, text=True, timeout=30
+        )
+        if sshd_result.returncode == 0:
+            output = sshd_result.stdout.lower()
+            banner_match = re.search(
+                r"^banner\s+(\S+)", output, re.MULTILINE
+            )
+            if banner_match:
+                banner_path = banner_match.group(1).strip()
+
+                # Check the banner file is not "none"
+                if banner_path != "none":
+                    banner_file_result = subprocess.run(
+                        ["cat", banner_path],
+                        capture_output=True, text=True, timeout=10
+                    )
+                    if banner_file_result.returncode == 0:
+                        banner_text = banner_file_result.stdout.strip()
+                        if (
+                            banner_text
+                            and len(banner_text) >= 20
+                            and not any(
+                                p in banner_text.lower()
+                                for p in placeholder_values
+                            )
+                        ):
+                            ssh_banner_configured = True
+
+        # Check /etc/motd for post-login notice as additional signal
+        motd_result = subprocess.run(
+            ["cat", "/etc/motd"],
+            capture_output=True, text=True, timeout=10
+        )
+        motd_configured = False
+        if motd_result.returncode == 0:
+            motd_text = motd_result.stdout.strip()
+            if (
+                motd_text
+                and len(motd_text) >= 20
+                and not any(p in motd_text.lower() for p in placeholder_values)
+            ):
+                motd_configured = True
+
+        # Require at minimum /etc/issue AND SSH banner to be configured
+        # /etc/issue.net and /etc/motd are additional signals but not required
+        # for a pass since some environments may not use all four
+        if not issue_configured and not issue_net_configured:
+            return False
+
+        if not ssh_banner_configured:
+            return False
+
+        return bool(
+            (issue_configured or issue_net_configured)
+            and ssh_banner_configured
+        )
+
+    except Exception:
+        return False
+
+# AC.L2-3.1.10
+
+def session_lock_wc() -> bool:
+    """
+    AC.L2-3.1.10b - Session Lock is Initiated After Defined Period of
+    Inactivity (Windows Client)
+    """
+    try:
+        # Check screen saver settings via registry for current user policy
+        # These keys are set via Group Policy
+        screensaver_result = subprocess.run(
+            ["powershell", "-Command",
+             "Get-ItemProperty -Path "
+             "'HKCU:\\Software\\Policies\\Microsoft\\Windows\\"
+             "Control Panel\\Desktop' "
+             "-ErrorAction SilentlyContinue | "
+             "Select-Object ScreenSaveActive, ScreenSaveTimeOut, "
+             "ScreenSaverIsSecure | ConvertTo-Json"],
+            capture_output=True, text=True, timeout=30
+        )
+
+        ss_data = {}
+        if screensaver_result.returncode == 0 and screensaver_result.stdout.strip():
+            ss_data = json.loads(screensaver_result.stdout)
+
+        # Fall back to HKCU desktop settings if GPO key not present
+        if not ss_data:
+            fallback_result = subprocess.run(
+                ["powershell", "-Command",
+                 "Get-ItemProperty -Path "
+                 "'HKCU:\\Control Panel\\Desktop' "
+                 "-ErrorAction SilentlyContinue | "
+                 "Select-Object ScreenSaveActive, ScreenSaveTimeOut, "
+                 "ScreenSaverIsSecure | ConvertTo-Json"],
+                capture_output=True, text=True, timeout=30
+            )
+            if fallback_result.returncode == 0 and fallback_result.stdout.strip():
+                ss_data = json.loads(fallback_result.stdout)
+
+        if not ss_data:
+            return False
+
+        # ScreenSaveActive must be "1" or 1
+        active = str(ss_data.get("ScreenSaveActive", "0")).strip()
+        if active != "1":
+            return False
+
+        # ScreenSaveTimeOut must be <= 900 seconds (15 minutes)
+        try:
+            timeout = int(ss_data.get("ScreenSaveTimeOut", 0))
+        except (ValueError, TypeError):
+            return False
+
+        if not bool(1 <= timeout <= 900):
+            return False
+
+        # ScreenSaverIsSecure must be "1" (password required on resume)
+        secure = str(ss_data.get("ScreenSaverIsSecure", "0")).strip()
+        if secure != "1":
+            return False
+
+        return True
+
+    except Exception:
+        return False
+
+
+def pattern_hiding_wc() -> bool:
+    """
+    AC.L2-3.1.10c - Previously Visible Information is Concealed via
+    Pattern-Hiding Display (Windows Client)
+    """
+    try:
+        # Get the configured screen saver executable
+        ss_exe_result = subprocess.run(
+            ["powershell", "-Command",
+             "Get-ItemProperty -Path "
+             "'HKCU:\\Software\\Policies\\Microsoft\\Windows\\"
+             "Control Panel\\Desktop' "
+             "-ErrorAction SilentlyContinue | "
+             "Select-Object SCRNSAVE.EXE | ConvertTo-Json"],
+            capture_output=True, text=True, timeout=30
+        )
+
+        ss_exe = ""
+        if ss_exe_result.returncode == 0 and ss_exe_result.stdout.strip():
+            exe_data = json.loads(ss_exe_result.stdout)
+            ss_exe = (exe_data.get("SCRNSAVE.EXE") or "").lower().strip()
+
+        # Fall back to HKCU desktop settings
+        if not ss_exe:
+            fallback_result = subprocess.run(
+                ["powershell", "-Command",
+                 "Get-ItemProperty -Path "
+                 "'HKCU:\\Control Panel\\Desktop' "
+                 "-ErrorAction SilentlyContinue | "
+                 "Select-Object 'SCRNSAVE.EXE' | ConvertTo-Json"],
+                capture_output=True, text=True, timeout=30
+            )
+            if fallback_result.returncode == 0 and fallback_result.stdout.strip():
+                fallback_data = json.loads(fallback_result.stdout)
+                ss_exe = (fallback_data.get("SCRNSAVE.EXE") or "").lower().strip()
+
+        if not ss_exe:
+            return False
+
+        # Acceptable pattern-hiding screen savers
+        # scrnsave.scr = blank screen (most secure)
+        # logon.scr = secure logon screen
+        # Mystify, Ribbons, Bubbles are acceptable as they hide content
+        acceptable_screensavers = {
+            "scrnsave.scr",
+            "logon.scr",
+            "mystify.scr",
+            "ribbons.scr",
+            "bubbles.scr",
+            "sstext3d.scr"
+        }
+
+        # Unacceptable screen savers that expose previously visible content
+        unacceptable_screensavers = {
+            "photos.scr",         # Photo slideshow exposes images
+            "none",               # No screen saver
+            ""                    # Empty/not configured
+        }
+
+        ss_filename = ss_exe.split("\\")[-1].lower()
+
+        if ss_filename in unacceptable_screensavers:
+            return False
+
+        # If not explicitly in acceptable list, check it is not
+        # a photo or video-based screen saver
+        if ss_filename not in acceptable_screensavers:
+            if any(kw in ss_filename for kw in ["photo", "video", "slide"]):
+                return False
+
+        return True
+
+    except Exception:
+        return False
+
+
+def session_lock_ws() -> bool:
+    """
+    AC.L2-3.1.10b - Session Lock is Initiated After Defined Period of
+    """
+    try:
+        local_lock_ok = False
+        rdp_lock_ok = False
+
+        # Check screen saver settings via GPO registry path
+        screensaver_result = subprocess.run(
+            ["powershell", "-Command",
+             "Get-ItemProperty -Path "
+             "'HKCU:\\Software\\Policies\\Microsoft\\Windows\\"
+             "Control Panel\\Desktop' "
+             "-ErrorAction SilentlyContinue | "
+             "Select-Object ScreenSaveActive, ScreenSaveTimeOut, "
+             "ScreenSaverIsSecure | ConvertTo-Json"],
+            capture_output=True, text=True, timeout=30
+        )
+
+        ss_data = {}
+        if screensaver_result.returncode == 0 and screensaver_result.stdout.strip():
+            ss_data = json.loads(screensaver_result.stdout)
+
+        if not ss_data:
+            fallback_result = subprocess.run(
+                ["powershell", "-Command",
+                 "Get-ItemProperty -Path "
+                 "'HKCU:\\Control Panel\\Desktop' "
+                 "-ErrorAction SilentlyContinue | "
+                 "Select-Object ScreenSaveActive, ScreenSaveTimeOut, "
+                 "ScreenSaverIsSecure | ConvertTo-Json"],
+                capture_output=True, text=True, timeout=30
+            )
+            if fallback_result.returncode == 0 and fallback_result.stdout.strip():
+                ss_data = json.loads(fallback_result.stdout)
+
+        if ss_data:
+            active = str(ss_data.get("ScreenSaveActive", "0")).strip()
+            try:
+                timeout = int(ss_data.get("ScreenSaveTimeOut", 0))
+            except (ValueError, TypeError):
+                timeout = 0
+            secure = str(ss_data.get("ScreenSaverIsSecure", "0")).strip()
+            local_lock_ok = bool(
+                active == "1"
+                and 1 <= timeout <= 900
+                and secure == "1"
+            )
+
+        # Check RDP idle session timeout via Group Policy registry
+        rdp_result = subprocess.run(
+            ["powershell", "-Command",
+             "Get-ItemProperty -Path "
+             "'HKLM:\\SOFTWARE\\Policies\\Microsoft\\Windows NT\\"
+             "Terminal Services' "
+             "-ErrorAction SilentlyContinue | "
+             "Select-Object MaxIdleTime, MaxDisconnectionTime, "
+             "fResetBroken | ConvertTo-Json"],
+            capture_output=True, text=True, timeout=30
+        )
+
+        if rdp_result.returncode == 0 and rdp_result.stdout.strip():
+            rdp_data = json.loads(rdp_result.stdout)
+
+            # MaxIdleTime is in milliseconds, must be <= 900000 (15 minutes)
+            max_idle = rdp_data.get("MaxIdleTime", 0)
+            try:
+                max_idle_ms = int(max_idle)
+            except (ValueError, TypeError):
+                max_idle_ms = 0
+
+            # fResetBroken must be 1 to disconnect/end session on timeout
+            reset_broken = rdp_data.get("fResetBroken", 0)
+
+            rdp_lock_ok = bool(
+                1 <= max_idle_ms <= 900000
+                and reset_broken == 1
+            )
+
+        return bool(local_lock_ok and rdp_lock_ok)
+
+    except Exception:
+        return False
+
+
+def pattern_hiding_ws() -> bool:
+    """
+    AC.L2-3.1.10c - Previously Visible Information is Concealed via
+    Pattern-Hiding Display (Windows Server)
+    """
+    try:
+        local_pattern_ok = False
+        rdp_pattern_ok = False
+
+        # Check screen saver executable is pattern-hiding
+        ss_exe_result = subprocess.run(
+            ["powershell", "-Command",
+             "Get-ItemProperty -Path "
+             "'HKCU:\\Software\\Policies\\Microsoft\\Windows\\"
+             "Control Panel\\Desktop' "
+             "-ErrorAction SilentlyContinue | "
+             "Select-Object 'SCRNSAVE.EXE' | ConvertTo-Json"],
+            capture_output=True, text=True, timeout=30
+        )
+
+        ss_exe = ""
+        if ss_exe_result.returncode == 0 and ss_exe_result.stdout.strip():
+            exe_data = json.loads(ss_exe_result.stdout)
+            ss_exe = (exe_data.get("SCRNSAVE.EXE") or "").lower().strip()
+
+        if not ss_exe:
+            fallback_result = subprocess.run(
+                ["powershell", "-Command",
+                 "Get-ItemProperty -Path "
+                 "'HKCU:\\Control Panel\\Desktop' "
+                 "-ErrorAction SilentlyContinue | "
+                 "Select-Object 'SCRNSAVE.EXE' | ConvertTo-Json"],
+                capture_output=True, text=True, timeout=30
+            )
+            if fallback_result.returncode == 0 and fallback_result.stdout.strip():
+                fallback_data = json.loads(fallback_result.stdout)
+                ss_exe = (fallback_data.get("SCRNSAVE.EXE") or "").lower().strip()
+
+        acceptable_screensavers = {
+            "scrnsave.scr",
+            "logon.scr",
+            "mystify.scr",
+            "ribbons.scr",
+            "bubbles.scr",
+            "sstext3d.scr"
+        }
+
+        unacceptable_screensavers = {"photos.scr", "none", ""}
+
+        if ss_exe:
+            ss_filename = ss_exe.split("\\")[-1].lower()
+            if ss_filename not in unacceptable_screensavers:
+                if ss_filename in acceptable_screensavers or not any(
+                    kw in ss_filename for kw in ["photo", "video", "slide"]
+                ):
+                    local_pattern_ok = True
+
+        # Check RDP is configured to show logon screen on reconnect
+        # DisableAutoReconnect and fPromptForPassword enforce
+        # that reconnecting sessions must re-authenticate
+        rdp_result = subprocess.run(
+            ["powershell", "-Command",
+             "Get-ItemProperty -Path "
+             "'HKLM:\\SOFTWARE\\Policies\\Microsoft\\Windows NT\\"
+             "Terminal Services' "
+             "-ErrorAction SilentlyContinue | "
+             "Select-Object fPromptForPassword, "
+             "fDisableAutoReconnect | ConvertTo-Json"],
+            capture_output=True, text=True, timeout=30
+        )
+
+        if rdp_result.returncode == 0 and rdp_result.stdout.strip():
+            rdp_data = json.loads(rdp_result.stdout)
+            # fPromptForPassword = 1 means password required on reconnect
+            prompt = rdp_data.get("fPromptForPassword", 0)
+            rdp_pattern_ok = bool(prompt == 1)
+
+        return bool(local_pattern_ok and rdp_pattern_ok)
+
+    except Exception:
+        return False
+
+
+def session_lock_lx() -> bool:
+    """
+    AC.L2-3.1.10b - Session Lock is Initiated After Defined Period of
+    Inactivity (Linux/Debian)
+    """
+    try:
+        ssh_timeout_ok = False
+        shell_timeout_ok = False
+
+        # Check SSH ClientAliveInterval and ClientAliveCountMax
+        sshd_result = subprocess.run(
+            ["sshd", "-T"],
+            capture_output=True, text=True, timeout=30
+        )
+        if sshd_result.returncode == 0:
+            output = sshd_result.stdout.lower()
+
+            interval_match = re.search(
+                r"^clientaliveinterval\s+(\d+)",
+                output, re.MULTILINE
+            )
+            count_match = re.search(
+                r"^clientalivecountmax\s+(\d+)",
+                output, re.MULTILINE
+            )
+
+            if interval_match and count_match:
+                interval = int(interval_match.group(1))
+                count = int(count_match.group(1))
+
+                # Total idle timeout = interval * count
+                # Must be > 0 and <= 900 seconds (15 minutes)
+                total_timeout = interval * count
+                ssh_timeout_ok = bool(
+                    interval > 0
+                    and count >= 1
+                    and 1 <= total_timeout <= 900
+                )
+
+        # Check TMOUT is set system-wide in profile files
+        tmout_files = [
+            "/etc/profile",
+            "/etc/profile.d/tmout.sh",
+            "/etc/bashrc",
+            "/etc/bash.bashrc"
+        ]
+
+        for filepath in tmout_files:
+            cat_result = subprocess.run(
+                ["cat", filepath],
+                capture_output=True, text=True, timeout=10
+            )
+            if cat_result.returncode != 0:
+                continue
+
+            active_lines = [
+                l.strip() for l in cat_result.stdout.splitlines()
+                if l.strip() and not l.strip().startswith("#")
+            ]
+
+            for line in active_lines:
+                tmout_match = re.search(
+                    r"TMOUT\s*=\s*(\d+)", line
+                )
+                if tmout_match:
+                    tmout_val = int(tmout_match.group(1))
+                    # TMOUT must be > 0 and <= 900 seconds
+                    if 1 <= tmout_val <= 900:
+                        shell_timeout_ok = True
+                        break
+
+            if shell_timeout_ok:
+                break
+
+        return bool(ssh_timeout_ok and shell_timeout_ok)
+
+    except Exception:
+        return False
+
+
+def pattern_hiding_lx() -> bool:
+    """
+    AC.L2-3.1.10c - Previously Visible Information is Concealed via
+    Pattern-Hiding Display (Linux/Debian)
+    """
+    try:
+        tmout_readonly = False
+        ssh_pattern_ok = False
+        gui_blank_ok = False
+
+        # Check TMOUT is exported as readonly to prevent override
+        tmout_files = [
+            "/etc/profile",
+            "/etc/profile.d/tmout.sh",
+            "/etc/bashrc",
+            "/etc/bash.bashrc"
+        ]
+
+        for filepath in tmout_files:
+            cat_result = subprocess.run(
+                ["cat", filepath],
+                capture_output=True, text=True, timeout=10
+            )
+            if cat_result.returncode != 0:
+                continue
+
+            active_lines = [
+                l.strip() for l in cat_result.stdout.splitlines()
+                if l.strip() and not l.strip().startswith("#")
+            ]
+
+            for line in active_lines:
+                # Check for readonly TMOUT or typeset -r TMOUT
+                if re.search(
+                    r"(readonly\s+TMOUT|typeset\s+-r\s+TMOUT|"
+                    r"declare\s+-r\s+TMOUT)",
+                    line
+                ):
+                    tmout_readonly = True
+                    break
+
+            if tmout_readonly:
+                break
+
+        # Check SSH does not permit environment variable overrides
+        # that could allow users to reset TMOUT via SSH session
+        sshd_result = subprocess.run(
+            ["sshd", "-T"],
+            capture_output=True, text=True, timeout=30
+        )
+        if sshd_result.returncode == 0:
+            output = sshd_result.stdout.lower()
+
+            # PermitUserEnvironment must be no to prevent
+            # users from overriding TMOUT via ~/.ssh/environment
+            permit_env_match = re.search(
+                r"^permituserenvironment\s+(\S+)",
+                output, re.MULTILINE
+            )
+            if permit_env_match:
+                ssh_pattern_ok = bool(
+                    permit_env_match.group(1).lower() == "no"
+                )
+            else:
+                # Default is no so absence of the key is acceptable
+                ssh_pattern_ok = True
+
+        # Check GUI screen lock blanks display if a desktop environment
+        # is present — check for gsettings (GNOME) or xset (X11)
+        gsettings_result = subprocess.run(
+            ["gsettings", "get",
+             "org.gnome.desktop.screensaver", "picture-opacity"],
+            capture_output=True, text=True, timeout=10
+        )
+
+        if gsettings_result.returncode == 0:
+            # Check GNOME screensaver is set to blank screen
+            blank_result = subprocess.run(
+                ["gsettings", "get",
+                 "org.gnome.desktop.screensaver", "picture-uri"],
+                capture_output=True, text=True, timeout=10
+            )
+            if blank_result.returncode == 0:
+                picture_uri = blank_result.stdout.strip().lower()
+                # Empty URI or "none" indicates blank screen
+                gui_blank_ok = bool(
+                    picture_uri in {"''", '""', "", "none", "'none'"}
+                )
+
+            # Also check idle activation is enabled
+            idle_result = subprocess.run(
+                ["gsettings", "get",
+                 "org.gnome.desktop.screensaver", "idle-activation-enabled"],
+                capture_output=True, text=True, timeout=10
+            )
+            if idle_result.returncode == 0:
+                idle_enabled = idle_result.stdout.strip().lower()
+                if idle_enabled != "true":
+                    gui_blank_ok = False
+        else:
+            # No GUI detected — terminal-only systems pass this check
+            # since TMOUT readonly handles pattern hiding for CLI sessions
+            gui_blank_ok = True
+
+        return bool(tmout_readonly and ssh_pattern_ok and gui_blank_ok)
 
     except Exception:
         return False
