@@ -1,0 +1,165 @@
+{
+  "id": "AC.L2-3.1.5",
+  "control_number": "AC.L2-3.1.5",
+  "title": "Employ the Principle of Least Privilege Including for Specific Security Functions and Privileged Accounts",
+  "description": "employ the principle of least privilege, including for specific security functions and privileged accounts",
+  "category": "AC",
+  "target_os": [
+    "debian",
+    "linux",
+    "windows-client",
+    "windows-server"
+  ],
+  "check_details": {
+    "windows-client": {
+      "checks": [
+        {
+          "check_type": "command",
+          "name": "Privileged Accounts are Identified",
+          "sub_control": "a",
+          "command": "cs_f{access_control.privileged_accounts_identified_wc}",
+          "expected_result": "True",
+          "purpose": "Verify that all privileged local accounts are identified and enumerated including local Administrators group members and any accounts with elevated user rights assignments"
+        },
+        {
+          "check_type": "command",
+          "name": "Access to Privileged Accounts is Authorized per Least Privilege",
+          "sub_control": "b",
+          "command": "cs_f{access_control.separation_of_duties_assigned_wc}",
+          "expected_result": "True",
+          "purpose": "Confirm that privileged account membership is scoped to named individuals with no cross-role conflicts and no broad principals granted administrative access"
+        },
+        {
+          "check_type": "command",
+          "name": "Security Functions are Identified",
+          "sub_control": "c",
+          "command": "cs_f{access_control.security_functions_identified_wc}",
+          "expected_result": "True",
+          "purpose": "Verify that security functions such as audit policy management, firewall configuration, and user rights assignments are identified and mapped to specific privileged roles"
+        },
+        {
+          "check_type": "command",
+          "name": "Access to Security Functions is Authorized per Least Privilege",
+          "sub_control": "d",
+          "command": "cs_f{access_control.security_functions_enforcement_wc}",
+          "expected_result": "True",
+          "purpose": "Confirm that access to security functions is restricted to named privileged accounts and not accessible to standard users via Group Policy user rights assignments"
+        }
+      ]
+    },
+    "windows-server": {
+      "checks": [
+        {
+          "check_type": "command",
+          "name": "Privileged Accounts are Identified",
+          "sub_control": "a",
+          "command": "cs_f{access_control.privileged_accounts_identified_ws}",
+          "expected_result": "True",
+          "purpose": "Verify that all privileged AD accounts are identified including Domain Admins, Schema Admins, Enterprise Admins, and local administrator accounts"
+        },
+        {
+          "check_type": "command",
+          "name": "Access to Privileged Accounts is Authorized per Least Privilege",
+          "sub_control": "b",
+          "command": "cs_f{access_control.separation_of_duties_assigned_ws}",
+          "expected_result": "True",
+          "purpose": "Confirm that privileged AD group membership is scoped to named individuals with no conflicting cross-role memberships that violate least privilege"
+        },
+        {
+          "check_type": "command",
+          "name": "Security Functions are Identified",
+          "sub_control": "c",
+          "command": "cs_f{access_control.security_functions_identified_ws}",
+          "expected_result": "True",
+          "purpose": "Verify that security functions such as audit policy, firewall management, and AD administrative roles are identified and mapped to specific privileged groups"
+        },
+        {
+          "check_type": "command",
+          "name": "Access to Security Functions is Authorized per Least Privilege",
+          "sub_control": "d",
+          "command": "cs_f{access_control.security_functions_enforcement_ws}",
+          "expected_result": "True",
+          "purpose": "Confirm that access to security functions is restricted to named privileged AD groups and standard users are explicitly denied sensitive user rights via Group Policy"
+        }
+      ]
+    },
+    "linux": {
+      "checks": [
+        {
+          "check_type": "command",
+          "name": "Privileged Accounts are Identified",
+          "sub_control": "a",
+          "command": "cs_f{access_control.privileged_accounts_identified_lx}",
+          "expected_result": "True",
+          "purpose": "Verify that all privileged accounts are identified including sudo/wheel group members, UID 0 accounts, and any accounts with unrestricted sudoers entries"
+        },
+        {
+          "check_type": "command",
+          "name": "Access to Privileged Accounts is Authorized per Least Privilege",
+          "sub_control": "b",
+          "command": "cs_f{access_control.separation_of_duties_assigned_lx}",
+          "expected_result": "True",
+          "purpose": "Confirm that privileged group membership is scoped to named individuals with no high-risk cross-group conflicts and no non-root UID 0 accounts exist"
+        },
+        {
+          "check_type": "command",
+          "name": "Security Functions are Identified",
+          "sub_control": "c",
+          "command": "cs_f{access_control.security_functions_identified_lx}",
+          "expected_result": "True",
+          "purpose": "Verify that security functions such as firewall management, audit log access, and SELinux/AppArmor administration are identified and mapped to named privileged accounts"
+        },
+        {
+          "check_type": "command",
+          "name": "Access to Security Functions is Authorized per Least Privilege",
+          "sub_control": "d",
+          "command": "cs_f{access_control.security_functions_enforcement_lx}",
+          "expected_result": "True",
+          "purpose": "Confirm that access to security functions is restricted via scoped sudoers entries, sensitive group membership controls, and SELinux/AppArmor policy enforcement"
+        }
+      ]
+    },
+    "debian": {
+      "checks": [
+        {
+          "check_type": "command",
+          "name": "Privileged Accounts are Identified",
+          "sub_control": "a",
+          "command": "cs_f{access_control.privileged_accounts_identified_lx}",
+          "expected_result": "True",
+          "purpose": "Verify that all privileged accounts are identified including sudo group members, UID 0 accounts, and any accounts with unrestricted sudoers entries"
+        },
+        {
+          "check_type": "command",
+          "name": "Access to Privileged Accounts is Authorized per Least Privilege",
+          "sub_control": "b",
+          "command": "cs_f{access_control.separation_of_duties_assigned_lx}",
+          "expected_result": "True",
+          "purpose": "Confirm that privileged group membership is scoped to named individuals with no high-risk cross-group conflicts and no non-root UID 0 accounts exist"
+        },
+        {
+          "check_type": "command",
+          "name": "Security Functions are Identified",
+          "sub_control": "c",
+          "command": "cs_f{access_control.security_functions_identified_lx}",
+          "expected_result": "True",
+          "purpose": "Verify that security functions such as firewall management, audit log access, and AppArmor administration are identified and mapped to named privileged accounts"
+        },
+        {
+          "check_type": "command",
+          "name": "Access to Security Functions is Authorized per Least Privilege",
+          "sub_control": "d",
+          "command": "cs_f{access_control.security_functions_enforcement_lx}",
+          "expected_result": "True",
+          "purpose": "Confirm that access to security functions is restricted via scoped sudoers entries, sensitive group membership controls, and AppArmor policy enforcement"
+        }
+      ]
+    }
+  },
+  "severity": "High",
+  "remediation": "Instructions to remediate non-compliance",
+  "tags": [
+    "AC",
+    "AC.L2-3.1.5"
+  ]
+}
