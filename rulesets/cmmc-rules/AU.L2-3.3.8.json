@@ -1,0 +1,157 @@
+{
+  "id": "AU.L2-3.3.8",
+  "control_number": "AU.L2-3.3.8",
+  "title": "Protect Audit Information and Tools from Unauthorized Access",
+  "description": "Protect audit information and audit tools from unauthorized access, modification, and deletion.",
+  "category": "AU",
+  "target_os": [
+    "debian",
+    "linux",
+    "windows-client",
+    "windows-server"
+  ],
+  "check_details": {
+    "windows_client": {
+      "checks": [
+        {
+          "check_type": "command",
+          "name": "Security Event Log ACL Restricts Access",
+          "sub_control": "a",
+          "command": "cs_f(audit_accountability.event_log_acl_wc)",
+          "expected_result": "True",
+          "purpose": "Verify the Security event log DACL allows read access only to authorized users (Administrators, SYSTEM, Event Log Readers group) and denies write/delete to standard users"
+        },
+        {
+          "check_type": "command",
+          "name": "Audit Log Clearing is Restricted and Audited",
+          "sub_control": "b",
+          "command": "cs_f(audit_accountability.log_clear_audit_wc)",
+          "expected_result": "True",
+          "purpose": "Confirm auditing of audit policy changes is enabled so log clearing events (Event ID 1102) are captured and generate an alert"
+        },
+        {
+          "check_type": "command",
+          "name": "Audit Tools and Configuration Files are Protected",
+          "sub_control": "c",
+          "command": "cs_f(audit_accountability.audit_tools_protected_wc)",
+          "expected_result": "True",
+          "purpose": "Verify auditpol.exe and Group Policy audit settings are not modifiable by standard users"
+        }
+      ]
+    },
+    "windows_server": {
+      "checks": [
+        {
+          "check_type": "command",
+          "name": "Security Event Log ACL Restricts Access",
+          "sub_control": "a",
+          "command": "cs_f(audit_accountability.event_log_acl_ws)",
+          "expected_result": "True",
+          "purpose": "Verify the Security event log DACL allows read access only to authorized users (Administrators, SYSTEM, Event Log Readers group) and denies write/delete to standard users"
+        },
+        {
+          "check_type": "command",
+          "name": "Audit Log Clearing is Restricted and Audited",
+          "sub_control": "b",
+          "command": "cs_f(audit_accountability.log_clear_audit_ws)",
+          "expected_result": "True",
+          "purpose": "Confirm auditing of audit policy changes is enabled so log clearing events (Event ID 1102) are captured and generate an alert"
+        },
+        {
+          "check_type": "command",
+          "name": "Audit Tools and Configuration Files are Protected",
+          "sub_control": "c",
+          "command": "cs_f(audit_accountability.audit_tools_protected_ws)",
+          "expected_result": "True",
+          "purpose": "Verify auditpol.exe and Group Policy audit settings are not modifiable by standard users or non-admin service accounts"
+        },
+        {
+          "check_type": "command",
+          "name": "Remote Log Storage is Access-Controlled",
+          "sub_control": "d",
+          "command": "cs_f(audit_accountability.remote_log_acl_ws)",
+          "expected_result": "True",
+          "purpose": "Confirm centralized log storage (SIEM, log share) has access controls that prevent non-authorized users from modifying or deleting log data"
+        }
+      ]
+    },
+    "linux": {
+      "checks": [
+        {
+          "check_type": "command",
+          "name": "Audit Log File Permissions are Restrictive",
+          "sub_control": "a",
+          "command": "cs_f(audit_accountability.audit_log_permissions_lx)",
+          "expected_result": "True",
+          "purpose": "Verify /var/log/audit/audit.log is owned by root and has permissions 600 or 640, preventing standard users from reading or modifying logs"
+        },
+        {
+          "check_type": "command",
+          "name": "Audit Configuration Files are Protected",
+          "sub_control": "b",
+          "command": "cs_f(audit_accountability.audit_conf_permissions_lx)",
+          "expected_result": "True",
+          "purpose": "Confirm /etc/audit/auditd.conf and /etc/audit/rules.d/ are owned by root with permissions 640 or more restrictive"
+        },
+        {
+          "check_type": "command",
+          "name": "Audit Binaries Have Not Been Tampered With",
+          "sub_control": "c",
+          "command": "cs_f(audit_accountability.audit_binary_integrity_lx)",
+          "expected_result": "True",
+          "purpose": "Verify integrity of auditd, auditctl, ausearch, and aureport binaries using package manager verification (rpm -V or dpkg --verify)"
+        },
+        {
+          "check_type": "command",
+          "name": "Audit Rules Prevent Modification of Audit Logs",
+          "sub_control": "d",
+          "command": "cs_f(audit_accountability.audit_self_protect_rules_lx)",
+          "expected_result": "True",
+          "purpose": "Confirm auditd rules include watches on /etc/audit/ and /var/log/audit/ to detect unauthorized changes to audit configuration and logs"
+        }
+      ]
+    },
+    "debian": {
+      "checks": [
+        {
+          "check_type": "command",
+          "name": "Audit Log File Permissions are Restrictive",
+          "sub_control": "a",
+          "command": "cs_f(audit_accountability.audit_log_permissions_lx)",
+          "expected_result": "True",
+          "purpose": "Verify /var/log/audit/audit.log is owned by root and has permissions 600 or 640, preventing standard users from reading or modifying logs"
+        },
+        {
+          "check_type": "command",
+          "name": "Audit Configuration Files are Protected",
+          "sub_control": "b",
+          "command": "cs_f(audit_accountability.audit_conf_permissions_lx)",
+          "expected_result": "True",
+          "purpose": "Confirm /etc/audit/auditd.conf and /etc/audit/rules.d/ are owned by root with permissions 640 or more restrictive"
+        },
+        {
+          "check_type": "command",
+          "name": "Audit Binaries Have Not Been Tampered With",
+          "sub_control": "c",
+          "command": "cs_f(audit_accountability.audit_binary_integrity_lx)",
+          "expected_result": "True",
+          "purpose": "Verify integrity of auditd, auditctl, ausearch, and aureport binaries using dpkg --verify"
+        },
+        {
+          "check_type": "command",
+          "name": "Audit Rules Prevent Modification of Audit Logs",
+          "sub_control": "d",
+          "command": "cs_f(audit_accountability.audit_self_protect_rules_lx)",
+          "expected_result": "True",
+          "purpose": "Confirm auditd rules include watches on /etc/audit/ and /var/log/audit/ to detect unauthorized changes to audit configuration and logs"
+        }
+      ]
+    }
+  },
+  "severity": "High",
+  "remediation": "Restrict Security event log ACLs to Administrators and Event Log Readers. Enable audit policy change auditing to detect log clearing. On Linux, set /var/log/audit/ permissions to 700/600 and protect /etc/audit/ with 750/640. Add auditd self-watch rules. Verify binary integrity via package manager.",
+  "tags": [
+    "AU",
+    "AU.L2-3.3.8"
+  ]
+}

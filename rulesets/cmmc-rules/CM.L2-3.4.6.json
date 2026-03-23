@@ -1,0 +1,141 @@
+{
+  "id": "CM.L2-3.4.6",
+  "control_number": "CM.L2-3.4.6",
+  "title": "Employ the Principle of Least Functionality",
+  "description": "Employ the principle of least functionality by configuring organizational systems to provide only essential capabilities.",
+  "category": "CM",
+  "target_os": [
+    "debian",
+    "linux",
+    "windows-client",
+    "windows-server"
+  ],
+  "check_details": {
+    "windows_client": {
+      "checks": [
+        {
+          "check_type": "command",
+          "name": "Unnecessary Windows Features are Disabled",
+          "sub_control": "a",
+          "command": "cs_f(configuration_management.unnecessary_features_disabled_wc)",
+          "expected_result": "True",
+          "purpose": "Verify optional Windows features (e.g., Telnet Client, TFTP Client, SMBv1, PowerShell v2) that are not required are disabled"
+        },
+        {
+          "check_type": "command",
+          "name": "Unnecessary Services are Stopped and Disabled",
+          "sub_control": "b",
+          "command": "cs_f(configuration_management.unnecessary_services_disabled_wc)",
+          "expected_result": "True",
+          "purpose": "Confirm non-essential services (e.g., Remote Registry, Print Spooler where not needed, Bluetooth) are stopped and set to Disabled"
+        },
+        {
+          "check_type": "command",
+          "name": "Only Authorized Applications are Installed",
+          "sub_control": "c",
+          "command": "cs_f(configuration_management.authorized_apps_only_wc)",
+          "expected_result": "True",
+          "purpose": "Verify installed applications match the authorized software list and no unauthorized or unnecessary applications are present"
+        }
+      ]
+    },
+    "windows_server": {
+      "checks": [
+        {
+          "check_type": "command",
+          "name": "Only Required Server Roles and Features are Installed",
+          "sub_control": "a",
+          "command": "cs_f(configuration_management.minimal_roles_ws)",
+          "expected_result": "True",
+          "purpose": "Verify only roles and features required for the server's documented purpose are installed and all others are removed"
+        },
+        {
+          "check_type": "command",
+          "name": "Unnecessary Services are Stopped and Disabled",
+          "sub_control": "b",
+          "command": "cs_f(configuration_management.unnecessary_services_disabled_ws)",
+          "expected_result": "True",
+          "purpose": "Confirm non-essential services are stopped and set to Disabled startup type"
+        },
+        {
+          "check_type": "command",
+          "name": "Only Authorized Applications are Installed",
+          "sub_control": "c",
+          "command": "cs_f(configuration_management.authorized_apps_only_ws)",
+          "expected_result": "True",
+          "purpose": "Verify installed applications match the authorized software list and no unauthorized or unnecessary applications are present"
+        },
+        {
+          "check_type": "command",
+          "name": "Server Core or Minimal Installation is Used Where Applicable",
+          "sub_control": "d",
+          "command": "cs_f(configuration_management.server_core_check_ws)",
+          "expected_result": "True",
+          "purpose": "Verify the server uses Server Core or a minimal installation footprint where feasible to reduce attack surface"
+        }
+      ]
+    },
+    "linux": {
+      "checks": [
+        {
+          "check_type": "command",
+          "name": "Unnecessary Packages are Removed",
+          "sub_control": "a",
+          "command": "cs_f(configuration_management.unnecessary_packages_removed_lx)",
+          "expected_result": "True",
+          "purpose": "Verify no unnecessary packages (e.g., X11, games, compilers on production servers) are installed"
+        },
+        {
+          "check_type": "command",
+          "name": "Unnecessary Services are Stopped and Disabled",
+          "sub_control": "b",
+          "command": "cs_f(configuration_management.unnecessary_services_disabled_lx)",
+          "expected_result": "True",
+          "purpose": "Confirm non-essential services (e.g., avahi-daemon, cups, rpcbind) are stopped and disabled via systemctl"
+        },
+        {
+          "check_type": "command",
+          "name": "Only Required Network Services are Listening",
+          "sub_control": "c",
+          "command": "cs_f(configuration_management.minimal_listening_services_lx)",
+          "expected_result": "True",
+          "purpose": "Verify only authorized services are bound to network interfaces using ss -tlnp or netstat -tlnp"
+        }
+      ]
+    },
+    "debian": {
+      "checks": [
+        {
+          "check_type": "command",
+          "name": "Unnecessary Packages are Removed",
+          "sub_control": "a",
+          "command": "cs_f(configuration_management.unnecessary_packages_removed_lx)",
+          "expected_result": "True",
+          "purpose": "Verify no unnecessary packages are installed on this Debian system"
+        },
+        {
+          "check_type": "command",
+          "name": "Unnecessary Services are Stopped and Disabled",
+          "sub_control": "b",
+          "command": "cs_f(configuration_management.unnecessary_services_disabled_lx)",
+          "expected_result": "True",
+          "purpose": "Confirm non-essential services are stopped and disabled via systemctl on Debian"
+        },
+        {
+          "check_type": "command",
+          "name": "Only Required Network Services are Listening",
+          "sub_control": "c",
+          "command": "cs_f(configuration_management.minimal_listening_services_lx)",
+          "expected_result": "True",
+          "purpose": "Verify only authorized services are bound to network interfaces using ss -tlnp"
+        }
+      ]
+    }
+  },
+  "severity": "High",
+  "remediation": "Remove unnecessary Windows features and optional components. Disable non-essential services. Uninstall unauthorized or unneeded applications. On Linux, remove unnecessary packages and disable unneeded services. Use Server Core on Windows Server where feasible. Maintain an approved service and application list.",
+  "tags": [
+    "CM",
+    "CM.L2-3.4.6"
+  ]
+}

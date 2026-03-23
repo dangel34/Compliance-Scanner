@@ -1,0 +1,205 @@
+{
+  "id": "CM.L2-3.4.2",
+  "control_number": "CM.L2-3.4.2",
+  "title": "Establish and Enforce Secure Configuration Settings",
+  "description": "Establish and enforce security configuration settings for information technology products employed in organizational systems.",
+  "category": "CM",
+  "target_os": [
+    "debian",
+    "linux",
+    "windows-client",
+    "windows-server"
+  ],
+  "check_details": {
+    "windows_client": {
+      "checks": [
+        {
+          "check_type": "command",
+          "name": "Security Baseline GPO is Applied",
+          "sub_control": "a",
+          "command": "cs_f(configuration_management.security_baseline_gpo_wc)",
+          "expected_result": "True",
+          "purpose": "Verify a security configuration GPO (e.g., Microsoft Security Baseline or CIS benchmark) is applied and in effect on this Windows Client"
+        },
+        {
+          "check_type": "command",
+          "name": "Password Policy Meets Minimum Requirements",
+          "sub_control": "b",
+          "command": "cs_f(configuration_management.password_policy_wc)",
+          "expected_result": "True",
+          "purpose": "Confirm minimum password length, complexity, history, and age settings meet the documented security baseline"
+        },
+        {
+          "check_type": "command",
+          "name": "Screen Lock and Idle Timeout are Configured",
+          "sub_control": "c",
+          "command": "cs_f(configuration_management.screen_lock_wc)",
+          "expected_result": "True",
+          "purpose": "Verify screen lock activates after the defined idle period and requires authentication to unlock"
+        },
+        {
+          "check_type": "command",
+          "name": "Windows Defender Antivirus is Enabled and Configured",
+          "sub_control": "d",
+          "command": "cs_f(configuration_management.defender_enabled_wc)",
+          "expected_result": "True",
+          "purpose": "Confirm Windows Defender Antivirus real-time protection is enabled and configured per the security baseline"
+        },
+        {
+          "check_type": "command",
+          "name": "Windows Firewall is Enabled for All Profiles",
+          "sub_control": "e",
+          "command": "cs_f(configuration_management.firewall_enabled_wc)",
+          "expected_result": "True",
+          "purpose": "Verify Windows Defender Firewall is enabled for Domain, Private, and Public profiles"
+        }
+      ]
+    },
+    "windows_server": {
+      "checks": [
+        {
+          "check_type": "command",
+          "name": "Security Baseline GPO is Applied",
+          "sub_control": "a",
+          "command": "cs_f(configuration_management.security_baseline_gpo_ws)",
+          "expected_result": "True",
+          "purpose": "Verify a security configuration GPO (e.g., Microsoft Security Baseline or STIG) is applied and in effect on this Windows Server"
+        },
+        {
+          "check_type": "command",
+          "name": "Password Policy Meets Minimum Requirements",
+          "sub_control": "b",
+          "command": "cs_f(configuration_management.password_policy_ws)",
+          "expected_result": "True",
+          "purpose": "Confirm minimum password length, complexity, history, and age settings meet the documented security baseline"
+        },
+        {
+          "check_type": "command",
+          "name": "Screen Lock and Idle Timeout are Configured",
+          "sub_control": "c",
+          "command": "cs_f(configuration_management.screen_lock_ws)",
+          "expected_result": "True",
+          "purpose": "Verify screen lock activates after the defined idle period and requires authentication to unlock"
+        },
+        {
+          "check_type": "command",
+          "name": "Windows Defender or Endpoint Protection is Enabled",
+          "sub_control": "d",
+          "command": "cs_f(configuration_management.defender_enabled_ws)",
+          "expected_result": "True",
+          "purpose": "Confirm Windows Defender or an approved endpoint protection solution is active and configured per the security baseline"
+        },
+        {
+          "check_type": "command",
+          "name": "Windows Firewall is Enabled for All Profiles",
+          "sub_control": "e",
+          "command": "cs_f(configuration_management.firewall_enabled_ws)",
+          "expected_result": "True",
+          "purpose": "Verify Windows Defender Firewall is enabled for Domain, Private, and Public profiles"
+        },
+        {
+          "check_type": "command",
+          "name": "SMB Signing is Enforced",
+          "sub_control": "f",
+          "command": "cs_f(configuration_management.smb_signing_ws)",
+          "expected_result": "True",
+          "purpose": "Confirm SMB signing is required on the server to prevent man-in-the-middle attacks per the security baseline"
+        }
+      ]
+    },
+    "linux": {
+      "checks": [
+        {
+          "check_type": "command",
+          "name": "CIS or STIG Hardening Baseline is Applied",
+          "sub_control": "a",
+          "command": "cs_f(configuration_management.hardening_baseline_lx)",
+          "expected_result": "True",
+          "purpose": "Verify a recognized hardening baseline (CIS Benchmark, DISA STIG, or OSCAP profile) has been applied to this system"
+        },
+        {
+          "check_type": "command",
+          "name": "Password Policy Meets Minimum Requirements",
+          "sub_control": "b",
+          "command": "cs_f(configuration_management.password_policy_lx)",
+          "expected_result": "True",
+          "purpose": "Confirm PAM password quality settings (minlen, complexity, history) in /etc/security/pwquality.conf meet the security baseline"
+        },
+        {
+          "check_type": "command",
+          "name": "SSH Hardening Settings are Configured",
+          "sub_control": "c",
+          "command": "cs_f(configuration_management.ssh_hardening_lx)",
+          "expected_result": "True",
+          "purpose": "Verify sshd_config enforces Protocol 2, disables root login, disables empty passwords, and uses approved ciphers and MACs"
+        },
+        {
+          "check_type": "command",
+          "name": "Firewall is Enabled and Configured",
+          "sub_control": "d",
+          "command": "cs_f(configuration_management.firewall_enabled_lx)",
+          "expected_result": "True",
+          "purpose": "Confirm iptables, nftables, or firewalld is active and enforcing a default-deny inbound policy"
+        },
+        {
+          "check_type": "command",
+          "name": "Core Dump is Disabled",
+          "sub_control": "e",
+          "command": "cs_f(configuration_management.core_dump_disabled_lx)",
+          "expected_result": "True",
+          "purpose": "Verify core dumps are disabled via /etc/security/limits.conf or systemd to prevent sensitive data exposure"
+        }
+      ]
+    },
+    "debian": {
+      "checks": [
+        {
+          "check_type": "command",
+          "name": "CIS or STIG Hardening Baseline is Applied",
+          "sub_control": "a",
+          "command": "cs_f(configuration_management.hardening_baseline_lx)",
+          "expected_result": "True",
+          "purpose": "Verify a recognized hardening baseline (CIS Benchmark or OSCAP profile) has been applied to this Debian system"
+        },
+        {
+          "check_type": "command",
+          "name": "Password Policy Meets Minimum Requirements",
+          "sub_control": "b",
+          "command": "cs_f(configuration_management.password_policy_lx)",
+          "expected_result": "True",
+          "purpose": "Confirm PAM password quality settings in /etc/security/pwquality.conf and /etc/pam.d/ meet the security baseline"
+        },
+        {
+          "check_type": "command",
+          "name": "SSH Hardening Settings are Configured",
+          "sub_control": "c",
+          "command": "cs_f(configuration_management.ssh_hardening_lx)",
+          "expected_result": "True",
+          "purpose": "Verify sshd_config enforces Protocol 2, disables root login, disables empty passwords, and uses approved ciphers and MACs"
+        },
+        {
+          "check_type": "command",
+          "name": "Firewall is Enabled and Configured",
+          "sub_control": "d",
+          "command": "cs_f(configuration_management.firewall_enabled_lx)",
+          "expected_result": "True",
+          "purpose": "Confirm ufw, iptables, or nftables is active and enforcing a default-deny inbound policy"
+        },
+        {
+          "check_type": "command",
+          "name": "Core Dump is Disabled",
+          "sub_control": "e",
+          "command": "cs_f(configuration_management.core_dump_disabled_lx)",
+          "expected_result": "True",
+          "purpose": "Verify core dumps are disabled via /etc/security/limits.conf or systemd to prevent sensitive data exposure"
+        }
+      ]
+    }
+  },
+  "severity": "High",
+  "remediation": "Apply Microsoft Security Baselines or CIS Benchmarks via GPO on Windows. Enforce PAM password policy, SSH hardening, and firewall rules on Linux. Enable Windows Defender and Windows Firewall. Enforce SMB signing on servers. Validate with a compliance scanning tool (OSCAP, Microsoft Baseline Analyzer, or equivalent).",
+  "tags": [
+    "CM",
+    "CM.L2-3.4.2"
+  ]
+}

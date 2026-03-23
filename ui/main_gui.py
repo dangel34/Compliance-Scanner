@@ -1,3 +1,5 @@
+## LEGACY, USE THREADING_GUI.PY INSTEAD
+
 from __future__ import annotations
 
 import json
@@ -89,7 +91,7 @@ def get_rule_status(result: RunResult) -> str:
     Compute the overall pass/fail/error status for a rule result.
 
     :param result: Rule execution result dictionary.
-    :return: 'PASS', 'FAIL', 'ERROR', or 'SKIP' (no checks for this OS).
+    :return: 'PASS', 'FAIL', 'PARTIAL', 'ERROR', or 'SKIP' (no checks for this OS).
     """
     if result is None:
         return "NOT_RUN"
@@ -100,11 +102,12 @@ def get_rule_status(result: RunResult) -> str:
     if not checks:
         return "SKIP"
 
-    for check in checks:
-        if check.get("status") != "PASS":
-            return "FAIL"
-
-    return "PASS"
+    statuses = [c.get("status") for c in checks]
+    if all(s == "PASS" for s in statuses):
+        return "PASS"
+    if all(s == "FAIL" for s in statuses):
+        return "FAIL"
+    return "PARTIAL"
 
 
 def format_rule_details(result: RunResult) -> str:
@@ -386,9 +389,13 @@ class ComplianceApp(ctk.CTk):
             if result:
                 status = get_rule_status(result)
                 if status == "PASS":
-                    btn.configure(fg_color="#1f6f43")
+                    btn.configure(fg_color="#1f6f43")  # green
+                elif status == "PARTIAL":
+                    btn.configure(fg_color="#d1a800")  # yellow
+                elif status == "FAIL" or status == "ERROR":
+                    btn.configure(fg_color="#8b1e1e")  # red
                 else:
-                    btn.configure(fg_color="#8b1e1e")
+                    btn.configure(fg_color="transparent")
             else:
                 btn.configure(fg_color="transparent")
 
@@ -459,8 +466,12 @@ class ComplianceApp(ctk.CTk):
         if btn:
             if status == "PASS":
                 btn.configure(text=f"{result['rule_id']}  ✓", fg_color="#1f6f43")
-            else:
+            elif status == "PARTIAL":
+                btn.configure(text=f"{result['rule_id']}  !", fg_color="#d1a800")
+            elif status == "FAIL" or status == "ERROR":
                 btn.configure(text=f"{result['rule_id']}  ✗", fg_color="#8b1e1e")
+            else:
+                btn.configure(text=f"{result['rule_id']}", fg_color="transparent")
 
         # Show details
         self.details_text.configure(state="normal")
@@ -524,6 +535,9 @@ class ComplianceApp(ctk.CTk):
                 if status == "PASS":
                     btn.configure(text=f"{result['rule_id']}  ✓", fg_color="#1f6f43")
                     pass_count += 1
+                elif status == "PARTIAL":
+                    btn.configure(text=f"{result['rule_id']}  !", fg_color="#d1a800")
+                    fail_count += 1
                 else:
                     btn.configure(text=f"{result['rule_id']}  ✗", fg_color="#8b1e1e")
                     fail_count += 1

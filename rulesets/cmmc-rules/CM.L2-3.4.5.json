@@ -1,0 +1,141 @@
+{
+  "id": "CM.L2-3.4.5",
+  "control_number": "CM.L2-3.4.5",
+  "title": "Define, Document, Approve, and Enforce Access Restrictions for Change",
+  "description": "Define, document, approve, and enforce physical and logical access restrictions associated with changes to organizational systems.",
+  "category": "CM",
+  "target_os": [
+    "debian",
+    "linux",
+    "windows-client",
+    "windows-server"
+  ],
+  "check_details": {
+    "windows_client": {
+      "checks": [
+        {
+          "check_type": "command",
+          "name": "Only Authorized Users Can Install Software",
+          "sub_control": "a",
+          "command": "cs_f(configuration_management.software_install_restricted_wc)",
+          "expected_result": "True",
+          "purpose": "Verify standard users do not have local administrator rights that would allow unauthorized software installation or system changes"
+        },
+        {
+          "check_type": "command",
+          "name": "Local Administrator Accounts are Controlled",
+          "sub_control": "b",
+          "command": "cs_f(configuration_management.local_admin_controlled_wc)",
+          "expected_result": "True",
+          "purpose": "Confirm the local Administrators group contains only authorized accounts and the built-in Administrator account is disabled or renamed"
+        },
+        {
+          "check_type": "command",
+          "name": "UAC is Enabled and Configured",
+          "sub_control": "c",
+          "command": "cs_f(configuration_management.uac_enabled_wc)",
+          "expected_result": "True",
+          "purpose": "Verify User Account Control (UAC) is enabled and set to prompt for credentials on the secure desktop"
+        }
+      ]
+    },
+    "windows_server": {
+      "checks": [
+        {
+          "check_type": "command",
+          "name": "Only Authorized Users Can Install Software or Modify Roles",
+          "sub_control": "a",
+          "command": "cs_f(configuration_management.software_install_restricted_ws)",
+          "expected_result": "True",
+          "purpose": "Verify only authorized administrators can install software or add/remove server roles and features"
+        },
+        {
+          "check_type": "command",
+          "name": "Local Administrator Accounts are Controlled",
+          "sub_control": "b",
+          "command": "cs_f(configuration_management.local_admin_controlled_ws)",
+          "expected_result": "True",
+          "purpose": "Confirm the local Administrators group contains only authorized accounts and the built-in Administrator account is disabled or renamed"
+        },
+        {
+          "check_type": "command",
+          "name": "UAC is Enabled and Configured",
+          "sub_control": "c",
+          "command": "cs_f(configuration_management.uac_enabled_ws)",
+          "expected_result": "True",
+          "purpose": "Verify User Account Control is enabled and configured appropriately for server context"
+        },
+        {
+          "check_type": "command",
+          "name": "Change-Related Privileged Access is Logged",
+          "sub_control": "d",
+          "command": "cs_f(configuration_management.privileged_change_access_log_ws)",
+          "expected_result": "True",
+          "purpose": "Confirm privileged access used to make system changes is captured in the audit log with user identity and timestamp"
+        }
+      ]
+    },
+    "linux": {
+      "checks": [
+        {
+          "check_type": "command",
+          "name": "Only Root and Authorized Sudoers Can Modify System Configuration",
+          "sub_control": "a",
+          "command": "cs_f(configuration_management.root_access_restricted_lx)",
+          "expected_result": "True",
+          "purpose": "Verify direct root login is disabled and sudo access is restricted to named authorized users or groups via /etc/sudoers"
+        },
+        {
+          "check_type": "command",
+          "name": "Package Installation Requires Elevated Privileges",
+          "sub_control": "b",
+          "command": "cs_f(configuration_management.package_install_restricted_lx)",
+          "expected_result": "True",
+          "purpose": "Confirm standard users cannot install packages by verifying they lack sudo rights to apt, yum, dnf, or rpm"
+        },
+        {
+          "check_type": "command",
+          "name": "Sudoers File is Restricted and Audited",
+          "sub_control": "c",
+          "command": "cs_f(configuration_management.sudoers_restricted_lx)",
+          "expected_result": "True",
+          "purpose": "Verify /etc/sudoers and /etc/sudoers.d/ contain only authorized entries and are watched by auditd for unauthorized modification"
+        }
+      ]
+    },
+    "debian": {
+      "checks": [
+        {
+          "check_type": "command",
+          "name": "Only Root and Authorized Sudoers Can Modify System Configuration",
+          "sub_control": "a",
+          "command": "cs_f(configuration_management.root_access_restricted_lx)",
+          "expected_result": "True",
+          "purpose": "Verify direct root login is disabled and sudo access is restricted to named authorized users or groups"
+        },
+        {
+          "check_type": "command",
+          "name": "Package Installation Requires Elevated Privileges",
+          "sub_control": "b",
+          "command": "cs_f(configuration_management.package_install_restricted_lx)",
+          "expected_result": "True",
+          "purpose": "Confirm standard users cannot install packages by verifying they lack sudo rights to apt or dpkg"
+        },
+        {
+          "check_type": "command",
+          "name": "Sudoers File is Restricted and Audited",
+          "sub_control": "c",
+          "command": "cs_f(configuration_management.sudoers_restricted_lx)",
+          "expected_result": "True",
+          "purpose": "Verify /etc/sudoers and /etc/sudoers.d/ contain only authorized entries and are watched by auditd for unauthorized modification"
+        }
+      ]
+    }
+  },
+  "severity": "High",
+  "remediation": "Remove standard users from the local Administrators group. Enable and configure UAC. Disable or rename the built-in Administrator account. On Linux, disable direct root login and restrict sudo to named authorized users. Watch sudoers with auditd. Ensure all privileged access used for system changes is logged.",
+  "tags": [
+    "CM",
+    "CM.L2-3.4.5"
+  ]
+}

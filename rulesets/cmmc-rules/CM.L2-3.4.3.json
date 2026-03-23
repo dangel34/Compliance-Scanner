@@ -1,0 +1,141 @@
+{
+  "id": "CM.L2-3.4.3",
+  "control_number": "CM.L2-3.4.3",
+  "title": "Track, Review, Approve, and Log Changes to Systems",
+  "description": "Track, review, approve, and log changes to organizational systems.",
+  "category": "CM",
+  "target_os": [
+    "debian",
+    "linux",
+    "windows-client",
+    "windows-server"
+  ],
+  "check_details": {
+    "windows_client": {
+      "checks": [
+        {
+          "check_type": "command",
+          "name": "System Change Auditing is Enabled",
+          "sub_control": "a",
+          "command": "cs_f(configuration_management.change_auditing_wc)",
+          "expected_result": "True",
+          "purpose": "Verify audit policy tracks system configuration changes including policy changes and account management events"
+        },
+        {
+          "check_type": "command",
+          "name": "Software Installation Events are Logged",
+          "sub_control": "b",
+          "command": "cs_f(configuration_management.software_install_log_wc)",
+          "expected_result": "True",
+          "purpose": "Confirm software installation and removal events are captured in the event log (Event IDs 11707, 11708, 1033, 1034)"
+        },
+        {
+          "check_type": "command",
+          "name": "Registry Changes are Audited",
+          "sub_control": "c",
+          "command": "cs_f(configuration_management.registry_change_audit_wc)",
+          "expected_result": "True",
+          "purpose": "Verify registry object access auditing is enabled for key security-relevant registry paths"
+        }
+      ]
+    },
+    "windows_server": {
+      "checks": [
+        {
+          "check_type": "command",
+          "name": "System Change Auditing is Enabled",
+          "sub_control": "a",
+          "command": "cs_f(configuration_management.change_auditing_ws)",
+          "expected_result": "True",
+          "purpose": "Verify audit policy tracks system configuration changes including policy changes and account management events"
+        },
+        {
+          "check_type": "command",
+          "name": "Software Installation Events are Logged",
+          "sub_control": "b",
+          "command": "cs_f(configuration_management.software_install_log_ws)",
+          "expected_result": "True",
+          "purpose": "Confirm software installation and removal events are captured in the event log"
+        },
+        {
+          "check_type": "command",
+          "name": "Registry Changes are Audited",
+          "sub_control": "c",
+          "command": "cs_f(configuration_management.registry_change_audit_ws)",
+          "expected_result": "True",
+          "purpose": "Verify registry object access auditing is enabled for key security-relevant registry paths"
+        },
+        {
+          "check_type": "command",
+          "name": "Change Management System is Referenced",
+          "sub_control": "d",
+          "command": "cs_f(configuration_management.change_mgmt_system_ws)",
+          "expected_result": "True",
+          "purpose": "Verify that a change management or ticketing system is in use and that recent system changes are traceable to approved change records"
+        }
+      ]
+    },
+    "linux": {
+      "checks": [
+        {
+          "check_type": "command",
+          "name": "File Integrity Monitoring is Enabled",
+          "sub_control": "a",
+          "command": "cs_f(configuration_management.fim_enabled_lx)",
+          "expected_result": "True",
+          "purpose": "Verify AIDE, Tripwire, or equivalent FIM tool is installed and actively monitoring critical system files and configuration paths"
+        },
+        {
+          "check_type": "command",
+          "name": "Package Installation and Removal is Logged",
+          "sub_control": "b",
+          "command": "cs_f(configuration_management.package_install_log_lx)",
+          "expected_result": "True",
+          "purpose": "Confirm package manager logs (/var/log/dpkg.log or /var/log/yum.log) exist and capture installation and removal events"
+        },
+        {
+          "check_type": "command",
+          "name": "Auditd Rules Watch Critical Configuration Files",
+          "sub_control": "c",
+          "command": "cs_f(configuration_management.config_file_watch_lx)",
+          "expected_result": "True",
+          "purpose": "Verify auditd rules include watches on /etc/passwd, /etc/sudoers, /etc/ssh/sshd_config, and other critical configuration files"
+        }
+      ]
+    },
+    "debian": {
+      "checks": [
+        {
+          "check_type": "command",
+          "name": "File Integrity Monitoring is Enabled",
+          "sub_control": "a",
+          "command": "cs_f(configuration_management.fim_enabled_lx)",
+          "expected_result": "True",
+          "purpose": "Verify AIDE or equivalent FIM tool is installed and actively monitoring critical system files and configuration paths"
+        },
+        {
+          "check_type": "command",
+          "name": "Package Installation and Removal is Logged",
+          "sub_control": "b",
+          "command": "cs_f(configuration_management.package_install_log_lx)",
+          "expected_result": "True",
+          "purpose": "Confirm /var/log/dpkg.log exists and captures package installation and removal events"
+        },
+        {
+          "check_type": "command",
+          "name": "Auditd Rules Watch Critical Configuration Files",
+          "sub_control": "c",
+          "command": "cs_f(configuration_management.config_file_watch_lx)",
+          "expected_result": "True",
+          "purpose": "Verify auditd rules include watches on /etc/passwd, /etc/sudoers, /etc/ssh/sshd_config, and other critical configuration files"
+        }
+      ]
+    }
+  },
+  "severity": "High",
+  "remediation": "Enable audit policy subcategories for policy changes and account management. Deploy a FIM tool (AIDE, Tripwire, or Wazuh) on Linux. Ensure package manager logs are retained. Establish a formal change management process and confirm all changes are logged and traceable to approved change records.",
+  "tags": [
+    "CM",
+    "CM.L2-3.4.3"
+  ]
+}
