@@ -4293,3 +4293,2284 @@ def pattern_hiding_lx() -> bool:
 
     except Exception:
         return False
+
+
+def session_termination_wc() -> bool:
+    """
+    AC.L2-3.1.11b - User Session is Automatically Terminated After Defined
+    Conditions (Windows Client)
+    """
+    try:
+        mechanisms_active = 0
+
+        # Check machine inactivity limit via Group Policy registry
+        # This setting locks/terminates the session at the OS level
+        # regardless of user-level screen saver settings
+        inactivity_result = subprocess.run(
+            ["powershell", "-Command",
+             "Get-ItemProperty -Path "
+             "'HKLM:\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\"
+             "Policies\\System' "
+             "-ErrorAction SilentlyContinue | "
+             "Select-Object InactivityTimeoutSecs | ConvertTo-Json"],
+            capture_output=True, text=True, timeout=30
+        )
+        if inactivity_result.returncode == 0 and inactivity_result.stdout.strip():
+            inactivity_data = json.loads(inactivity_result.stdout)
+            timeout_secs = inactivity_data.get("InactivityTimeoutSecs", 0)
+            try:
+                timeout_secs = int(timeout_secs)
+            except (ValueError, TypeError):
+                timeout_secs = 0
+            # Must be > 0 and <= 900 seconds (15 minutes)
+            if bool(1 <= timeout_secs <= 900):
+                mechanisms_active += 1
+
+        # Check screen saver is configured with password and timeout
+        # Reuse registry check logic from session_lock_wc
+        screensaver_result = subprocess.run(
+            ["powershell", "-Command",
+             "Get-ItemProperty -Path "
+             "'HKCU:\\Software\\Policies\\Microsoft\\Windows\\"
+             "Control Panel\\Desktop' "
+             "-ErrorAction SilentlyContinue | "
+             "Select-Object ScreenSaveActive, ScreenSaveTimeOut, "
+             "ScreenSaverIsSecure | ConvertTo-Json"],
+            capture_output=True, text=True, timeout=30
+        )
+
+        ss_data = {}
+        if screensaver_result.returncode == 0 and screensaver_result.stdout.strip():
+            ss_data = json.loads(screensaver_result.stdout)
+
+        if not ss_data:
+            fallback_result = subprocess.run(
+                ["powershell", "-Command",
+                 "Get-ItemProperty -Path "
+                 "'HKCU:\\Control Panel\\Desktop' "
+                 "-ErrorAction SilentlyContinue | "
+                 "Select-Object ScreenSaveActive, ScreenSaveTimeOut, "
+                 "ScreenSaverIsSecure | ConvertTo-Json"],
+                capture_output=True, text=True, timeout=30
+            )
+            if fallback_result.returncode == 0 and fallback_result.stdout.strip():
+                ss_data = json.loads(fallback_result.stdout)
+
+        if ss_data:
+            active = str(ss_data.get("ScreenSaveActive", "0")).strip()
+            try:
+                ss_timeout = int(ss_data.get("ScreenSaveTimeOut", 0))
+            except (ValueError, TypeError):
+                ss_timeout = 0
+            secure = str(ss_data.get("ScreenSaverIsSecure", "0")).strip()
+            if bool(active == "1" and 1 <= ss_timeout <= 900 and secure == "1"):
+                mechanisms_active += 1
+
+        # Check force logoff when logon hours expire via secedit
+        secedit_result = subprocess.run(
+            ["powershell", "-Command",
+             "secedit /export /cfg $env:TEMP\\secpol.cfg /quiet; "
+             "Get-Content $env:TEMP\\secpol.cfg | "
+             "Select-String 'ForceLogoffWhenHourExpire'"],
+            capture_output=True, text=True, timeout=30
+        )
+        if secedit_result.returncode == 0 and secedit_result.stdout.strip():
+            logoff_lines = secedit_result.stdout.strip().splitlines()
+            for line in logoff_lines:
+                if "=" in line:
+                    value = line.split("=", 1)[1].strip()
+                    # ForceLogoffWhenHourExpire = 1 means force logoff
+                    if value == "1":
+                        mechanisms_active += 1
+                        break
+
+        # Require at least 2 of 3 mechanisms to be active
+        return bool(mechanisms_active >= 2)
+
+    except Exception:
+        return False
+
+
+def session_termination_ws() -> bool:
+    """
+    AC.L2-3.1.11b - User Session is Automatically Terminated After Defined
+    Conditions (Windows Server)
+    """
+    try:
+        rdp_termination_ok = False
+        inactivity_limit_ok = False
+        session_time_limit_ok = False
+
+        # Check RDP idle session termination settings via GP registry
+        rdp_result = subprocess.run(
+            ["powershell", "-Command",
+             "Get-ItemProperty -Path "
+             "'HKLM:\\SOFTWARE\\Policies\\Microsoft\\Windows NT\\"
+             "Terminal Services' "
+             "-ErrorAction SilentlyContinue | "
+             "Select-Object MaxIdleTime, MaxDisconnectionTime, "
+             "MaxConnectionTime, fResetBroken | ConvertTo-Json"],
+            capture_output=True, text=True, timeout=30
+        )
+        if rdp_result.returncode == 0 and rdp_result.stdout.strip():
+            rdp_data = json.loads(rdp_result.stdout)
+
+            # MaxIdleTime in milliseconds must be > 0 and <= 900000 (15 min)
+            try:
+                max_idle = int(rdp_data.get("MaxIdleTime", 0))
+            except (ValueError, TypeError):
+                max_idle = 0
+
+            # fResetBroken = 1 means terminate rather than just disconnect
+            reset_broken = rdp_data.get("fResetBroken", 0)
+
+            rdp_termination_ok = bool(
+                1 <= max_idle <= 900000
+                and reset_broken == 1
+            )
+
+            # MaxConnectionTime limits total session duration
+            # Must be configured (> 0) to enforce session time limits
+            try:
+                max_conn = int(rdp_data.get("MaxConnectionTime", 0))
+            except (ValueError, TypeError):
+                max_conn = 0
+
+            # MaxDisconnectionTime limits how long a disconnected
+            # session can persist before being terminated
+            try:
+                max_disconn = int(rdp_data.get("MaxDisconnectionTime", 0))
+            except (ValueError, TypeError):
+                max_disconn = 0
+
+            session_time_limit_ok = bool(
+                max_conn > 0 or max_disconn > 0
+            )
+
+        # Check machine inactivity limit via Group Policy registry
+        inactivity_result = subprocess.run(
+            ["powershell", "-Command",
+             "Get-ItemProperty -Path "
+             "'HKLM:\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\"
+             "Policies\\System' "
+             "-ErrorAction SilentlyContinue | "
+             "Select-Object InactivityTimeoutSecs | ConvertTo-Json"],
+            capture_output=True, text=True, timeout=30
+        )
+        if inactivity_result.returncode == 0 and inactivity_result.stdout.strip():
+            inactivity_data = json.loads(inactivity_result.stdout)
+            try:
+                timeout_secs = int(
+                    inactivity_data.get("InactivityTimeoutSecs", 0)
+                )
+            except (ValueError, TypeError):
+                timeout_secs = 0
+            inactivity_limit_ok = bool(1 <= timeout_secs <= 900)
+
+        return bool(
+            rdp_termination_ok
+            and inactivity_limit_ok
+            and session_time_limit_ok
+        )
+
+    except Exception:
+        return False
+
+
+def session_termination_lx() -> bool:
+    """
+    AC.L2-3.1.11b - User Session is Automatically Terminated After Defined
+    """
+    try:
+        ssh_termination_ok = False
+        tmout_readonly_ok = False
+        pam_limits_ok = False
+
+        # Check SSH ClientAlive settings terminate idle sessions
+        sshd_result = subprocess.run(
+            ["sshd", "-T"],
+            capture_output=True, text=True, timeout=30
+        )
+        if sshd_result.returncode == 0:
+            output = sshd_result.stdout.lower()
+
+            interval_match = re.search(
+                r"^clientaliveinterval\s+(\d+)",
+                output, re.MULTILINE
+            )
+            count_match = re.search(
+                r"^clientalivecountmax\s+(\d+)",
+                output, re.MULTILINE
+            )
+
+            if interval_match and count_match:
+                interval = int(interval_match.group(1))
+                count = int(count_match.group(1))
+                total_timeout = interval * count
+
+                # Total timeout must be > 0 and <= 900 seconds
+                # CountMax must be low (1-3) to ensure quick termination
+                # after missed keepalives
+                ssh_termination_ok = bool(
+                    interval > 0
+                    and 1 <= count <= 3
+                    and 1 <= total_timeout <= 900
+                )
+
+        # Check TMOUT is set as readonly in system profile files
+        tmout_files = [
+            "/etc/profile",
+            "/etc/profile.d/tmout.sh",
+            "/etc/bashrc",
+            "/etc/bash.bashrc"
+        ]
+
+        for filepath in tmout_files:
+            cat_result = subprocess.run(
+                ["cat", filepath],
+                capture_output=True, text=True, timeout=10
+            )
+            if cat_result.returncode != 0:
+                continue
+
+            active_lines = [
+                l.strip() for l in cat_result.stdout.splitlines()
+                if l.strip() and not l.strip().startswith("#")
+            ]
+
+            has_tmout = False
+            has_readonly = False
+
+            for line in active_lines:
+                tmout_match = re.search(r"TMOUT\s*=\s*(\d+)", line)
+                if tmout_match:
+                    tmout_val = int(tmout_match.group(1))
+                    if 1 <= tmout_val <= 900:
+                        has_tmout = True
+
+                if re.search(
+                    r"(readonly\s+TMOUT|typeset\s+-r\s+TMOUT|"
+                    r"declare\s+-r\s+TMOUT)",
+                    line
+                ):
+                    has_readonly = True
+
+            if has_tmout and has_readonly:
+                tmout_readonly_ok = True
+                break
+
+        # Check PAM limits are configured for session control
+        # Check /etc/security/limits.conf for session restrictions
+        limits_result = subprocess.run(
+            ["grep", "-v", "^#", "/etc/security/limits.conf"],
+            capture_output=True, text=True, timeout=10
+        )
+
+        if limits_result.returncode == 0 and limits_result.stdout.strip():
+            active_limits = [
+                l.strip() for l in limits_result.stdout.splitlines()
+                if l.strip()
+            ]
+            # Check for maxlogins or maxsyslogins limits
+            session_limits = [
+                l for l in active_limits
+                if any(
+                    kw in l.lower()
+                    for kw in ["maxlogins", "maxsyslogins", "maxproc"]
+                )
+            ]
+            pam_limits_ok = bool(session_limits)
+
+        # Fall back to checking loginctl for active session limits
+        if not pam_limits_ok:
+            loginctl_result = subprocess.run(
+                ["loginctl", "show-session"],
+                capture_output=True, text=True, timeout=10
+            )
+            if loginctl_result.returncode == 0:
+                output = loginctl_result.stdout.lower()
+                # Check IdleHint or IdleAction is configured
+                if re.search(r"(idleaction|idlehint|stopidlesessiontimeout)", output):
+                    pam_limits_ok = True
+
+        # Fall back to checking systemd-logind.conf for idle action
+        if not pam_limits_ok:
+            logind_result = subprocess.run(
+                ["cat", "/etc/systemd/logind.conf"],
+                capture_output=True, text=True, timeout=10
+            )
+            if logind_result.returncode == 0:
+                active_lines = [
+                    l.strip() for l in logind_result.stdout.splitlines()
+                    if l.strip() and not l.strip().startswith("#")
+                ]
+                for line in active_lines:
+                    if re.search(
+                        r"(StopIdleSessionSec|IdleAction|KillUserProcesses)",
+                        line
+                    ):
+                        # StopIdleSessionSec must be configured and non-zero
+                        if "=" in line:
+                            value = line.split("=", 1)[1].strip()
+                            if value.lower() not in {"0", "no", "infinity", ""}:
+                                pam_limits_ok = True
+                                break
+
+        return bool(
+            ssh_termination_ok
+            and tmout_readonly_ok
+            and pam_limits_ok
+        )
+
+    except Exception:
+        return False
+
+def remote_access_control_wc() -> bool:
+    """
+    AC.L2-3.1.12c - Remote Access Sessions are Controlled (Windows Client)
+    """
+    try:
+        rdp_group_restricted = False
+        nla_enforced = False
+        firewall_restricted = False
+
+        # Check RDP is restricted to named groups via Remote Desktop Users
+        rdp_result = subprocess.run(
+            ["powershell", "-Command",
+             "Get-LocalGroupMember -Group 'Remote Desktop Users' | "
+             "Select-Object Name | ConvertTo-Json"],
+            capture_output=True, text=True, timeout=30
+        )
+        if rdp_result.returncode == 0 and rdp_result.stdout.strip():
+            members = json.loads(rdp_result.stdout)
+            if isinstance(members, dict):
+                members = [members]
+            if not members:
+                rdp_group_restricted = False
+            else:
+                broad_principals = {"everyone", "authenticated users", "users"}
+                flagged = [
+                    m for m in members
+                    if (m.get("Name") or "").lower().split("\\")[-1]
+                    in broad_principals
+                ]
+                rdp_group_restricted = bool(not flagged)
+        else:
+            # Empty Remote Desktop Users group means RDP access is
+            # controlled at a higher level (e.g. Administrators only)
+            rdp_group_restricted = True
+
+        # Check NLA is enforced via registry
+        nla_result = subprocess.run(
+            ["powershell", "-Command",
+             "Get-ItemProperty -Path "
+             "'HKLM:\\SYSTEM\\CurrentControlSet\\Control\\"
+             "Terminal Server\\WinStations\\RDP-Tcp' "
+             "-ErrorAction SilentlyContinue | "
+             "Select-Object UserAuthentication | ConvertTo-Json"],
+            capture_output=True, text=True, timeout=30
+        )
+        if nla_result.returncode == 0 and nla_result.stdout.strip():
+            nla_data = json.loads(nla_result.stdout)
+            nla_enforced = bool(nla_data.get("UserAuthentication", 0) == 1)
+
+        # Check Windows Defender Firewall restricts RDP (port 3389)
+        # to specific source addresses
+        fw_result = subprocess.run(
+            ["powershell", "-Command",
+             "Get-NetFirewallRule -DisplayName '*Remote Desktop*' "
+             "-Direction Inbound -Action Allow -Enabled True | "
+             "Select-Object DisplayName, "
+             "@{N='RemoteAddress';E={"
+             "(Get-NetFirewallAddressFilter "
+             "-AssociatedNetFirewallRule $_).RemoteAddress}} | "
+             "ConvertTo-Json"],
+            capture_output=True, text=True, timeout=60
+        )
+        if fw_result.returncode == 0 and fw_result.stdout.strip():
+            rules = json.loads(fw_result.stdout)
+            if isinstance(rules, dict):
+                rules = [rules]
+            if rules:
+                # Fail if any RDP rule allows from Any
+                open_rules = [
+                    r for r in rules
+                    if str(r.get("RemoteAddress") or "").lower()
+                    in {"any", "*", "0.0.0.0/0"}
+                ]
+                firewall_restricted = bool(not open_rules)
+            else:
+                # No specific RDP firewall rules found
+                firewall_restricted = False
+
+        return bool(rdp_group_restricted and nla_enforced and firewall_restricted)
+
+    except Exception:
+        return False
+
+
+def remote_access_monitoring_wc() -> bool:
+    """
+    AC.L2-3.1.12d - Remote Access Sessions are Monitored (Windows Client)
+    """
+    try:
+        required_categories = {
+            "logon",
+            "logoff",
+            "account logon",
+            "other logon/logoff events"
+        }
+
+        audit_result = subprocess.run(
+            ["auditpol", "/get", "/category:*"],
+            capture_output=True, text=True, timeout=30
+        )
+        if audit_result.returncode != 0:
+            return False
+
+        output = audit_result.stdout.lower()
+        lines = output.strip().splitlines()
+
+        category_settings = {}
+        for line in lines:
+            parts = line.split()
+            if len(parts) >= 2:
+                setting = parts[-1].lower()
+                name = " ".join(parts[:-1]).strip()
+                category_settings[name] = setting
+
+        missing = []
+        for category in required_categories:
+            matched = [
+                k for k in category_settings
+                if category in k
+            ]
+            if not matched:
+                missing.append(category)
+                continue
+
+            audited = [
+                k for k in matched
+                if category_settings[k] in {
+                    "success", "failure", "success and failure"
+                }
+            ]
+            if not audited:
+                missing.append(category)
+
+        return bool(not missing)
+
+    except Exception:
+        return False
+
+
+def remote_access_control_ws() -> bool:
+    """
+    AC.L2-3.1.12c - Remote Access Sessions are Controlled (Windows Server)
+
+    """
+    try:
+        rdp_group_restricted = False
+        nla_enforced = False
+        firewall_restricted = False
+        session_limits_ok = False
+
+        broad_principals = {"everyone", "authenticated users", "users"}
+
+        # Check Remote Desktop Users group is scoped to named accounts
+        rdp_result = subprocess.run(
+            ["powershell", "-Command",
+             "Get-LocalGroupMember -Group 'Remote Desktop Users' | "
+             "Select-Object Name | ConvertTo-Json"],
+            capture_output=True, text=True, timeout=30
+        )
+        if rdp_result.returncode == 0 and rdp_result.stdout.strip():
+            members = json.loads(rdp_result.stdout)
+            if isinstance(members, dict):
+                members = [members]
+            flagged = [
+                m for m in members
+                if (m.get("Name") or "").lower().split("\\")[-1]
+                in broad_principals
+            ]
+            rdp_group_restricted = bool(not flagged)
+        else:
+            rdp_group_restricted = True
+
+        # Check NLA is enforced
+        nla_result = subprocess.run(
+            ["powershell", "-Command",
+             "Get-ItemProperty -Path "
+             "'HKLM:\\SYSTEM\\CurrentControlSet\\Control\\"
+             "Terminal Server\\WinStations\\RDP-Tcp' "
+             "-ErrorAction SilentlyContinue | "
+             "Select-Object UserAuthentication | ConvertTo-Json"],
+            capture_output=True, text=True, timeout=30
+        )
+        if nla_result.returncode == 0 and nla_result.stdout.strip():
+            nla_data = json.loads(nla_result.stdout)
+            nla_enforced = bool(nla_data.get("UserAuthentication", 0) == 1)
+
+        # Check Windows Defender Firewall restricts RDP port 3389
+        fw_result = subprocess.run(
+            ["powershell", "-Command",
+             "Get-NetFirewallRule -DisplayName '*Remote Desktop*' "
+             "-Direction Inbound -Action Allow -Enabled True | "
+             "Select-Object DisplayName, "
+             "@{N='RemoteAddress';E={"
+             "(Get-NetFirewallAddressFilter "
+             "-AssociatedNetFirewallRule $_).RemoteAddress}} | "
+             "ConvertTo-Json"],
+            capture_output=True, text=True, timeout=60
+        )
+        if fw_result.returncode == 0 and fw_result.stdout.strip():
+            rules = json.loads(fw_result.stdout)
+            if isinstance(rules, dict):
+                rules = [rules]
+            if rules:
+                open_rules = [
+                    r for r in rules
+                    if str(r.get("RemoteAddress") or "").lower()
+                    in {"any", "*", "0.0.0.0/0"}
+                ]
+                firewall_restricted = bool(not open_rules)
+
+        # Check RDP session time limits via GP registry
+        session_result = subprocess.run(
+            ["powershell", "-Command",
+             "Get-ItemProperty -Path "
+             "'HKLM:\\SOFTWARE\\Policies\\Microsoft\\Windows NT\\"
+             "Terminal Services' "
+             "-ErrorAction SilentlyContinue | "
+             "Select-Object MaxIdleTime, MaxConnectionTime, "
+             "MaxDisconnectionTime, fResetBroken | ConvertTo-Json"],
+            capture_output=True, text=True, timeout=30
+        )
+        if session_result.returncode == 0 and session_result.stdout.strip():
+            session_data = json.loads(session_result.stdout)
+            try:
+                max_idle = int(session_data.get("MaxIdleTime", 0))
+            except (ValueError, TypeError):
+                max_idle = 0
+            reset_broken = session_data.get("fResetBroken", 0)
+            session_limits_ok = bool(
+                1 <= max_idle <= 900000
+                and reset_broken == 1
+            )
+
+        return bool(
+            rdp_group_restricted
+            and nla_enforced
+            and firewall_restricted
+            and session_limits_ok
+        )
+
+    except Exception:
+        return False
+
+
+def remote_access_monitoring_ws() -> bool:
+    """
+    AC.L2-3.1.12d - Remote Access Sessions are Monitored (Windows Server)
+    """
+    try:
+        required_categories = {
+            "logon",
+            "logoff",
+            "account logon",
+            "other logon/logoff events",
+            "special logon",
+            "directory service access"
+        }
+
+        audit_result = subprocess.run(
+            ["auditpol", "/get", "/category:*"],
+            capture_output=True, text=True, timeout=30
+        )
+        if audit_result.returncode != 0:
+            return False
+
+        output = audit_result.stdout.lower()
+        lines = output.strip().splitlines()
+
+        category_settings = {}
+        for line in lines:
+            parts = line.split()
+            if len(parts) >= 2:
+                setting = parts[-1].lower()
+                name = " ".join(parts[:-1]).strip()
+                category_settings[name] = setting
+
+        missing = []
+        for category in required_categories:
+            matched = [
+                k for k in category_settings
+                if category in k
+            ]
+            if not matched:
+                missing.append(category)
+                continue
+
+            audited = [
+                k for k in matched
+                if category_settings[k] in {
+                    "success", "failure", "success and failure"
+                }
+            ]
+            if not audited:
+                missing.append(category)
+
+        if missing:
+            return False
+
+        # Check Security log size is at least 128MB
+        log_result = subprocess.run(
+            ["powershell", "-Command",
+             "Get-WinEvent -ListLog Security | "
+             "Select-Object MaximumSizeInBytes | ConvertTo-Json"],
+            capture_output=True, text=True, timeout=30
+        )
+        if log_result.returncode == 0 and log_result.stdout.strip():
+            log_data = json.loads(log_result.stdout)
+            max_size = log_data.get("MaximumSizeInBytes", 0)
+            if int(max_size) < 134217728:
+                return False
+
+        return True
+
+    except Exception:
+        return False
+
+
+def remote_access_control_lx() -> bool:
+    """
+    AC.L2-3.1.12c - Remote Access Sessions are Controlled (Linux/Debian)
+    """
+    try:
+        user_restricted = False
+        root_disabled = False
+        key_auth_enforced = False
+        firewall_restricted = False
+
+        # Check sshd_config for access controls
+        sshd_result = subprocess.run(
+            ["sshd", "-T"],
+            capture_output=True, text=True, timeout=30
+        )
+        if sshd_result.returncode != 0:
+            return False
+
+        output = sshd_result.stdout.lower()
+
+        # Check AllowUsers or AllowGroups is configured
+        has_allowusers = re.search(
+            r"^allowusers\s+\S+", output, re.MULTILINE
+        )
+        has_allowgroups = re.search(
+            r"^allowgroups\s+\S+", output, re.MULTILINE
+        )
+        user_restricted = bool(has_allowusers or has_allowgroups)
+
+        # Check PermitRootLogin is no or prohibit-password
+        root_match = re.search(
+            r"^permitrootlogin\s+(\S+)", output, re.MULTILINE
+        )
+        if root_match:
+            root_disabled = bool(
+                root_match.group(1).lower()
+                in {"no", "prohibit-password"}
+            )
+
+        # Check PasswordAuthentication is no (key-based auth enforced)
+        passwd_match = re.search(
+            r"^passwordauthentication\s+(\S+)", output, re.MULTILINE
+        )
+        if passwd_match:
+            key_auth_enforced = bool(
+                passwd_match.group(1).lower() == "no"
+            )
+
+        # Check PubkeyAuthentication is yes
+        pubkey_match = re.search(
+            r"^pubkeyauthentication\s+(\S+)", output, re.MULTILINE
+        )
+        pubkey_enabled = bool(
+            pubkey_match and pubkey_match.group(1).lower() == "yes"
+        )
+        key_auth_enforced = bool(key_auth_enforced and pubkey_enabled)
+
+        # Check firewall restricts SSH (port 22) to specific sources
+        for cmd in [
+            ["iptables", "-L", "INPUT", "-n"],
+            ["nft", "list", "ruleset"],
+            ["firewall-cmd", "--list-all"]
+        ]:
+            fw_result = subprocess.run(
+                cmd, capture_output=True, text=True, timeout=30
+            )
+            if fw_result.returncode == 0 and fw_result.stdout.strip():
+                output_fw = fw_result.stdout.lower()
+                # Check SSH port is referenced in firewall rules
+                if re.search(r"(dpt:22|port\s+22|ssh)", output_fw):
+                    # Check it is not open to all sources
+                    if not re.search(
+                        r"(0\.0\.0\.0/0.*dpt:22|"
+                        r"accept.*ssh.*anywhere)",
+                        output_fw
+                    ):
+                        firewall_restricted = True
+                        break
+
+        return bool(
+            user_restricted
+            and root_disabled
+            and key_auth_enforced
+            and firewall_restricted
+        )
+
+    except Exception:
+        return False
+
+
+def remote_access_monitoring_lx() -> bool:
+    """
+    AC.L2-3.1.12d - Remote Access Sessions are Monitored (Linux/Debian)
+    """
+    try:
+        auditd_monitoring_ok = False
+        auth_log_ok = False
+        pam_logging_ok = False
+
+        # Check auditd is active and has SSH-related rules
+        auditd_result = subprocess.run(
+            ["systemctl", "is-active", "auditd"],
+            capture_output=True, text=True, timeout=10
+        )
+        if auditd_result.returncode == 0 and \
+                auditd_result.stdout.strip().lower() == "active":
+
+            rules_result = subprocess.run(
+                ["auditctl", "-l"],
+                capture_output=True, text=True, timeout=10
+            )
+            if rules_result.returncode == 0:
+                rules = rules_result.stdout.lower()
+                if "no rules" not in rules and rules.strip():
+                    # Check for rules watching SSH binary or auth events
+                    has_ssh_rules = bool(
+                        re.search(
+                            r"(\/usr\/sbin\/sshd|\/usr\/bin\/ssh"
+                            r"|\/etc\/ssh|execve)",
+                            rules
+                        )
+                    )
+                    # Check for rules watching auth-related files
+                    has_auth_rules = bool(
+                        re.search(
+                            r"(\/etc\/passwd|\/etc\/shadow"
+                            r"|\/var\/log\/auth)",
+                            rules
+                        )
+                    )
+                    auditd_monitoring_ok = bool(
+                        has_ssh_rules or has_auth_rules
+                    )
+
+        # Check auth log exists and is non-empty
+        # Debian/Ubuntu uses /var/log/auth.log
+        # RHEL/CentOS uses /var/log/secure
+        auth_log_paths = [
+            "/var/log/auth.log",
+            "/var/log/secure"
+        ]
+        for log_path in auth_log_paths:
+            stat_result = subprocess.run(
+                ["stat", "-c", "%s", log_path],
+                capture_output=True, text=True, timeout=10
+            )
+            if stat_result.returncode == 0:
+                try:
+                    log_size = int(stat_result.stdout.strip())
+                    if log_size > 0:
+                        # Check log contains recent SSH entries
+                        grep_result = subprocess.run(
+                            ["grep", "-c", "sshd", log_path],
+                            capture_output=True, text=True, timeout=10
+                        )
+                        if grep_result.returncode == 0:
+                            try:
+                                ssh_entries = int(
+                                    grep_result.stdout.strip()
+                                )
+                                auth_log_ok = bool(ssh_entries > 0)
+                            except ValueError:
+                                auth_log_ok = False
+                        break
+                except ValueError:
+                    continue
+
+        # Check PAM session logging is configured
+        # Look for pam_unix or pam_loginuid in PAM session stack
+        pam_result = subprocess.run(
+            ["grep", "-r",
+             "session.*pam_unix\\|session.*pam_loginuid",
+             "/etc/pam.d/"],
+            capture_output=True, text=True, timeout=30
+        )
+        if pam_result.returncode == 0 and pam_result.stdout.strip():
+            active_pam = [
+                l for l in pam_result.stdout.splitlines()
+                if l.strip() and not l.strip().startswith("#")
+                and "session" in l.lower()
+            ]
+            pam_logging_ok = bool(active_pam)
+
+        # Also check rsyslog or syslog is configured to capture auth
+        if not pam_logging_ok:
+            syslog_result = subprocess.run(
+                ["grep", "-r", "auth", "/etc/rsyslog.conf",
+                 "/etc/rsyslog.d/"],
+                capture_output=True, text=True, timeout=10
+            )
+            if syslog_result.returncode == 0 and \
+                    syslog_result.stdout.strip():
+                active_syslog = [
+                    l for l in syslog_result.stdout.splitlines()
+                    if l.strip() and not l.strip().startswith("#")
+                ]
+                pam_logging_ok = bool(active_syslog)
+
+        return bool(
+            auditd_monitoring_ok
+            and auth_log_ok
+            and pam_logging_ok
+        )
+
+    except Exception:
+        return False
+
+def remote_crypto_wc() -> bool:
+    """
+    AC.L2-3.1.13b - Cryptographic Mechanisms for Remote Access Sessions
+    are Implemented (Windows Client)
+    """
+    try:
+        rdp_crypto_ok = False
+        fips_enabled = False
+        weak_tls_disabled = False
+
+        # Check RDP NLA and encryption level
+        rdp_result = subprocess.run(
+            ["powershell", "-Command",
+             "Get-ItemProperty -Path "
+             "'HKLM:\\SYSTEM\\CurrentControlSet\\Control\\"
+             "Terminal Server\\WinStations\\RDP-Tcp' "
+             "-ErrorAction SilentlyContinue | "
+             "Select-Object UserAuthentication, "
+             "SecurityLayer, MinEncryptionLevel | ConvertTo-Json"],
+            capture_output=True, text=True, timeout=30
+        )
+        if rdp_result.returncode == 0 and rdp_result.stdout.strip():
+            rdp_data = json.loads(rdp_result.stdout)
+            # UserAuthentication = 1 means NLA enforced
+            nla = bool(rdp_data.get("UserAuthentication", 0) == 1)
+            # SecurityLayer = 2 means TLS (SSL) required
+            # SecurityLayer = 1 means negotiate (acceptable)
+            # SecurityLayer = 0 means RDP security (fail)
+            security_layer = rdp_data.get("SecurityLayer", 0)
+            tls_required = bool(security_layer in {1, 2})
+            # MinEncryptionLevel = 3 means high (128-bit) encryption
+            # MinEncryptionLevel = 4 means FIPS compliant
+            min_enc = rdp_data.get("MinEncryptionLevel", 0)
+            enc_strong = bool(min_enc in {3, 4})
+            rdp_crypto_ok = bool(nla and tls_required and enc_strong)
+
+        # Check FIPS mode is enabled via registry
+        fips_result = subprocess.run(
+            ["powershell", "-Command",
+             "Get-ItemProperty -Path "
+             "'HKLM:\\SYSTEM\\CurrentControlSet\\Control\\"
+             "Lsa\\FipsAlgorithmPolicy' "
+             "-ErrorAction SilentlyContinue | "
+             "Select-Object Enabled | ConvertTo-Json"],
+            capture_output=True, text=True, timeout=30
+        )
+        if fips_result.returncode == 0 and fips_result.stdout.strip():
+            fips_data = json.loads(fips_result.stdout)
+            fips_enabled = bool(fips_data.get("Enabled", 0) == 1)
+
+        # Check weak TLS/SSL versions are disabled via Schannel registry
+        weak_protocols = {
+            "SSL 2.0": "HKLM:\\SYSTEM\\CurrentControlSet\\Control\\"
+                       "SecurityProviders\\SCHANNEL\\Protocols\\SSL 2.0\\Client",
+            "SSL 3.0": "HKLM:\\SYSTEM\\CurrentControlSet\\Control\\"
+                       "SecurityProviders\\SCHANNEL\\Protocols\\SSL 3.0\\Client",
+            "TLS 1.0": "HKLM:\\SYSTEM\\CurrentControlSet\\Control\\"
+                       "SecurityProviders\\SCHANNEL\\Protocols\\TLS 1.0\\Client",
+            "TLS 1.1": "HKLM:\\SYSTEM\\CurrentControlSet\\Control\\"
+                       "SecurityProviders\\SCHANNEL\\Protocols\\TLS 1.1\\Client"
+        }
+
+        all_weak_disabled = True
+        for protocol, reg_path in weak_protocols.items():
+            proto_result = subprocess.run(
+                ["powershell", "-Command",
+                 f"Get-ItemProperty -Path '{reg_path}' "
+                 "-ErrorAction SilentlyContinue | "
+                 "Select-Object Enabled, DisabledByDefault | ConvertTo-Json"],
+                capture_output=True, text=True, timeout=30
+            )
+            if proto_result.returncode == 0 and proto_result.stdout.strip():
+                proto_data = json.loads(proto_result.stdout)
+                enabled = proto_data.get("Enabled", 1)
+                disabled_by_default = proto_data.get("DisabledByDefault", 0)
+                # Protocol must be explicitly disabled
+                # Enabled = 0 AND DisabledByDefault = 1
+                if not bool(enabled == 0 and disabled_by_default == 1):
+                    all_weak_disabled = False
+                    break
+            else:
+                # Registry key absent means protocol uses system default
+                # which may not be disabled — treat as not explicitly disabled
+                all_weak_disabled = False
+                break
+
+        weak_tls_disabled = all_weak_disabled
+
+        return bool(rdp_crypto_ok and fips_enabled and weak_tls_disabled)
+
+    except Exception:
+        return False
+
+
+def remote_crypto_ws() -> bool:
+    """
+    AC.L2-3.1.13b - Cryptographic Mechanisms for Remote Access Sessions
+    are Implemented (Windows Server)
+    """
+    try:
+        rdp_crypto_ok = False
+        fips_enabled = False
+        weak_tls_disabled = False
+        ipsec_configured = False
+
+        # Check RDP NLA and encryption level
+        rdp_result = subprocess.run(
+            ["powershell", "-Command",
+             "Get-ItemProperty -Path "
+             "'HKLM:\\SYSTEM\\CurrentControlSet\\Control\\"
+             "Terminal Server\\WinStations\\RDP-Tcp' "
+             "-ErrorAction SilentlyContinue | "
+             "Select-Object UserAuthentication, "
+             "SecurityLayer, MinEncryptionLevel | ConvertTo-Json"],
+            capture_output=True, text=True, timeout=30
+        )
+        if rdp_result.returncode == 0 and rdp_result.stdout.strip():
+            rdp_data = json.loads(rdp_result.stdout)
+            nla = bool(rdp_data.get("UserAuthentication", 0) == 1)
+            security_layer = rdp_data.get("SecurityLayer", 0)
+            tls_required = bool(security_layer in {1, 2})
+            min_enc = rdp_data.get("MinEncryptionLevel", 0)
+            enc_strong = bool(min_enc in {3, 4})
+            rdp_crypto_ok = bool(nla and tls_required and enc_strong)
+
+        # Check FIPS mode is enabled
+        fips_result = subprocess.run(
+            ["powershell", "-Command",
+             "Get-ItemProperty -Path "
+             "'HKLM:\\SYSTEM\\CurrentControlSet\\Control\\"
+             "Lsa\\FipsAlgorithmPolicy' "
+             "-ErrorAction SilentlyContinue | "
+             "Select-Object Enabled | ConvertTo-Json"],
+            capture_output=True, text=True, timeout=30
+        )
+        if fips_result.returncode == 0 and fips_result.stdout.strip():
+            fips_data = json.loads(fips_result.stdout)
+            fips_enabled = bool(fips_data.get("Enabled", 0) == 1)
+
+        # Check weak TLS/SSL versions disabled via Schannel
+        weak_protocols = {
+            "SSL 2.0": "HKLM:\\SYSTEM\\CurrentControlSet\\Control\\"
+                       "SecurityProviders\\SCHANNEL\\Protocols\\SSL 2.0\\Server",
+            "SSL 3.0": "HKLM:\\SYSTEM\\CurrentControlSet\\Control\\"
+                       "SecurityProviders\\SCHANNEL\\Protocols\\SSL 3.0\\Server",
+            "TLS 1.0": "HKLM:\\SYSTEM\\CurrentControlSet\\Control\\"
+                       "SecurityProviders\\SCHANNEL\\Protocols\\TLS 1.0\\Server",
+            "TLS 1.1": "HKLM:\\SYSTEM\\CurrentControlSet\\Control\\"
+                       "SecurityProviders\\SCHANNEL\\Protocols\\TLS 1.1\\Server"
+        }
+
+        all_weak_disabled = True
+        for protocol, reg_path in weak_protocols.items():
+            proto_result = subprocess.run(
+                ["powershell", "-Command",
+                 f"Get-ItemProperty -Path '{reg_path}' "
+                 "-ErrorAction SilentlyContinue | "
+                 "Select-Object Enabled, DisabledByDefault | ConvertTo-Json"],
+                capture_output=True, text=True, timeout=30
+            )
+            if proto_result.returncode == 0 and proto_result.stdout.strip():
+                proto_data = json.loads(proto_result.stdout)
+                enabled = proto_data.get("Enabled", 1)
+                disabled_by_default = proto_data.get("DisabledByDefault", 0)
+                if not bool(enabled == 0 and disabled_by_default == 1):
+                    all_weak_disabled = False
+                    break
+            else:
+                all_weak_disabled = False
+                break
+
+        weak_tls_disabled = all_weak_disabled
+
+        # Check IPSec rules are configured for encrypted
+        # server-to-server communication
+        ipsec_result = subprocess.run(
+            ["powershell", "-Command",
+             "Get-NetIPsecRule -Enabled True | "
+             "Select-Object DisplayName, "
+             "EncryptionRequired | ConvertTo-Json"],
+            capture_output=True, text=True, timeout=30
+        )
+        if ipsec_result.returncode == 0 and ipsec_result.stdout.strip():
+            ipsec_rules = json.loads(ipsec_result.stdout)
+            if isinstance(ipsec_rules, dict):
+                ipsec_rules = [ipsec_rules]
+            if ipsec_rules:
+                # At least one rule must require encryption
+                encrypting_rules = [
+                    r for r in ipsec_rules
+                    if r.get("EncryptionRequired", False)
+                ]
+                ipsec_configured = bool(encrypting_rules)
+
+        return bool(
+            rdp_crypto_ok
+            and fips_enabled
+            and weak_tls_disabled
+            and ipsec_configured
+        )
+
+    except Exception:
+        return False
+
+
+def remote_crypto_lx() -> bool:
+    """
+    AC.L2-3.1.13b - Cryptographic Mechanisms for Remote Access Sessions
+    are Implemented (Linux/Debian)
+    """
+    try:
+        ciphers_ok = False
+        macs_ok = False
+        kex_ok = False
+
+        # Weak algorithms that must not be present in SSH config
+        weak_ciphers = {
+            "3des-cbc",
+            "arcfour",
+            "arcfour128",
+            "arcfour256",
+            "blowfish-cbc",
+            "cast128-cbc",
+            "aes128-cbc",
+            "aes192-cbc",
+            "aes256-cbc"
+        }
+
+        weak_macs = {
+            "hmac-md5",
+            "hmac-md5-96",
+            "hmac-sha1",
+            "hmac-sha1-96",
+            "umac-64@openssh.com",
+            "hmac-ripemd160"
+        }
+
+        weak_kex = {
+            "diffie-hellman-group1-sha1",
+            "diffie-hellman-group14-sha1",
+            "diffie-hellman-group-exchange-sha1",
+            "ecdh-sha2-nistp256",
+            "ecdh-sha2-nistp384",
+            "ecdh-sha2-nistp521"
+        }
+
+        # Get active SSH configuration
+        sshd_result = subprocess.run(
+            ["sshd", "-T"],
+            capture_output=True, text=True, timeout=30
+        )
+        if sshd_result.returncode != 0:
+            return False
+
+        output = sshd_result.stdout.lower()
+
+        # Check ciphers
+        cipher_match = re.search(
+            r"^ciphers\s+(.+)$", output, re.MULTILINE
+        )
+        if cipher_match:
+            active_ciphers = {
+                c.strip()
+                for c in cipher_match.group(1).split(",")
+            }
+            flagged_ciphers = active_ciphers & weak_ciphers
+            ciphers_ok = bool(not flagged_ciphers)
+        else:
+            # No explicit cipher list means SSH uses defaults
+            # Check OpenSSH version to determine if defaults are safe
+            version_result = subprocess.run(
+                ["ssh", "-V"],
+                capture_output=True, text=True, timeout=10
+            )
+            version_output = (
+                version_result.stdout + version_result.stderr
+            ).lower()
+            version_match = re.search(r"openssh_(\d+)\.(\d+)", version_output)
+            if version_match:
+                major = int(version_match.group(1))
+                minor = int(version_match.group(2))
+                # OpenSSH 8.0+ removed weak ciphers from defaults
+                ciphers_ok = bool(major >= 8)
+            else:
+                ciphers_ok = False
+
+        # Check MACs
+        mac_match = re.search(
+            r"^macs\s+(.+)$", output, re.MULTILINE
+        )
+        if mac_match:
+            active_macs = {
+                m.strip()
+                for m in mac_match.group(1).split(",")
+            }
+            flagged_macs = active_macs & weak_macs
+            macs_ok = bool(not flagged_macs)
+        else:
+            # Default MACs in modern OpenSSH exclude weak ones
+            version_result = subprocess.run(
+                ["ssh", "-V"],
+                capture_output=True, text=True, timeout=10
+            )
+            version_output = (
+                version_result.stdout + version_result.stderr
+            ).lower()
+            version_match = re.search(r"openssh_(\d+)\.(\d+)", version_output)
+            if version_match:
+                major = int(version_match.group(1))
+                macs_ok = bool(major >= 8)
+            else:
+                macs_ok = False
+
+        # Check key exchange algorithms
+        kex_match = re.search(
+            r"^kexalgorithms\s+(.+)$", output, re.MULTILINE
+        )
+        if kex_match:
+            active_kex = {
+                k.strip()
+                for k in kex_match.group(1).split(",")
+            }
+            flagged_kex = active_kex & weak_kex
+            kex_ok = bool(not flagged_kex)
+        else:
+            # Default kex in modern OpenSSH excludes weak group1
+            version_result = subprocess.run(
+                ["ssh", "-V"],
+                capture_output=True, text=True, timeout=10
+            )
+            version_output = (
+                version_result.stdout + version_result.stderr
+            ).lower()
+            version_match = re.search(r"openssh_(\d+)\.(\d+)", version_output)
+            if version_match:
+                major = int(version_match.group(1))
+                kex_ok = bool(major >= 8)
+            else:
+                kex_ok = False
+
+        # Check SSH Protocol 1 is not enabled
+        # In modern OpenSSH this is removed entirely but check anyway
+        protocol_match = re.search(
+            r"^protocol\s+(.+)$", output, re.MULTILINE
+        )
+        if protocol_match:
+            protocols = protocol_match.group(1).strip()
+            if "1" in protocols.split(","):
+                # Protocol 1 explicitly enabled — hard fail
+                return False
+
+        return bool(ciphers_ok and macs_ok and kex_ok)
+
+    except Exception:
+        return False
+
+
+def managed_access_routing_wc() -> bool:
+    """
+    AC.L2-3.1.14b - Remote Access is Routed Through Managed Network
+    Access Control Points (Windows Client)
+
+    """
+    try:
+        mechanisms_active = 0
+
+        # RFC1918 private address ranges
+        rfc1918_prefixes = (
+            "10.", "172.16.", "172.17.", "172.18.", "172.19.",
+            "172.20.", "172.21.", "172.22.", "172.23.", "172.24.",
+            "172.25.", "172.26.", "172.27.", "172.28.", "172.29.",
+            "172.30.", "172.31.", "192.168."
+        )
+
+        # Check VPN adapter is present and connected
+        vpn_result = subprocess.run(
+            ["powershell", "-Command",
+             "Get-NetAdapter | Where-Object {"
+             "$_.InterfaceDescription -match "
+             "'VPN|Tunnel|WireGuard|OpenVPN|Cisco|Pulse|GlobalProtect'"
+             "} | Select-Object Name, Status | ConvertTo-Json"],
+            capture_output=True, text=True, timeout=30
+        )
+        if vpn_result.returncode == 0 and vpn_result.stdout.strip():
+            vpn_adapters = json.loads(vpn_result.stdout)
+            if isinstance(vpn_adapters, dict):
+                vpn_adapters = [vpn_adapters]
+            if vpn_adapters:
+                connected = [
+                    a for a in vpn_adapters
+                    if (a.get("Status") or "").lower() == "up"
+                ]
+                if connected:
+                    mechanisms_active += 1
+
+        # Check Windows Defender Firewall blocks inbound RDP
+        # from non-RFC1918 addresses
+        fw_result = subprocess.run(
+            ["powershell", "-Command",
+             "Get-NetFirewallRule -DisplayName '*Remote Desktop*' "
+             "-Direction Inbound -Action Allow -Enabled True | "
+             "Select-Object DisplayName, "
+             "@{N='RemoteAddress';E={"
+             "(Get-NetFirewallAddressFilter "
+             "-AssociatedNetFirewallRule $_).RemoteAddress}} | "
+             "ConvertTo-Json"],
+            capture_output=True, text=True, timeout=60
+        )
+        if fw_result.returncode == 0 and fw_result.stdout.strip():
+            rules = json.loads(fw_result.stdout)
+            if isinstance(rules, dict):
+                rules = [rules]
+            if rules:
+                # Check all RDP allow rules are scoped to RFC1918
+                external_access = [
+                    r for r in rules
+                    if not any(
+                        str(r.get("RemoteAddress") or "").startswith(prefix)
+                        for prefix in rfc1918_prefixes
+                    )
+                    and str(r.get("RemoteAddress") or "").lower()
+                    not in {"localsubnet", ""}
+                ]
+                if not external_access:
+                    mechanisms_active += 1
+            else:
+                # No RDP rules means RDP may be blocked entirely
+                mechanisms_active += 1
+
+        # Check default gateway is an RFC1918 address
+        gw_result = subprocess.run(
+            ["powershell", "-Command",
+             "Get-NetRoute -DestinationPrefix '0.0.0.0/0' | "
+             "Select-Object NextHop | ConvertTo-Json"],
+            capture_output=True, text=True, timeout=30
+        )
+        if gw_result.returncode == 0 and gw_result.stdout.strip():
+            gw_data = json.loads(gw_result.stdout)
+            if isinstance(gw_data, dict):
+                gw_data = [gw_data]
+            if gw_data:
+                gateways = [
+                    g.get("NextHop", "") for g in gw_data
+                    if g.get("NextHop")
+                ]
+                # All default gateways must be RFC1918
+                internal_gws = [
+                    gw for gw in gateways
+                    if any(gw.startswith(p) for p in rfc1918_prefixes)
+                ]
+                if internal_gws and len(internal_gws) == len(gateways):
+                    mechanisms_active += 1
+
+        return bool(mechanisms_active >= 2)
+
+    except Exception:
+        return False
+
+
+def managed_access_routing_ws() -> bool:
+    """
+    AC.L2-3.1.14b - Remote Access is Routed Through Managed Network
+    Access Control Points (Windows Server)
+    """
+    try:
+        mgmt_restricted = False
+        no_external_mgmt = False
+        tunnel_configured = False
+
+        rfc1918_prefixes = (
+            "10.", "172.16.", "172.17.", "172.18.", "172.19.",
+            "172.20.", "172.21.", "172.22.", "172.23.", "172.24.",
+            "172.25.", "172.26.", "172.27.", "172.28.", "172.29.",
+            "172.30.", "172.31.", "192.168."
+        )
+
+        # Management ports to check for external access restrictions
+        mgmt_ports = ["3389", "5985", "5986", "22", "443"]
+
+        # Check all inbound allow rules for management ports
+        # are scoped to RFC1918 addresses
+        fw_result = subprocess.run(
+            ["powershell", "-Command",
+             "Get-NetFirewallRule -Direction Inbound "
+             "-Action Allow -Enabled True | "
+             "Select-Object DisplayName, "
+             "@{N='LocalPort';E={"
+             "(Get-NetFirewallPortFilter "
+             "-AssociatedNetFirewallRule $_).LocalPort}}, "
+             "@{N='RemoteAddress';E={"
+             "(Get-NetFirewallAddressFilter "
+             "-AssociatedNetFirewallRule $_).RemoteAddress}} | "
+             "ConvertTo-Json"],
+            capture_output=True, text=True, timeout=60
+        )
+        if fw_result.returncode == 0 and fw_result.stdout.strip():
+            rules = json.loads(fw_result.stdout)
+            if isinstance(rules, dict):
+                rules = [rules]
+            if not rules:
+                return False
+
+            # Filter rules that apply to management ports
+            mgmt_rules = [
+                r for r in rules
+                if any(
+                    p in str(r.get("LocalPort") or "")
+                    for p in mgmt_ports
+                )
+            ]
+
+            if mgmt_rules:
+                # Check all management rules are scoped to RFC1918
+                external_mgmt = [
+                    r for r in mgmt_rules
+                    if not any(
+                        str(r.get("RemoteAddress") or "").startswith(prefix)
+                        for prefix in rfc1918_prefixes
+                    )
+                    and str(r.get("RemoteAddress") or "").lower()
+                    not in {"localsubnet", "any", ""}
+                ]
+                mgmt_restricted = bool(not external_mgmt)
+                no_external_mgmt = mgmt_restricted
+            else:
+                # No explicit management port rules found
+                # Check default inbound policy is block
+                profile_result = subprocess.run(
+                    ["powershell", "-Command",
+                     "Get-NetFirewallProfile | "
+                     "Select-Object Name, DefaultInboundAction | "
+                     "ConvertTo-Json"],
+                    capture_output=True, text=True, timeout=30
+                )
+                if profile_result.returncode == 0 and \
+                        profile_result.stdout.strip():
+                    profiles = json.loads(profile_result.stdout)
+                    if isinstance(profiles, dict):
+                        profiles = [profiles]
+                    all_block = all(
+                        (p.get("DefaultInboundAction") or "").lower()
+                        == "block"
+                        for p in profiles
+                    )
+                    mgmt_restricted = all_block
+                    no_external_mgmt = all_block
+
+        # Check IPSec rules are configured for management traffic
+        ipsec_result = subprocess.run(
+            ["powershell", "-Command",
+             "Get-NetIPsecRule -Enabled True | "
+             "Select-Object DisplayName, "
+             "EncryptionRequired | ConvertTo-Json"],
+            capture_output=True, text=True, timeout=30
+        )
+        if ipsec_result.returncode == 0 and ipsec_result.stdout.strip():
+            ipsec_rules = json.loads(ipsec_result.stdout)
+            if isinstance(ipsec_rules, dict):
+                ipsec_rules = [ipsec_rules]
+            if ipsec_rules:
+                encrypting_rules = [
+                    r for r in ipsec_rules
+                    if r.get("EncryptionRequired", False)
+                ]
+                tunnel_configured = bool(encrypting_rules)
+
+        # Check VPN adapter as alternative to IPSec
+        if not tunnel_configured:
+            vpn_result = subprocess.run(
+                ["powershell", "-Command",
+                 "Get-NetAdapter | Where-Object {"
+                 "$_.InterfaceDescription -match "
+                 "'VPN|Tunnel|WireGuard|OpenVPN|Cisco|Pulse|GlobalProtect'"
+                 "} | Select-Object Name, Status | ConvertTo-Json"],
+                capture_output=True, text=True, timeout=30
+            )
+            if vpn_result.returncode == 0 and vpn_result.stdout.strip():
+                vpn_adapters = json.loads(vpn_result.stdout)
+                if isinstance(vpn_adapters, dict):
+                    vpn_adapters = [vpn_adapters]
+                connected = [
+                    a for a in vpn_adapters
+                    if (a.get("Status") or "").lower() == "up"
+                ]
+                tunnel_configured = bool(connected)
+
+        return bool(
+            mgmt_restricted
+            and no_external_mgmt
+            and tunnel_configured
+        )
+
+    except Exception:
+        return False
+
+
+def managed_access_routing_lx() -> bool:
+    """
+    AC.L2-3.1.14b - Remote Access is Routed Through Managed Network
+    Access Control Points (Linux/Debian)
+    """
+    try:
+        mechanisms_active = 0
+
+        rfc1918_prefixes = (
+            "10.", "172.16.", "172.17.", "172.18.", "172.19.",
+            "172.20.", "172.21.", "172.22.", "172.23.", "172.24.",
+            "172.25.", "172.26.", "172.27.", "172.28.", "172.29.",
+            "172.30.", "172.31.", "192.168."
+        )
+
+        # Check SSH firewall rules restrict to RFC1918 sources
+        ssh_firewall_restricted = False
+
+        # Check iptables for SSH restrictions
+        ipt_result = subprocess.run(
+            ["iptables", "-L", "INPUT", "-n", "--line-numbers"],
+            capture_output=True, text=True, timeout=30
+        )
+        if ipt_result.returncode == 0 and ipt_result.stdout.strip():
+            lines = ipt_result.stdout.strip().splitlines()
+            ssh_rules = [
+                l for l in lines
+                if re.search(r"dpt:22", l)
+            ]
+            if ssh_rules:
+                # Check SSH rules are scoped to RFC1918 source IPs
+                external_ssh = [
+                    l for l in ssh_rules
+                    if not any(
+                        prefix.replace(".", r"\.")
+                        in l for prefix in rfc1918_prefixes
+                    )
+                    and "accept" in l.lower()
+                ]
+                ssh_firewall_restricted = bool(not external_ssh)
+
+        # Check nftables for SSH restrictions if iptables not conclusive
+        if not ssh_firewall_restricted:
+            nft_result = subprocess.run(
+                ["nft", "list", "ruleset"],
+                capture_output=True, text=True, timeout=30
+            )
+            if nft_result.returncode == 0 and nft_result.stdout.strip():
+                output = nft_result.stdout.lower()
+                if re.search(r"port\s+22", output):
+                    # Check if SSH port rules reference RFC1918 ranges
+                    if re.search(
+                        r"(10\.|192\.168\.|172\.(1[6-9]|2[0-9]|3[01])\.)",
+                        output
+                    ):
+                        ssh_firewall_restricted = True
+
+        # Also check sshd_config ListenAddress for binding to
+        # internal interfaces only
+        if not ssh_firewall_restricted:
+            sshd_result = subprocess.run(
+                ["sshd", "-T"],
+                capture_output=True, text=True, timeout=30
+            )
+            if sshd_result.returncode == 0:
+                output = sshd_result.stdout.lower()
+                listen_matches = re.findall(
+                    r"^listenaddress\s+(\S+)", output, re.MULTILINE
+                )
+                if listen_matches:
+                    # All listen addresses must be RFC1918
+                    all_internal = all(
+                        any(
+                            addr.startswith(p)
+                            for p in rfc1918_prefixes
+                        )
+                        for addr in listen_matches
+                        if addr != "0.0.0.0" and addr != "::"
+                    )
+                    ssh_firewall_restricted = bool(all_internal)
+
+        if ssh_firewall_restricted:
+            mechanisms_active += 1
+
+        # Check default gateway is RFC1918
+        gw_result = subprocess.run(
+            ["ip", "route", "show", "default"],
+            capture_output=True, text=True, timeout=10
+        )
+        if gw_result.returncode == 0 and gw_result.stdout.strip():
+            gw_match = re.search(
+                r"default\s+via\s+(\S+)", gw_result.stdout
+            )
+            if gw_match:
+                gateway_ip = gw_match.group(1)
+                if any(
+                    gateway_ip.startswith(p)
+                    for p in rfc1918_prefixes
+                ):
+                    mechanisms_active += 1
+
+        # Check VPN tunnel interface is present and active
+        # Look for common VPN interface name patterns
+        iface_result = subprocess.run(
+            ["ip", "link", "show"],
+            capture_output=True, text=True, timeout=10
+        )
+        if iface_result.returncode == 0 and iface_result.stdout.strip():
+            output = iface_result.stdout.lower()
+            vpn_ifaces = re.findall(
+                r"(tun\d+|tap\d+|wg\d+|vpn\d*|ipsec\d*"
+                r"|ppp\d+|l2tp\d*|openvpn\d*)",
+                output
+            )
+            if vpn_ifaces:
+                # Check at least one VPN interface is UP
+                for iface in vpn_ifaces:
+                    iface_check = subprocess.run(
+                        ["ip", "link", "show", iface],
+                        capture_output=True, text=True, timeout=10
+                    )
+                    if iface_check.returncode == 0:
+                        if "state up" in iface_check.stdout.lower():
+                            mechanisms_active += 1
+                            break
+
+        return bool(mechanisms_active >= 2)
+
+    except Exception:
+        return False
+
+def remote_privileged_exec_wc() -> bool:
+    """
+    AC.L2-3.1.15c - Remote Execution of Privileged Commands is Authorized
+    (Windows Client)
+    """
+    try:
+        winrm_restricted = False
+        winrm_source_restricted = False
+
+        broad_principals = {"everyone", "authenticated users", "users"}
+
+        # Check if WinRM service is running
+        winrm_svc_result = subprocess.run(
+            ["powershell", "-Command",
+             "Get-Service WinRM | Select-Object Status | ConvertTo-Json"],
+            capture_output=True, text=True, timeout=30
+        )
+        if winrm_svc_result.returncode == 0 and winrm_svc_result.stdout.strip():
+            svc_data = json.loads(winrm_svc_result.stdout)
+            status = (svc_data.get("Status") or "").lower()
+            # If WinRM is not running, remote execution is effectively disabled
+            if status != "running":
+                return True
+
+        # Check WinRM listener is configured and restricted
+        listener_result = subprocess.run(
+            ["powershell", "-Command",
+             "Get-WSManInstance -ResourceURI winrm/config/listener "
+             "-SelectorSet @{Address='*';Transport='HTTP'} "
+             "-ErrorAction SilentlyContinue | "
+             "Select-Object Address, Transport, Port | ConvertTo-Json"],
+            capture_output=True, text=True, timeout=30
+        )
+
+        # Check WinRM trusted hosts is not set to wildcard
+        trusted_result = subprocess.run(
+            ["powershell", "-Command",
+             "Get-Item WSMan:\\localhost\\Client\\TrustedHosts | "
+             "Select-Object Value | ConvertTo-Json"],
+            capture_output=True, text=True, timeout=30
+        )
+        if trusted_result.returncode == 0 and trusted_result.stdout.strip():
+            trusted_data = json.loads(trusted_result.stdout)
+            trusted_value = (trusted_data.get("Value") or "").strip()
+            # Wildcard * means any host is trusted — hard fail
+            if trusted_value == "*":
+                return False
+            winrm_source_restricted = True
+
+        # Check PowerShell remoting session configurations
+        # are restricted to named privileged accounts
+        session_result = subprocess.run(
+            ["powershell", "-Command",
+             "Get-PSSessionConfiguration | "
+             "Select-Object Name, Permission | ConvertTo-Json"],
+            capture_output=True, text=True, timeout=30
+        )
+        if session_result.returncode == 0 and session_result.stdout.strip():
+            sessions = json.loads(session_result.stdout)
+            if isinstance(sessions, dict):
+                sessions = [sessions]
+            if not sessions:
+                return False
+
+            # Flag any session configuration that grants access
+            # to broad principals
+            flagged_sessions = [
+                s for s in sessions
+                if any(
+                    p in (s.get("Permission") or "").lower()
+                    for p in broad_principals
+                )
+                and "AccessAllowed" in (s.get("Permission") or "")
+            ]
+            winrm_restricted = bool(not flagged_sessions)
+
+        # Check WinRM firewall rules restrict inbound to RFC1918
+        rfc1918_prefixes = (
+            "10.", "172.16.", "172.17.", "172.18.", "172.19.",
+            "172.20.", "172.21.", "172.22.", "172.23.", "172.24.",
+            "172.25.", "172.26.", "172.27.", "172.28.", "172.29.",
+            "172.30.", "172.31.", "192.168."
+        )
+        fw_result = subprocess.run(
+            ["powershell", "-Command",
+             "Get-NetFirewallRule -DisplayName '*Windows Remote Management*' "
+             "-Direction Inbound -Action Allow -Enabled True | "
+             "Select-Object DisplayName, "
+             "@{N='RemoteAddress';E={"
+             "(Get-NetFirewallAddressFilter "
+             "-AssociatedNetFirewallRule $_).RemoteAddress}} | "
+             "ConvertTo-Json"],
+            capture_output=True, text=True, timeout=60
+        )
+        if fw_result.returncode == 0 and fw_result.stdout.strip():
+            rules = json.loads(fw_result.stdout)
+            if isinstance(rules, dict):
+                rules = [rules]
+            if rules:
+                external_rules = [
+                    r for r in rules
+                    if not any(
+                        str(r.get("RemoteAddress") or "").startswith(p)
+                        for p in rfc1918_prefixes
+                    )
+                    and str(r.get("RemoteAddress") or "").lower()
+                    not in {"localsubnet", ""}
+                ]
+                if not external_rules:
+                    winrm_source_restricted = True
+
+        return bool(winrm_restricted and winrm_source_restricted)
+
+    except Exception:
+        return False
+
+
+def remote_security_info_access_wc() -> bool:
+    """
+    AC.L2-3.1.15d - Remote Access to Security-Relevant Information is
+    Authorized (Windows Client)
+    """
+    try:
+        broad_principals = {"everyone", "authenticated users", "users"}
+
+        # Check Windows Event Log (Security) access permissions
+        evtlog_result = subprocess.run(
+            ["powershell", "-Command",
+             "Get-Acl -Path 'HKLM:\\SYSTEM\\CurrentControlSet\\"
+             "Services\\EventLog\\Security' | "
+             "Select-Object -ExpandProperty Access | "
+             "Select-Object IdentityReference, "
+             "RegistryRights, AccessControlType | ConvertTo-Json"],
+            capture_output=True, text=True, timeout=30
+        )
+        if evtlog_result.returncode == 0 and evtlog_result.stdout.strip():
+            acls = json.loads(evtlog_result.stdout)
+            if isinstance(acls, dict):
+                acls = [acls]
+            if not acls:
+                return False
+
+            # Flag any broad principal with Allow Full or Write access
+            flagged_acls = [
+                a for a in acls
+                if (a.get("IdentityReference") or "").lower().split("\\")[-1]
+                in broad_principals
+                and (a.get("AccessControlType") or "").lower() == "allow"
+                and any(
+                    right in (a.get("RegistryRights") or "").lower()
+                    for right in ["fullcontrol", "write", "setvalue"]
+                )
+            ]
+            if flagged_acls:
+                return False
+
+        # Check security policy export path is restricted
+        # secedit exports contain sensitive security configuration
+        secedit_result = subprocess.run(
+            ["powershell", "-Command",
+             "Get-Acl -Path $env:WINDIR\\security | "
+             "Select-Object -ExpandProperty Access | "
+             "Select-Object IdentityReference, "
+             "FileSystemRights, AccessControlType | ConvertTo-Json"],
+            capture_output=True, text=True, timeout=30
+        )
+        if secedit_result.returncode == 0 and secedit_result.stdout.strip():
+            acls = json.loads(secedit_result.stdout)
+            if isinstance(acls, dict):
+                acls = [acls]
+
+            flagged_security_dir = [
+                a for a in acls
+                if (a.get("IdentityReference") or "").lower().split("\\")[-1]
+                in broad_principals
+                and (a.get("AccessControlType") or "").lower() == "allow"
+                and any(
+                    right in (a.get("FileSystemRights") or "").lower()
+                    for right in ["fullcontrol", "write", "modify"]
+                )
+            ]
+            if flagged_security_dir:
+                return False
+
+        # Check LSA registry key is restricted
+        lsa_result = subprocess.run(
+            ["powershell", "-Command",
+             "Get-Acl -Path 'HKLM:\\SYSTEM\\CurrentControlSet\\"
+             "Control\\Lsa' | "
+             "Select-Object -ExpandProperty Access | "
+             "Select-Object IdentityReference, "
+             "RegistryRights, AccessControlType | ConvertTo-Json"],
+            capture_output=True, text=True, timeout=30
+        )
+        if lsa_result.returncode == 0 and lsa_result.stdout.strip():
+            acls = json.loads(lsa_result.stdout)
+            if isinstance(acls, dict):
+                acls = [acls]
+
+            flagged_lsa = [
+                a for a in acls
+                if (a.get("IdentityReference") or "").lower().split("\\")[-1]
+                in broad_principals
+                and (a.get("AccessControlType") or "").lower() == "allow"
+                and any(
+                    right in (a.get("RegistryRights") or "").lower()
+                    for right in ["fullcontrol", "write", "setvalue"]
+                )
+            ]
+            if flagged_lsa:
+                return False
+
+        return True
+
+    except Exception:
+        return False
+
+
+def remote_privileged_exec_ws() -> bool:
+    """
+    AC.L2-3.1.15c - Remote Execution of Privileged Commands is Authorized
+    (Windows Server)
+    """
+    try:
+        winrm_restricted = False
+        winrm_source_restricted = False
+        audit_configured = False
+
+        broad_principals = {"everyone", "authenticated users", "users"}
+        rfc1918_prefixes = (
+            "10.", "172.16.", "172.17.", "172.18.", "172.19.",
+            "172.20.", "172.21.", "172.22.", "172.23.", "172.24.",
+            "172.25.", "172.26.", "172.27.", "172.28.", "172.29.",
+            "172.30.", "172.31.", "192.168."
+        )
+
+        # Check WinRM service status
+        winrm_svc_result = subprocess.run(
+            ["powershell", "-Command",
+             "Get-Service WinRM | Select-Object Status | ConvertTo-Json"],
+            capture_output=True, text=True, timeout=30
+        )
+        if winrm_svc_result.returncode == 0 and winrm_svc_result.stdout.strip():
+            svc_data = json.loads(winrm_svc_result.stdout)
+            status = (svc_data.get("Status") or "").lower()
+            if status != "running":
+                # WinRM not running means remote execution disabled
+                return True
+
+        # Check PS session configurations restricted to named groups
+        session_result = subprocess.run(
+            ["powershell", "-Command",
+             "Get-PSSessionConfiguration | "
+             "Select-Object Name, Permission | ConvertTo-Json"],
+            capture_output=True, text=True, timeout=30
+        )
+        if session_result.returncode == 0 and session_result.stdout.strip():
+            sessions = json.loads(session_result.stdout)
+            if isinstance(sessions, dict):
+                sessions = [sessions]
+            if sessions:
+                flagged_sessions = [
+                    s for s in sessions
+                    if any(
+                        p in (s.get("Permission") or "").lower()
+                        for p in broad_principals
+                    )
+                    and "AccessAllowed" in (s.get("Permission") or "")
+                ]
+                winrm_restricted = bool(not flagged_sessions)
+
+        # Check WinRM trusted hosts not wildcard
+        trusted_result = subprocess.run(
+            ["powershell", "-Command",
+             "Get-Item WSMan:\\localhost\\Client\\TrustedHosts | "
+             "Select-Object Value | ConvertTo-Json"],
+            capture_output=True, text=True, timeout=30
+        )
+        if trusted_result.returncode == 0 and trusted_result.stdout.strip():
+            trusted_data = json.loads(trusted_result.stdout)
+            trusted_value = (trusted_data.get("Value") or "").strip()
+            if trusted_value == "*":
+                return False
+
+        # Check WinRM firewall rules restrict to RFC1918
+        fw_result = subprocess.run(
+            ["powershell", "-Command",
+             "Get-NetFirewallRule -DisplayName '*Windows Remote Management*' "
+             "-Direction Inbound -Action Allow -Enabled True | "
+             "Select-Object DisplayName, "
+             "@{N='RemoteAddress';E={"
+             "(Get-NetFirewallAddressFilter "
+             "-AssociatedNetFirewallRule $_).RemoteAddress}} | "
+             "ConvertTo-Json"],
+            capture_output=True, text=True, timeout=60
+        )
+        if fw_result.returncode == 0 and fw_result.stdout.strip():
+            rules = json.loads(fw_result.stdout)
+            if isinstance(rules, dict):
+                rules = [rules]
+            if rules:
+                external_rules = [
+                    r for r in rules
+                    if not any(
+                        str(r.get("RemoteAddress") or "").startswith(p)
+                        for p in rfc1918_prefixes
+                    )
+                    and str(r.get("RemoteAddress") or "").lower()
+                    not in {"localsubnet", ""}
+                ]
+                winrm_source_restricted = bool(not external_rules)
+
+        # Check audit policy captures remote execution events
+        # Process Creation and PowerShell script block logging
+        audit_result = subprocess.run(
+            ["auditpol", "/get", "/category:*"],
+            capture_output=True, text=True, timeout=30
+        )
+        if audit_result.returncode == 0:
+            output = audit_result.stdout.lower()
+            has_process_creation = bool(
+                re.search(
+                    r"process creation.*?(success|failure)",
+                    output
+                )
+            )
+            # Check PowerShell script block logging
+            pslog_result = subprocess.run(
+                ["powershell", "-Command",
+                 "Get-ItemProperty -Path "
+                 "'HKLM:\\SOFTWARE\\Policies\\Microsoft\\Windows\\"
+                 "PowerShell\\ScriptBlockLogging' "
+                 "-ErrorAction SilentlyContinue | "
+                 "Select-Object EnableScriptBlockLogging | ConvertTo-Json"],
+                capture_output=True, text=True, timeout=30
+            )
+            ps_logging = False
+            if pslog_result.returncode == 0 and pslog_result.stdout.strip():
+                ps_data = json.loads(pslog_result.stdout)
+                ps_logging = bool(
+                    ps_data.get("EnableScriptBlockLogging", 0) == 1
+                )
+            audit_configured = bool(has_process_creation or ps_logging)
+
+        return bool(
+            winrm_restricted
+            and winrm_source_restricted
+            and audit_configured
+        )
+
+    except Exception:
+        return False
+
+
+def remote_security_info_access_ws() -> bool:
+    """
+    AC.L2-3.1.15d - Remote Access to Security-Relevant Information is
+    Authorized (Windows Server)
+    """
+    try:
+        broad_principals = {"everyone", "authenticated users", "users"}
+
+        # Check SYSVOL share permissions (contains GPO settings)
+        sysvol_result = subprocess.run(
+            ["powershell", "-Command",
+             "Get-SmbShareAccess -Name 'SYSVOL' "
+             "-ErrorAction SilentlyContinue | "
+             "Select-Object AccountName, AccessRight | ConvertTo-Json"],
+            capture_output=True, text=True, timeout=30
+        )
+        if sysvol_result.returncode == 0 and sysvol_result.stdout.strip():
+            acls = json.loads(sysvol_result.stdout)
+            if isinstance(acls, dict):
+                acls = [acls]
+            # SYSVOL needs to be readable by domain members for GP
+            # but should not grant Change or Full to broad principals
+            flagged_sysvol = [
+                a for a in acls
+                if (a.get("AccountName") or "").lower().split("\\")[-1]
+                in broad_principals
+                and (a.get("AccessRight") or "").lower()
+                in {"full", "change"}
+            ]
+            if flagged_sysvol:
+                return False
+
+        # Check Security Event Log access is restricted
+        evtlog_result = subprocess.run(
+            ["powershell", "-Command",
+             "Get-Acl -Path 'HKLM:\\SYSTEM\\CurrentControlSet\\"
+             "Services\\EventLog\\Security' | "
+             "Select-Object -ExpandProperty Access | "
+             "Select-Object IdentityReference, "
+             "RegistryRights, AccessControlType | ConvertTo-Json"],
+            capture_output=True, text=True, timeout=30
+        )
+        if evtlog_result.returncode == 0 and evtlog_result.stdout.strip():
+            acls = json.loads(evtlog_result.stdout)
+            if isinstance(acls, dict):
+                acls = [acls]
+
+            flagged_evtlog = [
+                a for a in acls
+                if (a.get("IdentityReference") or "").lower().split("\\")[-1]
+                in broad_principals
+                and (a.get("AccessControlType") or "").lower() == "allow"
+                and any(
+                    right in (a.get("RegistryRights") or "").lower()
+                    for right in ["fullcontrol", "write", "setvalue"]
+                )
+            ]
+            if flagged_evtlog:
+                return False
+
+        # Check AD database path access is restricted
+        # NTDS.dit contains all AD security-relevant information
+        ntds_result = subprocess.run(
+            ["powershell", "-Command",
+             "Get-ItemProperty -Path "
+             "'HKLM:\\SYSTEM\\CurrentControlSet\\Services\\NTDS\\Parameters' "
+             "-ErrorAction SilentlyContinue | "
+             "Select-Object 'DSA Database file' | ConvertTo-Json"],
+            capture_output=True, text=True, timeout=30
+        )
+        if ntds_result.returncode == 0 and ntds_result.stdout.strip():
+            ntds_data = json.loads(ntds_result.stdout)
+            ntds_path = ntds_data.get("DSA Database file", "")
+            if ntds_path:
+                ntds_dir = "\\".join(
+                    str(ntds_path).split("\\")[:-1]
+                )
+                ntds_acl_result = subprocess.run(
+                    ["powershell", "-Command",
+                     f"Get-Acl -Path '{ntds_dir}' | "
+                     "Select-Object -ExpandProperty Access | "
+                     "Select-Object IdentityReference, "
+                     "FileSystemRights, AccessControlType | ConvertTo-Json"],
+                    capture_output=True, text=True, timeout=30
+                )
+                if ntds_acl_result.returncode == 0 and \
+                        ntds_acl_result.stdout.strip():
+                    acls = json.loads(ntds_acl_result.stdout)
+                    if isinstance(acls, dict):
+                        acls = [acls]
+
+                    flagged_ntds = [
+                        a for a in acls
+                        if (a.get("IdentityReference") or "")
+                        .lower().split("\\")[-1]
+                        in broad_principals
+                        and (a.get("AccessControlType") or "").lower()
+                        == "allow"
+                        and any(
+                            right in (a.get("FileSystemRights") or "").lower()
+                            for right in ["fullcontrol", "write", "modify"]
+                        )
+                    ]
+                    if flagged_ntds:
+                        return False
+
+        return True
+
+    except Exception:
+        return False
+
+
+def remote_privileged_exec_lx() -> bool:
+    """
+    AC.L2-3.1.15c - Remote Execution of Privileged Commands is Authorized
+    (Linux/Debian)
+    """
+    try:
+        sudoers_scoped = False
+        root_remote_disabled = False
+        ssh_exec_restricted = False
+
+        # Check sudoers has no unscoped remote execution entries
+        # Get standard users for comparison
+        passwd_result = subprocess.run(
+            ["awk", "-F:", '$3 >= 1000 && $1 != "nobody" {print $1}',
+             "/etc/passwd"],
+            capture_output=True, text=True, timeout=10
+        )
+        if passwd_result.returncode != 0:
+            return False
+
+        standard_users = {
+            l.strip() for l in passwd_result.stdout.strip().splitlines()
+            if l.strip()
+        }
+
+        sudoers_result = subprocess.run(
+            ["sudo", "cat", "/etc/sudoers"],
+            capture_output=True, text=True, timeout=30
+        )
+        if sudoers_result.returncode != 0:
+            return False
+
+        active_lines = [
+            l.strip() for l in sudoers_result.stdout.splitlines()
+            if l.strip() and not l.strip().startswith("#")
+        ]
+
+        # Flag any standard user with unscoped ALL=(ALL) ALL
+        unscoped = [
+            l for l in active_lines
+            if re.search(r"ALL\s*=\s*\(ALL(:ALL)?\)\s*ALL", l)
+            and not l.startswith("%")
+            and not l.startswith("root")
+            and any(u in l for u in standard_users)
+        ]
+        sudoers_scoped = bool(not unscoped)
+
+        # Also check sudoers.d
+        sudoersd_result = subprocess.run(
+            ["sudo", "grep", "-r",
+             r"ALL=(ALL) ALL", "/etc/sudoers.d/"],
+            capture_output=True, text=True, timeout=30
+        )
+        if sudoersd_result.returncode == 0 and sudoersd_result.stdout.strip():
+            unscoped_d = [
+                l for l in sudoersd_result.stdout.splitlines()
+                if l.strip()
+                and not l.strip().startswith("#")
+                and not l.strip().startswith("%")
+                and any(u in l for u in standard_users)
+            ]
+            if unscoped_d:
+                sudoers_scoped = False
+
+        # Check SSH root login is disabled
+        sshd_result = subprocess.run(
+            ["sshd", "-T"],
+            capture_output=True, text=True, timeout=30
+        )
+        if sshd_result.returncode != 0:
+            return False
+
+        output = sshd_result.stdout.lower()
+
+        root_match = re.search(
+            r"^permitrootlogin\s+(\S+)", output, re.MULTILINE
+        )
+        if root_match:
+            root_remote_disabled = bool(
+                root_match.group(1).lower()
+                in {"no", "prohibit-password"}
+            )
+
+        # Check SSH does not allow unrestricted TCP forwarding
+        # which could be used to tunnel privileged command execution
+        tcp_fwd_match = re.search(
+            r"^allowtcpforwarding\s+(\S+)", output, re.MULTILINE
+        )
+        agent_fwd_match = re.search(
+            r"^allowagentforwarding\s+(\S+)", output, re.MULTILINE
+        )
+
+        tcp_restricted = bool(
+            tcp_fwd_match
+            and tcp_fwd_match.group(1).lower() in {"no", "local"}
+        )
+        agent_restricted = bool(
+            agent_fwd_match
+            and agent_fwd_match.group(1).lower() == "no"
+        )
+
+        # Check X11 forwarding is disabled as it enables
+        # remote GUI execution of privileged applications
+        x11_match = re.search(
+            r"^x11forwarding\s+(\S+)", output, re.MULTILINE
+        )
+        x11_restricted = bool(
+            x11_match and x11_match.group(1).lower() == "no"
+        )
+
+        ssh_exec_restricted = bool(
+            tcp_restricted and agent_restricted and x11_restricted
+        )
+
+        return bool(
+            sudoers_scoped
+            and root_remote_disabled
+            and ssh_exec_restricted
+        )
+
+    except Exception:
+        return False
+
+
+def remote_security_info_access_lx() -> bool:
+    """
+    AC.L2-3.1.15d - Remote Access to Security-Relevant Information is
+    Authorized (Linux/Debian)
+    """
+    try:
+        flagged_files = []
+
+        # Security-relevant files and their maximum acceptable permissions
+        # Format: (path, max_mode_octal, allow_world_read)
+        security_files = [
+            ("/etc/sudoers", 0o440, False),
+            ("/etc/sudoers.d", 0o750, False),
+            ("/etc/ssh/sshd_config", 0o600, False),
+            ("/etc/ssh/ssh_host_rsa_key", 0o600, False),
+            ("/etc/ssh/ssh_host_ecdsa_key", 0o600, False),
+            ("/etc/shadow", 0o640, False),
+            ("/etc/pam.d", 0o755, False),
+            ("/var/log/audit", 0o750, False),
+            ("/var/log/audit/audit.log", 0o600, False),
+            ("/var/log/auth.log", 0o640, False),
+            ("/var/log/secure", 0o600, False),
+        ]
+
+        for filepath, max_mode, allow_world_read in security_files:
+            stat_result = subprocess.run(
+                ["stat", "-c", "%a %U %G", filepath],
+                capture_output=True, text=True, timeout=10
+            )
+            # Skip files that don't exist on this system
+            if stat_result.returncode != 0:
+                continue
+
+            parts = stat_result.stdout.strip().split()
+            if len(parts) < 3:
+                continue
+
+            mode_str, owner, group = parts[0], parts[1], parts[2]
+
+            try:
+                mode_int = int(mode_str, 8)
+            except ValueError:
+                continue
+
+            # Check world-writable
+            world_writable = bool(mode_int & 0o002)
+            if world_writable:
+                flagged_files.append(
+                    f"{filepath}: world-writable ({mode_str})"
+                )
+                continue
+
+            # Check world-readable for files that must not be
+            if not allow_world_read:
+                world_readable = bool(mode_int & 0o004)
+                if world_readable:
+                    flagged_files.append(
+                        f"{filepath}: world-readable ({mode_str})"
+                    )
+                    continue
+
+            # Check owner is root or a named service account
+            insecure_owners = {"nobody", "anonymous", ""}
+            if owner.lower() in insecure_owners:
+                flagged_files.append(
+                    f"{filepath}: insecure owner ({owner})"
+                )
+
+        # Check auditd log directory ACLs via getfacl
+        acl_result = subprocess.run(
+            ["getfacl", "/var/log/audit"],
+            capture_output=True, text=True, timeout=10
+        )
+        if acl_result.returncode == 0 and acl_result.stdout.strip():
+            acl_lines = acl_result.stdout.splitlines()
+            # Flag any other: entry with read or write permissions
+            other_acls = [
+                l for l in acl_lines
+                if l.startswith("other:") and (
+                    "r" in l.split(":")[-1]
+                    or "w" in l.split(":")[-1]
+                )
+            ]
+            if other_acls:
+                flagged_files.append(
+                    "/var/log/audit: permissive ACL for other"
+                )
+
+        # Check SSH authorized_keys files are not world-readable
+        home_result = subprocess.run(
+            ["find", "/home", "-name", "authorized_keys",
+             "-perm", "/o+r"],
+            capture_output=True, text=True, timeout=30
+        )
+        if home_result.returncode == 0 and home_result.stdout.strip():
+            world_readable_keys = [
+                l.strip() for l in home_result.stdout.strip().splitlines()
+                if l.strip()
+            ]
+            flagged_files.extend(
+                f"{k}: world-readable authorized_keys"
+                for k in world_readable_keys
+            )
+
+        return bool(not flagged_files)
+
+    except Exception:
+        return False
