@@ -1,0 +1,149 @@
+{
+  "id": "SI.L2-3.14.5",
+  "control_number": "SI.L2-3.14.5",
+  "title": "Perform Periodic and Real-Time Scans",
+  "description": "Perform periodic scans of organizational systems and real-time scans of files from external sources as files are downloaded, opened, or executed.",
+  "category": "SI",
+  "target_os": [
+    "debian",
+    "linux",
+    "windows-client",
+    "windows-server"
+  ],
+  "check_details": {
+    "windows_client": {
+      "checks": [
+        {
+          "check_type": "command",
+          "name": "Scheduled Full System Scan is Configured",
+          "sub_control": "a",
+          "command": "cs_f(system_information_integrity.scheduled_scan_configured_wc)",
+          "expected_result": "True",
+          "purpose": "Verify a periodic full or quick system scan is scheduled and active in Windows Defender or the installed EDR solution"
+        },
+        {
+          "check_type": "command",
+          "name": "Real-Time On-Access Scanning is Enabled",
+          "sub_control": "b",
+          "command": "cs_f(system_information_integrity.realtime_protection_enabled_wc)",
+          "expected_result": "True",
+          "purpose": "Confirm real-time scanning is enabled to scan files at download, open, or execution time"
+        },
+        {
+          "check_type": "command",
+          "name": "Last Scheduled Scan Completed Successfully",
+          "sub_control": "c",
+          "command": "cs_f(system_information_integrity.last_scan_completed_wc)",
+          "expected_result": "True",
+          "purpose": "Verify the last scheduled scan ran and completed within the configured schedule window without errors"
+        },
+        {
+          "check_type": "command",
+          "name": "Removable Media Scanning is Enabled",
+          "sub_control": "d",
+          "command": "cs_f(system_information_integrity.removable_media_scan_wc)",
+          "expected_result": "True",
+          "purpose": "Confirm the antivirus solution scans removable media (USB drives, external storage) when connected or accessed"
+        }
+      ]
+    },
+    "windows_server": {
+      "checks": [
+        {
+          "check_type": "command",
+          "name": "Scheduled Full System Scan is Configured",
+          "sub_control": "a",
+          "command": "cs_f(system_information_integrity.scheduled_scan_configured_ws)",
+          "expected_result": "True",
+          "purpose": "Verify a periodic scan is scheduled and active on the server"
+        },
+        {
+          "check_type": "command",
+          "name": "Real-Time On-Access Scanning is Enabled",
+          "sub_control": "b",
+          "command": "cs_f(system_information_integrity.realtime_protection_enabled_ws)",
+          "expected_result": "True",
+          "purpose": "Confirm real-time scanning is enabled on the server"
+        },
+        {
+          "check_type": "command",
+          "name": "Last Scheduled Scan Completed Successfully",
+          "sub_control": "c",
+          "command": "cs_f(system_information_integrity.last_scan_completed_ws)",
+          "expected_result": "True",
+          "purpose": "Verify the last scheduled scan ran and completed within the configured schedule window without errors"
+        },
+        {
+          "check_type": "command",
+          "name": "Downloaded and Staged Files are Scanned Before Execution",
+          "sub_control": "d",
+          "command": "cs_f(system_information_integrity.download_scan_ws)",
+          "expected_result": "True",
+          "purpose": "Confirm files transferred to the server via SFTP, file share, or staging directory are scanned before execution or deployment"
+        }
+      ]
+    },
+    "linux": {
+      "checks": [
+        {
+          "check_type": "command",
+          "name": "Scheduled ClamAV Scan is Configured",
+          "sub_control": "a",
+          "command": "cs_f(system_information_integrity.scheduled_scan_configured_lx)",
+          "expected_result": "True",
+          "purpose": "Verify a periodic ClamAV or equivalent scan is scheduled via cron or systemd timer"
+        },
+        {
+          "check_type": "command",
+          "name": "On-Access or Real-Time Scanning is Configured",
+          "sub_control": "b",
+          "command": "cs_f(system_information_integrity.onaccess_scan_lx)",
+          "expected_result": "True",
+          "purpose": "Confirm ClamAV on-access scanning or an equivalent real-time scanning daemon (clamonacc, fanotify) is active"
+        },
+        {
+          "check_type": "command",
+          "name": "Last Scan Log Exists and Has Recent Results",
+          "sub_control": "c",
+          "command": "cs_f(system_information_integrity.last_scan_completed_lx)",
+          "expected_result": "True",
+          "purpose": "Verify a scan log exists with recent scan results confirming periodic scanning is occurring"
+        }
+      ]
+    },
+    "debian": {
+      "checks": [
+        {
+          "check_type": "command",
+          "name": "Scheduled ClamAV Scan is Configured",
+          "sub_control": "a",
+          "command": "cs_f(system_information_integrity.scheduled_scan_configured_lx)",
+          "expected_result": "True",
+          "purpose": "Verify a periodic ClamAV scan is scheduled via cron or systemd timer on Debian"
+        },
+        {
+          "check_type": "command",
+          "name": "On-Access or Real-Time Scanning is Configured",
+          "sub_control": "b",
+          "command": "cs_f(system_information_integrity.onaccess_scan_lx)",
+          "expected_result": "True",
+          "purpose": "Confirm ClamAV on-access scanning or equivalent is active on Debian"
+        },
+        {
+          "check_type": "command",
+          "name": "Last Scan Log Exists and Has Recent Results",
+          "sub_control": "c",
+          "command": "cs_f(system_information_integrity.last_scan_completed_lx)",
+          "expected_result": "True",
+          "purpose": "Verify a scan log exists with recent scan results on Debian"
+        }
+      ]
+    }
+  },
+  "severity": "High",
+  "remediation": "Configure a scheduled full scan in Windows Defender or the installed EDR. Enable real-time protection. Ensure removable media is scanned on connection. On Linux, configure a ClamAV cron job and enable clamonacc for on-access scanning. Retain scan logs and alert on scan failures or detections.",
+  "tags": [
+    "SI",
+    "SI.L2-3.14.5"
+  ]
+}
