@@ -333,12 +333,12 @@ def run_rules_blocking(
 
 _COL_PASS    = colors.HexColor("#1a7a3a")
 _COL_FAIL    = colors.HexColor("#7a1a1a")
-_COL_PARTIAL = colors.HexColor("#7a5c00")
+_COL_PARTIAL = colors.HexColor("#8a6d1d")
 _COL_ERROR   = colors.HexColor("#7a1a1a")
 _COL_SKIP    = colors.HexColor("#555555")
-_COL_HEADER  = colors.HexColor("#1a1a2e")
+_COL_HEADER  = colors.HexColor("#34495e")
 _COL_ACCENT  = colors.HexColor("#3b8ed0")
-_COL_ROW_ALT = colors.HexColor("#f4f6f8")
+_COL_ROW_ALT = colors.HexColor("#eef2f5")
 _COL_WHITE   = colors.white
 _COL_LIGHT   = colors.HexColor("#dee2e6")
 
@@ -568,7 +568,7 @@ def generate_report_pdf(
                     ("BACKGROUND",    (0, 0), (-1, 0),  _COL_HEADER),
                     ("TEXTCOLOR",     (0, 0), (-1, 0),  _COL_WHITE),
                     ("FONTNAME",      (0, 0), (-1, 0),  "Helvetica-Bold"),
-                    ("FONTSIZE",      (0, 0), (-1, 0),  7.5),
+                    ("FONTSIZE",      (0, 0), (-1, 0),  8.5),
                     ("TOPPADDING",    (0, 0), (-1, -1), 4),
                     ("BOTTOMPADDING", (0, 0), (-1, -1), 4),
                     ("LEFTPADDING",   (0, 0), (-1, -1), 4),
