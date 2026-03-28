@@ -6574,3 +6574,1904 @@ def remote_security_info_access_lx() -> bool:
 
     except Exception:
         return False
+
+
+def wireless_authorization_wc() -> bool:
+    """
+    AC.L2-3.1.16b - Wireless Access is Authorized Prior to Allowing
+    Connections (Windows Client)
+    """
+    try:
+        no_unauthorized_profiles = False
+        enterprise_auth_enforced = False
+
+        # Check wireless adapter presence and status
+        adapter_result = subprocess.run(
+            ["powershell", "-Command",
+             "Get-NetAdapter | Where-Object {"
+             "$_.PhysicalMediaType -eq 'Native 802.11' -or "
+             "$_.PhysicalMediaType -eq 'Wireless LAN'} | "
+             "Select-Object Name, Status | ConvertTo-Json"],
+            capture_output=True, text=True, timeout=30
+        )
+
+        wireless_adapters = []
+        if adapter_result.returncode == 0 and adapter_result.stdout.strip():
+            adapters = json.loads(adapter_result.stdout)
+            if isinstance(adapters, dict):
+                adapters = [adapters]
+            wireless_adapters = adapters
+
+        # No wireless adapters present — pass by default
+        if not wireless_adapters:
+            return True
+
+        # Check all wireless profiles via netsh
+        profile_result = subprocess.run(
+            ["netsh", "wlan", "show", "profiles"],
+            capture_output=True, text=True, timeout=30
+        )
+        if profile_result.returncode != 0:
+            return False
+
+        # Extract profile names
+        profile_names = re.findall(
+            r"All User Profile\s*:\s*(.+)",
+            profile_result.stdout
+        )
+
+        if not profile_names:
+            # No profiles configured — wireless adapter present but
+            # no saved connections which is acceptable
+            return True
+
+        # Check each profile for authentication type
+        weak_auth_types = {
+            "open", "wep", "wpapsk", "wpa2psk"
+        }
+        # WPA2PSK and WPAPSK are personal (pre-shared key) not enterprise
+        # Enterprise requires 802.1X which maps to WPA2 or WPA3 enterprise
+
+        flagged_profiles = []
+        for profile_name in profile_names:
+            profile_detail_result = subprocess.run(
+                ["netsh", "wlan", "show", "profile",
+                 f"name={profile_name.strip()}", "key=clear"],
+                capture_output=True, text=True, timeout=30
+            )
+            if profile_detail_result.returncode != 0:
+                continue
+
+            detail = profile_detail_result.stdout.lower()
+
+            # Extract authentication type
+            auth_match = re.search(
+                r"authentication\s*:\s*(\S+)", detail
+            )
+            if auth_match:
+                auth_type = auth_match.group(1).lower()
+                # Flag if using weak or personal authentication
+                if any(weak in auth_type for weak in weak_auth_types):
+                    flagged_profiles.append(profile_name.strip())
+                    continue
+
+            # Check cipher is not WEP or TKIP
+            cipher_match = re.search(
+                r"cipher\s*:\s*(\S+)", detail
+            )
+            if cipher_match:
+                cipher = cipher_match.group(1).lower()
+                if cipher in {"wep40", "wep104", "tkip"}:
+                    flagged_profiles.append(profile_name.strip())
+
+        no_unauthorized_profiles = bool(not flagged_profiles)
+
+        # Check currently connected networks use enterprise auth
+        connected_result = subprocess.run(
+            ["netsh", "wlan", "show", "interfaces"],
+            capture_output=True, text=True, timeout=30
+        )
+        if connected_result.returncode == 0 and connected_result.stdout.strip():
+            output = connected_result.stdout.lower()
+            # Check if connected to any network
+            state_match = re.search(r"state\s*:\s*(\S+)", output)
+            if state_match and state_match.group(1).lower() == "connected":
+                # Check authentication of connected network
+                auth_match = re.search(
+                    r"authentication\s*:\s*(\S+)", output
+                )
+                if auth_match:
+                    connected_auth = auth_match.group(1).lower()
+                    # Must be WPA2 or WPA3 enterprise (not PSK)
+                    enterprise_auth_enforced = bool(
+                        "enterprise" in connected_auth
+                        or "wpa2" in connected_auth
+                        and "psk" not in connected_auth
+                    )
+                else:
+                    enterprise_auth_enforced = False
+            else:
+                # Not connected to any network — enterprise auth
+                # requirement does not apply
+                enterprise_auth_enforced = True
+        else:
+            enterprise_auth_enforced = True
+
+        return bool(no_unauthorized_profiles and enterprise_auth_enforced)
+
+    except Exception:
+        return False
+
+
+def wireless_authorization_ws() -> bool:
+    """
+    AC.L2-3.1.16b - Wireless Access is Authorized Prior to Allowing
+    Connections (Windows Server)
+    """
+    try:
+        # Check wireless adapter presence and status
+        adapter_result = subprocess.run(
+            ["powershell", "-Command",
+             "Get-NetAdapter | Where-Object {"
+             "$_.PhysicalMediaType -eq 'Native 802.11' -or "
+             "$_.PhysicalMediaType -eq 'Wireless LAN'} | "
+             "Select-Object Name, Status, AdminStatus | ConvertTo-Json"],
+            capture_output=True, text=True, timeout=30
+        )
+
+        if adapter_result.returncode != 0:
+            return False
+
+        if not adapter_result.stdout.strip():
+            # No wireless adapters present — pass
+            return True
+
+        adapters = json.loads(adapter_result.stdout)
+        if isinstance(adapters, dict):
+            adapters = [adapters]
+
+        if not adapters:
+            return True
+
+        # Check all wireless adapters are disabled
+        active_adapters = [
+            a for a in adapters
+            if (a.get("Status") or "").lower() == "up"
+            or (a.get("AdminStatus") or "").lower() == "up"
+        ]
+
+        # If no active wireless adapters — pass
+        if not active_adapters:
+            return True
+
+        # Active wireless adapter found on server — check GP policy
+        # restricts wireless connections
+        gp_wireless_result = subprocess.run(
+            ["powershell", "-Command",
+             "Get-ItemProperty -Path "
+             "'HKLM:\\SOFTWARE\\Policies\\Microsoft\\Windows\\"
+             "Wireless\\GPTWirelessPolicy' "
+             "-ErrorAction SilentlyContinue | ConvertTo-Json"],
+            capture_output=True, text=True, timeout=30
+        )
+        gp_wireless_configured = bool(
+            gp_wireless_result.returncode == 0
+            and gp_wireless_result.stdout.strip()
+        )
+
+        # Check wireless profiles on server — should have none
+        # or only enterprise-authenticated profiles
+        profile_result = subprocess.run(
+            ["netsh", "wlan", "show", "profiles"],
+            capture_output=True, text=True, timeout=30
+        )
+
+        if profile_result.returncode != 0 or not profile_result.stdout.strip():
+            # No wireless profiles — acceptable even with adapter present
+            return bool(gp_wireless_configured)
+
+        profile_names = re.findall(
+            r"All User Profile\s*:\s*(.+)",
+            profile_result.stdout
+        )
+
+        if not profile_names:
+            return bool(gp_wireless_configured)
+
+        # Flag any non-enterprise profile on a server
+        weak_auth_types = {"open", "wep", "wpapsk", "wpa2psk"}
+        flagged_profiles = []
+
+        for profile_name in profile_names:
+            profile_detail_result = subprocess.run(
+                ["netsh", "wlan", "show", "profile",
+                 f"name={profile_name.strip()}", "key=clear"],
+                capture_output=True, text=True, timeout=30
+            )
+            if profile_detail_result.returncode != 0:
+                continue
+
+            detail = profile_detail_result.stdout.lower()
+            auth_match = re.search(
+                r"authentication\s*:\s*(\S+)", detail
+            )
+            if auth_match:
+                auth_type = auth_match.group(1).lower()
+                if any(weak in auth_type for weak in weak_auth_types):
+                    flagged_profiles.append(profile_name.strip())
+
+        # Server fails if any non-enterprise profiles exist
+        # or GP wireless policy is not configured
+        return bool(not flagged_profiles and gp_wireless_configured)
+
+    except Exception:
+        return False
+
+
+def wireless_authorization_lx() -> bool:
+    """
+    AC.L2-3.1.16b - Wireless Access is Authorized Prior to Allowing
+    Connections (Linux/Debian)
+    """
+    try:
+        # Check for wireless interfaces via iw or iwconfig
+        iw_result = subprocess.run(
+            ["iw", "dev"],
+            capture_output=True, text=True, timeout=10
+        )
+
+        wireless_interfaces = []
+        if iw_result.returncode == 0 and iw_result.stdout.strip():
+            # Extract interface names from iw dev output
+            iface_matches = re.findall(
+                r"Interface\s+(\S+)", iw_result.stdout
+            )
+            wireless_interfaces = iface_matches
+
+        # Fall back to iwconfig if iw not available
+        if not wireless_interfaces:
+            iwconfig_result = subprocess.run(
+                ["iwconfig"],
+                capture_output=True, text=True, timeout=10
+            )
+            if iwconfig_result.returncode == 0:
+                iface_matches = re.findall(
+                    r"^(\S+)\s+IEEE 802\.11",
+                    iwconfig_result.stdout,
+                    re.MULTILINE
+                )
+                wireless_interfaces = iface_matches
+
+        # No wireless interfaces present — pass by default
+        if not wireless_interfaces:
+            return True
+
+        # Check each wireless interface status and authentication
+        flagged_interfaces = []
+
+        for iface in wireless_interfaces:
+            # Check interface is up
+            ip_result = subprocess.run(
+                ["ip", "link", "show", iface],
+                capture_output=True, text=True, timeout=10
+            )
+            if ip_result.returncode != 0:
+                continue
+
+            # If interface is DOWN skip it
+            if "state down" in ip_result.stdout.lower():
+                continue
+
+            # Interface is UP — check authentication type
+            # via wpa_supplicant status
+            wpa_result = subprocess.run(
+                ["wpa_cli", "-i", iface, "status"],
+                capture_output=True, text=True, timeout=10
+            )
+
+            if wpa_result.returncode == 0 and wpa_result.stdout.strip():
+                output = wpa_result.stdout.lower()
+
+                # Check key management type
+                key_mgmt_match = re.search(
+                    r"key_mgmt\s*=\s*(\S+)", output
+                )
+                if key_mgmt_match:
+                    key_mgmt = key_mgmt_match.group(1).lower()
+
+                    # Acceptable enterprise key management types
+                    enterprise_types = {
+                        "wpa2/ieee802.1x",
+                        "wpa/ieee802.1x",
+                        "ieee8021x",
+                        "wpa-eap",
+                        "wpa2-eap",
+                        "wpa3-eap"
+                    }
+
+                    # Weak or unauthorized key management types
+                    weak_types = {
+                        "none",          # Open network
+                        "wpa-psk",       # WPA personal
+                        "wpa2-psk",      # WPA2 personal
+                        "wpa3-psk",      # WPA3 personal (SAE)
+                    }
+
+                    if key_mgmt in weak_types:
+                        flagged_interfaces.append(
+                            f"{iface}: weak auth ({key_mgmt})"
+                        )
+                        continue
+
+                    if not any(
+                        et in key_mgmt for et in enterprise_types
+                    ) and key_mgmt not in enterprise_types:
+                        flagged_interfaces.append(
+                            f"{iface}: unknown auth ({key_mgmt})"
+                        )
+                        continue
+
+                # Check EAP method is configured for enterprise auth
+                eap_match = re.search(
+                    r"eap\s*=\s*(\S+)", output
+                )
+                if not eap_match and "ieee802.1x" not in output:
+                    flagged_interfaces.append(
+                        f"{iface}: no EAP method configured"
+                    )
+                    continue
+
+                # Check not connected to an open network
+                # by verifying pairwise cipher is not NONE or WEP
+                pairwise_match = re.search(
+                    r"pairwise_cipher\s*=\s*(\S+)", output
+                )
+                if pairwise_match:
+                    cipher = pairwise_match.group(1).lower()
+                    if cipher in {"none", "wep40", "wep104", "tkip"}:
+                        flagged_interfaces.append(
+                            f"{iface}: weak cipher ({cipher})"
+                        )
+                        continue
+
+            else:
+                # wpa_cli not available or failed
+                # Fall back to iwconfig for basic auth check
+                iwconfig_iface_result = subprocess.run(
+                    ["iwconfig", iface],
+                    capture_output=True, text=True, timeout=10
+                )
+                if iwconfig_iface_result.returncode == 0:
+                    output = iwconfig_iface_result.stdout.lower()
+                    # Check encryption is enabled
+                    if "encryption key:off" in output:
+                        flagged_interfaces.append(
+                            f"{iface}: encryption disabled (open network)"
+                        )
+                        continue
+                    # Check it is not using WEP (short key length)
+                    if re.search(
+                        r"encryption key:\S{5,13}\s", output
+                    ):
+                        flagged_interfaces.append(
+                            f"{iface}: possible WEP encryption"
+                        )
+                        continue
+
+        # Check NetworkManager or wpa_supplicant config for
+        # any saved open or PSK profiles
+        nm_result = subprocess.run(
+            ["nmcli", "-t", "-f",
+             "NAME,TYPE,802-11-WIRELESS-SECURITY.KEY-MGMT",
+             "connection", "show", "--active"],
+            capture_output=True, text=True, timeout=10
+        )
+        if nm_result.returncode == 0 and nm_result.stdout.strip():
+            for line in nm_result.stdout.strip().splitlines():
+                parts = line.split(":")
+                if len(parts) >= 3:
+                    conn_type = parts[1].lower()
+                    key_mgmt = parts[2].lower()
+                    if "wireless" in conn_type:
+                        if key_mgmt in {"none", "wpa-psk", ""}:
+                            flagged_interfaces.append(
+                                f"NM profile {parts[0]}: "
+                                f"weak or no auth ({key_mgmt})"
+                            )
+
+        return bool(not flagged_interfaces)
+
+    except Exception:
+        return False
+
+def wireless_auth_wc() -> bool:
+    """
+    AC.L2-3.1.17a - Wireless Access is Protected Using Authentication
+    (Windows Client)
+    """
+    try:
+        # Check for wireless adapters
+        adapter_result = subprocess.run(
+            ["powershell", "-Command",
+             "Get-NetAdapter | Where-Object {"
+             "$_.PhysicalMediaType -eq 'Native 802.11' -or "
+             "$_.PhysicalMediaType -eq 'Wireless LAN'} | "
+             "Select-Object Name, Status | ConvertTo-Json"],
+            capture_output=True, text=True, timeout=30
+        )
+        if not adapter_result.stdout.strip():
+            return True
+
+        adapters = json.loads(adapter_result.stdout)
+        if isinstance(adapters, dict):
+            adapters = [adapters]
+        if not adapters:
+            return True
+
+        # Get all saved wireless profiles
+        profile_result = subprocess.run(
+            ["netsh", "wlan", "show", "profiles"],
+            capture_output=True, text=True, timeout=30
+        )
+        if profile_result.returncode != 0:
+            return False
+
+        profile_names = re.findall(
+            r"All User Profile\s*:\s*(.+)",
+            profile_result.stdout
+        )
+        if not profile_names:
+            return True
+
+        weak_auth = {"open", "wep", "wpapsk", "wpa2psk", "wpa3sae"}
+        flagged_profiles = []
+
+        for profile_name in profile_names:
+            detail_result = subprocess.run(
+                ["netsh", "wlan", "show", "profile",
+                 f"name={profile_name.strip()}", "key=clear"],
+                capture_output=True, text=True, timeout=30
+            )
+            if detail_result.returncode != 0:
+                continue
+
+            detail = detail_result.stdout.lower()
+
+            # Check authentication type
+            auth_match = re.search(
+                r"authentication\s*:\s*(\S+)", detail
+            )
+            if auth_match:
+                auth_type = auth_match.group(1).lower()
+                if any(w in auth_type for w in weak_auth):
+                    flagged_profiles.append(
+                        f"{profile_name.strip()}: weak auth ({auth_type})"
+                    )
+                    continue
+
+            # Check EAP is configured (802.1X indicator)
+            if "802.1x" not in detail and "eap" not in detail:
+                flagged_profiles.append(
+                    f"{profile_name.strip()}: no 802.1X/EAP configured"
+                )
+                continue
+
+            # Check server certificate validation is enabled
+            # via OneX configuration in profile XML
+            profile_xml_result = subprocess.run(
+                ["powershell", "-Command",
+                 f"(netsh wlan export profile name='{profile_name.strip()}' "
+                 "folder=$env:TEMP) | Out-Null; "
+                 f"Get-Content $env:TEMP\\Wi-Fi-'{profile_name.strip()}'.xml "
+                 "-ErrorAction SilentlyContinue"],
+                capture_output=True, text=True, timeout=30
+            )
+            if profile_xml_result.returncode == 0 and \
+                    profile_xml_result.stdout.strip():
+                xml_content = profile_xml_result.stdout.lower()
+                # ServerValidation must be enabled
+                if "<servervalidation>" in xml_content:
+                    if "<disableservercertvalidation>true" in xml_content:
+                        flagged_profiles.append(
+                            f"{profile_name.strip()}: "
+                            "server cert validation disabled"
+                        )
+
+        return bool(not flagged_profiles)
+
+    except Exception:
+        return False
+
+
+def wireless_encryption_wc() -> bool:
+    """
+    AC.L2-3.1.17b - Wireless Access is Protected Using Encryption
+    (Windows Client)
+    """
+    try:
+        # Check for wireless adapters
+        adapter_result = subprocess.run(
+            ["powershell", "-Command",
+             "Get-NetAdapter | Where-Object {"
+             "$_.PhysicalMediaType -eq 'Native 802.11' -or "
+             "$_.PhysicalMediaType -eq 'Wireless LAN'} | "
+             "Select-Object Name | ConvertTo-Json"],
+            capture_output=True, text=True, timeout=30
+        )
+        if not adapter_result.stdout.strip():
+            return True
+
+        adapters = json.loads(adapter_result.stdout)
+        if isinstance(adapters, dict):
+            adapters = [adapters]
+        if not adapters:
+            return True
+
+        # Get all saved profiles
+        profile_result = subprocess.run(
+            ["netsh", "wlan", "show", "profiles"],
+            capture_output=True, text=True, timeout=30
+        )
+        if profile_result.returncode != 0:
+            return False
+
+        profile_names = re.findall(
+            r"All User Profile\s*:\s*(.+)",
+            profile_result.stdout
+        )
+        if not profile_names:
+            return True
+
+        weak_ciphers = {"wep40", "wep104", "wep", "tkip", "none"}
+        strong_ciphers = {"ccmp", "gcmp", "ccmp-256", "gcmp-256"}
+        flagged_profiles = []
+
+        for profile_name in profile_names:
+            detail_result = subprocess.run(
+                ["netsh", "wlan", "show", "profile",
+                 f"name={profile_name.strip()}", "key=clear"],
+                capture_output=True, text=True, timeout=30
+            )
+            if detail_result.returncode != 0:
+                continue
+
+            detail = detail_result.stdout.lower()
+
+            # Check cipher type
+            cipher_match = re.search(
+                r"cipher\s*:\s*(\S+)", detail
+            )
+            if cipher_match:
+                cipher = cipher_match.group(1).lower()
+                if cipher in weak_ciphers:
+                    flagged_profiles.append(
+                        f"{profile_name.strip()}: "
+                        f"weak cipher ({cipher})"
+                    )
+                    continue
+                if cipher not in strong_ciphers:
+                    flagged_profiles.append(
+                        f"{profile_name.strip()}: "
+                        f"unknown cipher ({cipher})"
+                    )
+                    continue
+            else:
+                flagged_profiles.append(
+                    f"{profile_name.strip()}: no cipher configured"
+                )
+                continue
+
+        # Check active connection cipher
+        connected_result = subprocess.run(
+            ["netsh", "wlan", "show", "interfaces"],
+            capture_output=True, text=True, timeout=30
+        )
+        if connected_result.returncode == 0 and \
+                connected_result.stdout.strip():
+            output = connected_result.stdout.lower()
+            state_match = re.search(r"state\s*:\s*(\S+)", output)
+            if state_match and state_match.group(1).lower() == "connected":
+                cipher_match = re.search(
+                    r"cipher\s*:\s*(\S+)", output
+                )
+                if cipher_match:
+                    active_cipher = cipher_match.group(1).lower()
+                    if active_cipher in weak_ciphers:
+                        return False
+                    if active_cipher not in strong_ciphers:
+                        return False
+
+        return bool(not flagged_profiles)
+
+    except Exception:
+        return False
+
+
+def wireless_auth_ws() -> bool:
+    """
+    AC.L2-3.1.17a - Wireless Access is Protected Using Authentication
+    (Windows Server)
+    """
+    try:
+        # Check for wireless adapters
+        adapter_result = subprocess.run(
+            ["powershell", "-Command",
+             "Get-NetAdapter | Where-Object {"
+             "$_.PhysicalMediaType -eq 'Native 802.11' -or "
+             "$_.PhysicalMediaType -eq 'Wireless LAN'} | "
+             "Select-Object Name, Status | ConvertTo-Json"],
+            capture_output=True, text=True, timeout=30
+        )
+        if not adapter_result.stdout.strip():
+            return True
+
+        adapters = json.loads(adapter_result.stdout)
+        if isinstance(adapters, dict):
+            adapters = [adapters]
+        if not adapters:
+            return True
+
+        # Check all adapters are disabled
+        active_adapters = [
+            a for a in adapters
+            if (a.get("Status") or "").lower() == "up"
+        ]
+        if not active_adapters:
+            return True
+
+        # Active wireless on server — check GP wireless policy exists
+        gp_result = subprocess.run(
+            ["powershell", "-Command",
+             "Get-ItemProperty -Path "
+             "'HKLM:\\SOFTWARE\\Policies\\Microsoft\\Windows\\"
+             "Wireless\\GPTWirelessPolicy' "
+             "-ErrorAction SilentlyContinue | ConvertTo-Json"],
+            capture_output=True, text=True, timeout=30
+        )
+        if not (gp_result.returncode == 0 and gp_result.stdout.strip()):
+            return False
+
+        # Check no weak auth profiles exist
+        profile_result = subprocess.run(
+            ["netsh", "wlan", "show", "profiles"],
+            capture_output=True, text=True, timeout=30
+        )
+        if profile_result.returncode != 0:
+            return False
+
+        profile_names = re.findall(
+            r"All User Profile\s*:\s*(.+)",
+            profile_result.stdout
+        )
+        if not profile_names:
+            return True
+
+        weak_auth = {"open", "wep", "wpapsk", "wpa2psk", "wpa3sae"}
+        flagged_profiles = []
+
+        for profile_name in profile_names:
+            detail_result = subprocess.run(
+                ["netsh", "wlan", "show", "profile",
+                 f"name={profile_name.strip()}", "key=clear"],
+                capture_output=True, text=True, timeout=30
+            )
+            if detail_result.returncode != 0:
+                continue
+
+            detail = detail_result.stdout.lower()
+            auth_match = re.search(
+                r"authentication\s*:\s*(\S+)", detail
+            )
+            if auth_match:
+                auth_type = auth_match.group(1).lower()
+                if any(w in auth_type for w in weak_auth):
+                    flagged_profiles.append(
+                        f"{profile_name.strip()}: weak auth ({auth_type})"
+                    )
+                    continue
+
+            # Must have 802.1X/EAP configured
+            if "802.1x" not in detail and "eap" not in detail:
+                flagged_profiles.append(
+                    f"{profile_name.strip()}: no 802.1X/EAP"
+                )
+
+        return bool(not flagged_profiles)
+
+    except Exception:
+        return False
+
+
+def wireless_encryption_ws() -> bool:
+    """
+    AC.L2-3.1.17b - Wireless Access is Protected Using Encryption
+    (Windows Server)
+    """
+    try:
+        # Check for wireless adapters
+        adapter_result = subprocess.run(
+            ["powershell", "-Command",
+             "Get-NetAdapter | Where-Object {"
+             "$_.PhysicalMediaType -eq 'Native 802.11' -or "
+             "$_.PhysicalMediaType -eq 'Wireless LAN'} | "
+             "Select-Object Name, Status | ConvertTo-Json"],
+            capture_output=True, text=True, timeout=30
+        )
+        if not adapter_result.stdout.strip():
+            return True
+
+        adapters = json.loads(adapter_result.stdout)
+        if isinstance(adapters, dict):
+            adapters = [adapters]
+        if not adapters:
+            return True
+
+        active_adapters = [
+            a for a in adapters
+            if (a.get("Status") or "").lower() == "up"
+        ]
+        if not active_adapters:
+            return True
+
+        # Check FIPS wireless encryption via GP registry
+        fips_result = subprocess.run(
+            ["powershell", "-Command",
+             "Get-ItemProperty -Path "
+             "'HKLM:\\SYSTEM\\CurrentControlSet\\Control\\"
+             "Lsa\\FipsAlgorithmPolicy' "
+             "-ErrorAction SilentlyContinue | "
+             "Select-Object Enabled | ConvertTo-Json"],
+            capture_output=True, text=True, timeout=30
+        )
+        fips_enabled = False
+        if fips_result.returncode == 0 and fips_result.stdout.strip():
+            fips_data = json.loads(fips_result.stdout)
+            fips_enabled = bool(fips_data.get("Enabled", 0) == 1)
+
+        if not fips_enabled:
+            return False
+
+        # Check no weak cipher profiles exist
+        profile_result = subprocess.run(
+            ["netsh", "wlan", "show", "profiles"],
+            capture_output=True, text=True, timeout=30
+        )
+        if profile_result.returncode != 0:
+            return False
+
+        profile_names = re.findall(
+            r"All User Profile\s*:\s*(.+)",
+            profile_result.stdout
+        )
+        if not profile_names:
+            return True
+
+        weak_ciphers = {"wep40", "wep104", "wep", "tkip", "none"}
+        strong_ciphers = {"ccmp", "gcmp", "ccmp-256", "gcmp-256"}
+        flagged_profiles = []
+
+        for profile_name in profile_names:
+            detail_result = subprocess.run(
+                ["netsh", "wlan", "show", "profile",
+                 f"name={profile_name.strip()}", "key=clear"],
+                capture_output=True, text=True, timeout=30
+            )
+            if detail_result.returncode != 0:
+                continue
+
+            detail = detail_result.stdout.lower()
+            cipher_match = re.search(
+                r"cipher\s*:\s*(\S+)", detail
+            )
+            if cipher_match:
+                cipher = cipher_match.group(1).lower()
+                if cipher in weak_ciphers or cipher not in strong_ciphers:
+                    flagged_profiles.append(
+                        f"{profile_name.strip()}: "
+                        f"weak or unknown cipher ({cipher})"
+                    )
+
+        return bool(not flagged_profiles)
+
+    except Exception:
+        return False
+
+
+def wireless_auth_lx() -> bool:
+    """
+    AC.L2-3.1.17a - Wireless Access is Protected Using Authentication
+    (Linux/Debian)
+    """
+    try:
+        # Detect wireless interfaces
+        iw_result = subprocess.run(
+            ["iw", "dev"],
+            capture_output=True, text=True, timeout=10
+        )
+        wireless_interfaces = []
+        if iw_result.returncode == 0 and iw_result.stdout.strip():
+            wireless_interfaces = re.findall(
+                r"Interface\s+(\S+)", iw_result.stdout
+            )
+
+        if not wireless_interfaces:
+            iwconfig_result = subprocess.run(
+                ["iwconfig"],
+                capture_output=True, text=True, timeout=10
+            )
+            if iwconfig_result.returncode == 0:
+                wireless_interfaces = re.findall(
+                    r"^(\S+)\s+IEEE 802\.11",
+                    iwconfig_result.stdout,
+                    re.MULTILINE
+                )
+
+        if not wireless_interfaces:
+            return True
+
+        flagged = []
+        weak_key_mgmt = {"none", "wpa-psk", "wpa2-psk", "wpa3-psk", "sae"}
+
+        for iface in wireless_interfaces:
+            # Check interface is UP
+            ip_result = subprocess.run(
+                ["ip", "link", "show", iface],
+                capture_output=True, text=True, timeout=10
+            )
+            if ip_result.returncode != 0:
+                continue
+            if "state down" in ip_result.stdout.lower():
+                continue
+
+            # Check wpa_supplicant status for auth details
+            wpa_result = subprocess.run(
+                ["wpa_cli", "-i", iface, "status"],
+                capture_output=True, text=True, timeout=10
+            )
+            if wpa_result.returncode == 0 and wpa_result.stdout.strip():
+                output = wpa_result.stdout.lower()
+
+                # Check key management is enterprise
+                key_mgmt_match = re.search(
+                    r"key_mgmt\s*=\s*(\S+)", output
+                )
+                if key_mgmt_match:
+                    key_mgmt = key_mgmt_match.group(1).lower()
+                    if key_mgmt in weak_key_mgmt:
+                        flagged.append(
+                            f"{iface}: weak key mgmt ({key_mgmt})"
+                        )
+                        continue
+
+                # Check EAP method is configured
+                eap_match = re.search(r"eap\s*=\s*(\S+)", output)
+                if not eap_match:
+                    flagged.append(f"{iface}: no EAP method configured")
+                    continue
+
+                # Check EAP method is strong
+                weak_eap = {"md5", "leap", "pap", "chap", "mschap"}
+                eap_method = eap_match.group(1).lower()
+                if eap_method in weak_eap:
+                    flagged.append(
+                        f"{iface}: weak EAP method ({eap_method})"
+                    )
+                    continue
+
+            # Check wpa_supplicant config file for cert validation
+            wpa_conf_paths = [
+                "/etc/wpa_supplicant/wpa_supplicant.conf",
+                f"/etc/wpa_supplicant/wpa_supplicant-{iface}.conf"
+            ]
+            for conf_path in wpa_conf_paths:
+                cat_result = subprocess.run(
+                    ["cat", conf_path],
+                    capture_output=True, text=True, timeout=10
+                )
+                if cat_result.returncode != 0:
+                    continue
+
+                conf = cat_result.stdout.lower()
+                active_lines = [
+                    l.strip() for l in conf.splitlines()
+                    if l.strip() and not l.strip().startswith("#")
+                ]
+
+                # Check ca_cert is configured for server validation
+                ca_cert_lines = [
+                    l for l in active_lines
+                    if l.startswith("ca_cert")
+                ]
+                if not ca_cert_lines:
+                    flagged.append(
+                        f"{iface}: no CA certificate configured "
+                        "for server validation"
+                    )
+                    break
+
+                # Check ca_cert is not empty
+                for ca_line in ca_cert_lines:
+                    if '""' in ca_line or "=''" in ca_line:
+                        flagged.append(
+                            f"{iface}: empty CA certificate path"
+                        )
+
+            # Check NetworkManager EAP config as fallback
+            nm_result = subprocess.run(
+                ["nmcli", "-t", "-f",
+                 "NAME,802-1x.eap,802-1x.ca-cert",
+                 "connection", "show", "--active"],
+                capture_output=True, text=True, timeout=10
+            )
+            if nm_result.returncode == 0 and nm_result.stdout.strip():
+                for line in nm_result.stdout.strip().splitlines():
+                    parts = line.split(":")
+                    if len(parts) >= 3:
+                        eap = parts[1].lower()
+                        ca_cert = parts[2].strip()
+                        if eap in weak_eap if 'weak_eap' in dir() else set():
+                            flagged.append(
+                                f"NM {parts[0]}: weak EAP ({eap})"
+                            )
+                        if not ca_cert or ca_cert == "--":
+                            flagged.append(
+                                f"NM {parts[0]}: no CA cert configured"
+                            )
+
+        return bool(not flagged)
+
+    except Exception:
+        return False
+
+
+def wireless_encryption_lx() -> bool:
+    """
+    AC.L2-3.1.17b - Wireless Access is Protected Using Encryption
+    (Linux/Debian)
+    """
+    try:
+        # Detect wireless interfaces
+        iw_result = subprocess.run(
+            ["iw", "dev"],
+            capture_output=True, text=True, timeout=10
+        )
+        wireless_interfaces = []
+        if iw_result.returncode == 0 and iw_result.stdout.strip():
+            wireless_interfaces = re.findall(
+                r"Interface\s+(\S+)", iw_result.stdout
+            )
+
+        if not wireless_interfaces:
+            iwconfig_result = subprocess.run(
+                ["iwconfig"],
+                capture_output=True, text=True, timeout=10
+            )
+            if iwconfig_result.returncode == 0:
+                wireless_interfaces = re.findall(
+                    r"^(\S+)\s+IEEE 802\.11",
+                    iwconfig_result.stdout,
+                    re.MULTILINE
+                )
+
+        if not wireless_interfaces:
+            return True
+
+        weak_ciphers = {"wep40", "wep104", "wep", "tkip", "none"}
+        strong_ciphers = {"ccmp", "gcmp", "ccmp-256", "gcmp-256"}
+        flagged = []
+
+        for iface in wireless_interfaces:
+            # Check interface is UP
+            ip_result = subprocess.run(
+                ["ip", "link", "show", iface],
+                capture_output=True, text=True, timeout=10
+            )
+            if ip_result.returncode != 0:
+                continue
+            if "state down" in ip_result.stdout.lower():
+                continue
+
+            # Check active cipher via wpa_cli
+            wpa_result = subprocess.run(
+                ["wpa_cli", "-i", iface, "status"],
+                capture_output=True, text=True, timeout=10
+            )
+            if wpa_result.returncode == 0 and wpa_result.stdout.strip():
+                output = wpa_result.stdout.lower()
+
+                # Check pairwise cipher
+                pairwise_match = re.search(
+                    r"pairwise_cipher\s*=\s*(\S+)", output
+                )
+                if pairwise_match:
+                    pairwise = pairwise_match.group(1).lower()
+                    if pairwise in weak_ciphers:
+                        flagged.append(
+                            f"{iface}: weak pairwise cipher ({pairwise})"
+                        )
+                        continue
+                    if pairwise not in strong_ciphers:
+                        flagged.append(
+                            f"{iface}: unknown pairwise cipher ({pairwise})"
+                        )
+                        continue
+
+                # Check group cipher
+                group_match = re.search(
+                    r"group_cipher\s*=\s*(\S+)", output
+                )
+                if group_match:
+                    group = group_match.group(1).lower()
+                    if group in weak_ciphers:
+                        flagged.append(
+                            f"{iface}: weak group cipher ({group})"
+                        )
+                        continue
+
+            # Check wpa_supplicant config for weak cipher settings
+            wpa_conf_paths = [
+                "/etc/wpa_supplicant/wpa_supplicant.conf",
+                f"/etc/wpa_supplicant/wpa_supplicant-{iface}.conf"
+            ]
+            for conf_path in wpa_conf_paths:
+                cat_result = subprocess.run(
+                    ["cat", conf_path],
+                    capture_output=True, text=True, timeout=10
+                )
+                if cat_result.returncode != 0:
+                    continue
+
+                conf = cat_result.stdout.lower()
+                active_lines = [
+                    l.strip() for l in conf.splitlines()
+                    if l.strip() and not l.strip().startswith("#")
+                ]
+
+                # Check pairwise and group cipher directives
+                for line in active_lines:
+                    if line.startswith("pairwise="):
+                        ciphers_in_line = line.split("=", 1)[1].split()
+                        weak_found = [
+                            c for c in ciphers_in_line
+                            if c.lower() in weak_ciphers
+                        ]
+                        if weak_found:
+                            flagged.append(
+                                f"{iface} conf: weak pairwise "
+                                f"cipher ({weak_found})"
+                            )
+                    if line.startswith("group="):
+                        ciphers_in_line = line.split("=", 1)[1].split()
+                        weak_found = [
+                            c for c in ciphers_in_line
+                            if c.lower() in weak_ciphers
+                        ]
+                        if weak_found:
+                            flagged.append(
+                                f"{iface} conf: weak group "
+                                f"cipher ({weak_found})"
+                            )
+
+            # Check iw link for active connection cipher details
+            iw_link_result = subprocess.run(
+                ["iw", iface, "link"],
+                capture_output=True, text=True, timeout=10
+            )
+            if iw_link_result.returncode == 0 and \
+                    iw_link_result.stdout.strip():
+                output = iw_link_result.stdout.lower()
+                if "not connected" not in output:
+                    # Check for WEP indicator in iw link output
+                    if re.search(r"wep|wep40|wep104", output):
+                        flagged.append(f"{iface}: WEP detected via iw link")
+
+            # Check NetworkManager for weak cipher configs
+            nm_result = subprocess.run(
+                ["nmcli", "-t", "-f",
+                 "NAME,802-11-WIRELESS-SECURITY.PAIRWISE,"
+                 "802-11-WIRELESS-SECURITY.GROUP",
+                 "connection", "show", "--active"],
+                capture_output=True, text=True, timeout=10
+            )
+            if nm_result.returncode == 0 and nm_result.stdout.strip():
+                for line in nm_result.stdout.strip().splitlines():
+                    parts = line.split(":")
+                    if len(parts) >= 3:
+                        pairwise = parts[1].lower()
+                        group = parts[2].lower()
+                        if pairwise in weak_ciphers:
+                            flagged.append(
+                                f"NM {parts[0]}: weak pairwise ({pairwise})"
+                            )
+                        if group in weak_ciphers:
+                            flagged.append(
+                                f"NM {parts[0]}: weak group ({group})"
+                            )
+
+        return bool(not flagged)
+
+    except Exception:
+        return False
+
+def mobile_device_monitoring_wc() -> bool:
+    """
+    AC.L2-3.1.18c - Mobile Device Connections are Monitored and Logged
+    (Windows Client)
+    """
+    try:
+        removable_audited = False
+        pnp_audited = False
+        bluetooth_controlled = False
+
+        # Check audit policy captures removable storage events
+        audit_result = subprocess.run(
+            ["auditpol", "/get", "/category:*"],
+            capture_output=True, text=True, timeout=30
+        )
+        if audit_result.returncode != 0:
+            return False
+
+        output = audit_result.stdout.lower()
+
+        # Check Removable Storage audit subcategory
+        removable_audited = bool(
+            re.search(
+                r"removable storage\s+(success|failure|success and failure)",
+                output
+            )
+        )
+
+        # Check Plug and Play Events audit subcategory
+        pnp_audited = bool(
+            re.search(
+                r"plug and play events\s+(success|failure|success and failure)",
+                output
+            )
+        )
+
+        # Check Bluetooth is disabled or restricted via GP registry
+        # Check Bluetooth adapter status
+        bt_adapter_result = subprocess.run(
+            ["powershell", "-Command",
+             "Get-PnpDevice | Where-Object {"
+             "$_.Class -eq 'Bluetooth'} | "
+             "Select-Object Status, FriendlyName | ConvertTo-Json"],
+            capture_output=True, text=True, timeout=30
+        )
+
+        if bt_adapter_result.returncode == 0 and \
+                bt_adapter_result.stdout.strip():
+            bt_devices = json.loads(bt_adapter_result.stdout)
+            if isinstance(bt_devices, dict):
+                bt_devices = [bt_devices]
+
+            if not bt_devices:
+                # No Bluetooth adapter present
+                bluetooth_controlled = True
+            else:
+                # Check all BT adapters are disabled
+                active_bt = [
+                    d for d in bt_devices
+                    if (d.get("Status") or "").lower() == "ok"
+                ]
+                if not active_bt:
+                    bluetooth_controlled = True
+                else:
+                    # BT adapter active — check GP restricts it
+                    bt_gp_result = subprocess.run(
+                        ["powershell", "-Command",
+                         "Get-ItemProperty -Path "
+                         "'HKLM:\\SOFTWARE\\Policies\\Microsoft\\"
+                         "Windows\\Bluetooth' "
+                         "-ErrorAction SilentlyContinue | "
+                         "Select-Object AllowBluetooth, "
+                         "AllowAdvertising | ConvertTo-Json"],
+                        capture_output=True, text=True, timeout=30
+                    )
+                    if bt_gp_result.returncode == 0 and \
+                            bt_gp_result.stdout.strip():
+                        bt_gp = json.loads(bt_gp_result.stdout)
+                        # AllowBluetooth = 0 means disabled via GP
+                        allow_bt = bt_gp.get("AllowBluetooth", 2)
+                        bluetooth_controlled = bool(allow_bt == 0)
+                    else:
+                        # No GP restriction on active BT adapter
+                        bluetooth_controlled = False
+        else:
+            # No Bluetooth devices found
+            bluetooth_controlled = True
+
+        # Check removable storage restriction via registry
+        # as additional signal for mobile device control
+        removable_result = subprocess.run(
+            ["powershell", "-Command",
+             "Get-ItemProperty -Path "
+             "'HKLM:\\SOFTWARE\\Policies\\Microsoft\\Windows\\"
+             "RemovableStorageDevices' "
+             "-ErrorAction SilentlyContinue | "
+             "Select-Object Deny_All | ConvertTo-Json"],
+            capture_output=True, text=True, timeout=30
+        )
+        removable_restricted = False
+        if removable_result.returncode == 0 and \
+                removable_result.stdout.strip():
+            removable_data = json.loads(removable_result.stdout)
+            removable_restricted = bool(
+                removable_data.get("Deny_All", 0) == 1
+            )
+
+        # Require audit controls plus either BT controlled
+        # or removable storage restricted
+        return bool(
+            removable_audited
+            and pnp_audited
+            and (bluetooth_controlled or removable_restricted)
+        )
+
+    except Exception:
+        return False
+
+
+def mobile_device_monitoring_ws() -> bool:
+    """
+    AC.L2-3.1.18c - Mobile Device Connections are Monitored and Logged
+    (Windows Server)
+    """
+    try:
+        removable_audited = False
+        bluetooth_disabled = False
+        device_install_controlled = False
+
+        # Check audit policy for removable storage and PnP events
+        audit_result = subprocess.run(
+            ["auditpol", "/get", "/category:*"],
+            capture_output=True, text=True, timeout=30
+        )
+        if audit_result.returncode != 0:
+            return False
+
+        output = audit_result.stdout.lower()
+
+        removable_match = re.search(
+            r"removable storage\s+(success|failure|success and failure)",
+            output
+        )
+        pnp_match = re.search(
+            r"plug and play events\s+(success|failure|success and failure)",
+            output
+        )
+        removable_audited = bool(removable_match and pnp_match)
+
+        # Check Bluetooth is disabled on server via GP
+        bt_gp_result = subprocess.run(
+            ["powershell", "-Command",
+             "Get-ItemProperty -Path "
+             "'HKLM:\\SOFTWARE\\Policies\\Microsoft\\Windows\\Bluetooth' "
+             "-ErrorAction SilentlyContinue | "
+             "Select-Object AllowBluetooth | ConvertTo-Json"],
+            capture_output=True, text=True, timeout=30
+        )
+        if bt_gp_result.returncode == 0 and bt_gp_result.stdout.strip():
+            bt_data = json.loads(bt_gp_result.stdout)
+            bluetooth_disabled = bool(bt_data.get("AllowBluetooth", 2) == 0)
+        else:
+            # Check if Bluetooth adapter is physically absent
+            bt_adapter_result = subprocess.run(
+                ["powershell", "-Command",
+                 "Get-PnpDevice | Where-Object {"
+                 "$_.Class -eq 'Bluetooth'} | "
+                 "Select-Object Status | ConvertTo-Json"],
+                capture_output=True, text=True, timeout=30
+            )
+            if bt_adapter_result.returncode == 0:
+                if not bt_adapter_result.stdout.strip():
+                    # No BT adapter present on server
+                    bluetooth_disabled = True
+                else:
+                    bt_devices = json.loads(bt_adapter_result.stdout)
+                    if isinstance(bt_devices, dict):
+                        bt_devices = [bt_devices]
+                    active_bt = [
+                        d for d in bt_devices
+                        if (d.get("Status") or "").lower() == "ok"
+                    ]
+                    bluetooth_disabled = bool(not active_bt)
+
+        # Check device installation policy via GP registry
+        # PreventInstallationOfUnmatchedDevices restricts unknown devices
+        device_install_result = subprocess.run(
+            ["powershell", "-Command",
+             "Get-ItemProperty -Path "
+             "'HKLM:\\SOFTWARE\\Policies\\Microsoft\\Windows\\"
+             "DeviceInstall\\Restrictions' "
+             "-ErrorAction SilentlyContinue | "
+             "Select-Object DenyUnspecified, "
+             "AllowAdminInstall | ConvertTo-Json"],
+            capture_output=True, text=True, timeout=30
+        )
+        if device_install_result.returncode == 0 and \
+                device_install_result.stdout.strip():
+            device_data = json.loads(device_install_result.stdout)
+            # DenyUnspecified = 1 means deny unknown device installation
+            deny_unspecified = device_data.get("DenyUnspecified", 0)
+            device_install_controlled = bool(deny_unspecified == 1)
+
+        # Check Security event log captures device events
+        # by verifying log size is sufficient
+        log_result = subprocess.run(
+            ["powershell", "-Command",
+             "Get-WinEvent -ListLog System | "
+             "Select-Object MaximumSizeInBytes | ConvertTo-Json"],
+            capture_output=True, text=True, timeout=30
+        )
+        log_size_ok = False
+        if log_result.returncode == 0 and log_result.stdout.strip():
+            log_data = json.loads(log_result.stdout)
+            max_size = int(log_data.get("MaximumSizeInBytes", 0))
+            # System log must be at least 64MB to retain device events
+            log_size_ok = bool(max_size >= 67108864)
+
+        return bool(
+            removable_audited
+            and bluetooth_disabled
+            and device_install_controlled
+            and log_size_ok
+        )
+
+    except Exception:
+        return False
+
+
+def mobile_device_monitoring_lx() -> bool:
+    """
+    AC.L2-3.1.18c - Mobile Device Connections are Monitored and Logged
+    (Linux/Debian)
+    """
+    try:
+        usb_audit_ok = False
+        syslog_usb_ok = False
+        bluetooth_controlled = False
+
+        # Check auditd is active
+        auditd_result = subprocess.run(
+            ["systemctl", "is-active", "auditd"],
+            capture_output=True, text=True, timeout=10
+        )
+        auditd_active = bool(
+            auditd_result.returncode == 0
+            and auditd_result.stdout.strip().lower() == "active"
+        )
+
+        if auditd_active:
+            # Check auditd has rules for USB/removable device events
+            rules_result = subprocess.run(
+                ["auditctl", "-l"],
+                capture_output=True, text=True, timeout=10
+            )
+            if rules_result.returncode == 0 and rules_result.stdout.strip():
+                rules = rules_result.stdout.lower()
+                # Check for rules watching USB device paths or
+                # kernel USB subsystem events
+                usb_audit_ok = bool(
+                    re.search(
+                        r"(\/dev\/bus\/usb|usb|removable"
+                        r"|\/sys\/bus\/usb|plug)",
+                        rules
+                    )
+                )
+
+                # Also check for udev rule watching as alternative
+                if not usb_audit_ok:
+                    udev_result = subprocess.run(
+                        ["find", "/etc/udev/rules.d",
+                         "/lib/udev/rules.d",
+                         "-name", "*.rules",
+                         "-type", "f"],
+                        capture_output=True, text=True, timeout=10
+                    )
+                    if udev_result.returncode == 0 and \
+                            udev_result.stdout.strip():
+                        rule_files = udev_result.stdout.strip().splitlines()
+                        for rule_file in rule_files:
+                            cat_result = subprocess.run(
+                                ["grep", "-l",
+                                 "usb\\|removable\\|storage",
+                                 rule_file],
+                                capture_output=True, text=True, timeout=10
+                            )
+                            if cat_result.returncode == 0 and \
+                                    cat_result.stdout.strip():
+                                usb_audit_ok = True
+                                break
+
+        # Check system log records USB connection events
+        # Check /var/log/syslog or /var/log/messages for USB entries
+        syslog_paths = [
+            "/var/log/syslog",
+            "/var/log/messages",
+            "/var/log/kern.log"
+        ]
+        for log_path in syslog_paths:
+            grep_result = subprocess.run(
+                ["grep", "-c", "-i",
+                 "usb\\|mtp\\|removable",
+                 log_path],
+                capture_output=True, text=True, timeout=10
+            )
+            if grep_result.returncode == 0:
+                try:
+                    count = int(grep_result.stdout.strip())
+                    if count > 0:
+                        syslog_usb_ok = True
+                        break
+                except ValueError:
+                    continue
+
+        # Fall back to journald if syslog not present
+        if not syslog_usb_ok:
+            journal_result = subprocess.run(
+                ["journalctl", "-k", "--no-pager",
+                 "--grep", "usb|removable|mtp",
+                 "--output", "short",
+                 "--lines", "10"],
+                capture_output=True, text=True, timeout=10
+            )
+            if journal_result.returncode == 0 and \
+                    journal_result.stdout.strip():
+                syslog_usb_ok = bool(
+                    re.search(
+                        r"(usb|removable|mtp)",
+                        journal_result.stdout.lower()
+                    )
+                )
+
+        # Check Bluetooth is disabled or logging is configured
+        # Check if Bluetooth service is active
+        bt_result = subprocess.run(
+            ["systemctl", "is-active", "bluetooth"],
+            capture_output=True, text=True, timeout=10
+        )
+        bt_active = bool(
+            bt_result.returncode == 0
+            and bt_result.stdout.strip().lower() == "active"
+        )
+
+        if not bt_active:
+            # Bluetooth service not running — controlled
+            bluetooth_controlled = True
+        else:
+            # BT is active — check bluetoothd logging is configured
+            bt_conf_result = subprocess.run(
+                ["cat", "/etc/bluetooth/main.conf"],
+                capture_output=True, text=True, timeout=10
+            )
+            if bt_conf_result.returncode == 0 and \
+                    bt_conf_result.stdout.strip():
+                conf = bt_conf_result.stdout.lower()
+                active_lines = [
+                    l.strip() for l in conf.splitlines()
+                    if l.strip() and not l.strip().startswith("#")
+                ]
+
+                # Check DiscoverableTimeout is set (non-zero)
+                # and Discoverable is false to prevent rogue pairing
+                discoverable_lines = [
+                    l for l in active_lines
+                    if l.startswith("discoverable")
+                ]
+                timeout_lines = [
+                    l for l in active_lines
+                    if l.startswith("discoverabletimeout")
+                ]
+
+                bt_discoverable = True
+                bt_timeout_set = False
+
+                for line in discoverable_lines:
+                    if "=" in line:
+                        val = line.split("=", 1)[1].strip().lower()
+                        if val == "false":
+                            bt_discoverable = False
+
+                for line in timeout_lines:
+                    if "=" in line:
+                        try:
+                            timeout_val = int(
+                                line.split("=", 1)[1].strip()
+                            )
+                            bt_timeout_set = bool(timeout_val > 0)
+                        except ValueError:
+                            pass
+
+                bluetooth_controlled = bool(
+                    not bt_discoverable and bt_timeout_set
+                )
+
+            # Check journald logs BT connection events
+            if not bluetooth_controlled:
+                bt_log_result = subprocess.run(
+                    ["journalctl", "-u", "bluetooth",
+                     "--no-pager", "--lines", "20"],
+                    capture_output=True, text=True, timeout=10
+                )
+                if bt_log_result.returncode == 0 and \
+                        bt_log_result.stdout.strip():
+                    # BT is logging — treat as monitored
+                    bluetooth_controlled = True
+
+        return bool(usb_audit_ok and syslog_usb_ok and bluetooth_controlled)
+
+    except Exception:
+        return False
+
+def mobile_encryption_wc() -> bool:
+    """
+    AC.L2-3.1.19b - Encryption is Employed to Protect CUI on Mobile
+    Devices (Windows Client)
+    """
+    try:
+        all_drives_encrypted = False
+        tpm_protected = False
+        aes256_enforced = False
+
+        # Check BitLocker status on all fixed drives
+        bitlocker_result = subprocess.run(
+            ["powershell", "-Command",
+             "Get-BitLockerVolume | "
+             "Select-Object MountPoint, VolumeStatus, "
+             "EncryptionMethod, ProtectionStatus, "
+             "VolumeType | ConvertTo-Json"],
+            capture_output=True, text=True, timeout=30
+        )
+        if bitlocker_result.returncode != 0:
+            return False
+
+        volumes = json.loads(bitlocker_result.stdout) \
+            if bitlocker_result.stdout.strip() else []
+        if isinstance(volumes, dict):
+            volumes = [volumes]
+        if not volumes:
+            return False
+
+        # Filter to fixed data and OS volumes only
+        fixed_volumes = [
+            v for v in volumes
+            if (v.get("VolumeType") or "").lower()
+            in {"operatingsystem", "data"}
+        ]
+
+        if not fixed_volumes:
+            return False
+
+        # All fixed volumes must be fully encrypted and protection on
+        unencrypted = [
+            v for v in fixed_volumes
+            if (v.get("VolumeStatus") or "").lower()
+            != "fullencrypted"
+            or (v.get("ProtectionStatus") or "").lower()
+            != "on"
+        ]
+        all_drives_encrypted = bool(not unencrypted)
+
+        # Check encryption method is AES-256 or XTS-AES-256
+        weak_methods = {
+            "aes128", "aes256diffuser",
+            "xtsaes128", "none", "unknown"
+        }
+        strong_methods = {"aes256", "xtsaes256"}
+
+        weak_encrypted = [
+            v for v in fixed_volumes
+            if (v.get("EncryptionMethod") or "").lower().replace("-", "")
+            in weak_methods
+            or (v.get("EncryptionMethod") or "").lower().replace("-", "")
+            not in strong_methods
+        ]
+        aes256_enforced = bool(not weak_encrypted)
+
+        # Check TPM protector is active on OS volume
+        os_volume = next(
+            (v for v in fixed_volumes
+             if (v.get("VolumeType") or "").lower() == "operatingsystem"),
+            None
+        )
+        if os_volume:
+            mount_point = os_volume.get("MountPoint", "C:")
+            tpm_result = subprocess.run(
+                ["powershell", "-Command",
+                 f"(Get-BitLockerVolume -MountPoint '{mount_point}')"
+                 ".KeyProtector | "
+                 "Where-Object {$_.KeyProtectorType -eq 'Tpm' -or "
+                 "$_.KeyProtectorType -eq 'TpmPin' -or "
+                 "$_.KeyProtectorType -eq 'TpmNetworkKey'} | "
+                 "Select-Object KeyProtectorType | ConvertTo-Json"],
+                capture_output=True, text=True, timeout=30
+            )
+            if tpm_result.returncode == 0 and tpm_result.stdout.strip():
+                tpm_protectors = json.loads(tpm_result.stdout)
+                if isinstance(tpm_protectors, dict):
+                    tpm_protectors = [tpm_protectors]
+                tpm_protected = bool(tpm_protectors)
+
+        # Check BitLocker GP policy enforces AES-256
+        gp_result = subprocess.run(
+            ["powershell", "-Command",
+             "Get-ItemProperty -Path "
+             "'HKLM:\\SOFTWARE\\Policies\\Microsoft\\FVE' "
+             "-ErrorAction SilentlyContinue | "
+             "Select-Object EncryptionMethod, "
+             "EncryptionMethodWithXts, "
+             "OSEncryptionType | ConvertTo-Json"],
+            capture_output=True, text=True, timeout=30
+        )
+        if gp_result.returncode == 0 and gp_result.stdout.strip():
+            gp_data = json.loads(gp_result.stdout)
+            # EncryptionMethodWithXts = 7 means XTS-AES-256
+            # EncryptionMethod = 4 means AES-256
+            enc_method = gp_data.get("EncryptionMethodWithXts",
+                                     gp_data.get("EncryptionMethod", 0))
+            if enc_method not in {4, 7}:
+                aes256_enforced = False
+
+        return bool(all_drives_encrypted and tpm_protected and aes256_enforced)
+
+    except Exception:
+        return False
+
+
+def mobile_encryption_ws() -> bool:
+    """
+    AC.L2-3.1.19b - Encryption is Employed to Protect CUI on Mobile
+    Devices (Windows Server)
+    """
+    try:
+        fixed_encrypted = False
+        aes256_enforced = False
+        removable_restricted = False
+
+        # Check BitLocker on all fixed volumes
+        bitlocker_result = subprocess.run(
+            ["powershell", "-Command",
+             "Get-BitLockerVolume | "
+             "Select-Object MountPoint, VolumeStatus, "
+             "EncryptionMethod, ProtectionStatus, "
+             "VolumeType | ConvertTo-Json"],
+            capture_output=True, text=True, timeout=30
+        )
+        if bitlocker_result.returncode != 0:
+            return False
+
+        volumes = json.loads(bitlocker_result.stdout) \
+            if bitlocker_result.stdout.strip() else []
+        if isinstance(volumes, dict):
+            volumes = [volumes]
+        if not volumes:
+            return False
+
+        fixed_volumes = [
+            v for v in volumes
+            if (v.get("VolumeType") or "").lower()
+            in {"operatingsystem", "data"}
+        ]
+
+        if not fixed_volumes:
+            return False
+
+        # All fixed volumes must be fully encrypted and protection on
+        unencrypted = [
+            v for v in fixed_volumes
+            if (v.get("VolumeStatus") or "").lower() != "fullencrypted"
+            or (v.get("ProtectionStatus") or "").lower() != "on"
+        ]
+        fixed_encrypted = bool(not unencrypted)
+
+        # Check encryption method is AES-256 or XTS-AES-256
+        strong_methods = {"aes256", "xtsaes256"}
+        weak_encrypted = [
+            v for v in fixed_volumes
+            if (v.get("EncryptionMethod") or "").lower().replace("-", "")
+            not in strong_methods
+        ]
+        aes256_enforced = bool(not weak_encrypted)
+
+        # Check GP enforces AES-256 for BitLocker
+        gp_result = subprocess.run(
+            ["powershell", "-Command",
+             "Get-ItemProperty -Path "
+             "'HKLM:\\SOFTWARE\\Policies\\Microsoft\\FVE' "
+             "-ErrorAction SilentlyContinue | "
+             "Select-Object EncryptionMethod, "
+             "EncryptionMethodWithXts, "
+             "RDVEncryptionType | ConvertTo-Json"],
+            capture_output=True, text=True, timeout=30
+        )
+        if gp_result.returncode == 0 and gp_result.stdout.strip():
+            gp_data = json.loads(gp_result.stdout)
+            enc_method = gp_data.get(
+                "EncryptionMethodWithXts",
+                gp_data.get("EncryptionMethod", 0)
+            )
+            if enc_method not in {4, 7}:
+                aes256_enforced = False
+
+        # Check removable drives require BitLocker To Go
+        # RDVDenyWriteAccess = 1 blocks write to unencrypted removable drives
+        rdv_result = subprocess.run(
+            ["powershell", "-Command",
+             "Get-ItemProperty -Path "
+             "'HKLM:\\SOFTWARE\\Policies\\Microsoft\\FVE' "
+             "-ErrorAction SilentlyContinue | "
+             "Select-Object RDVDenyWriteAccess, "
+             "RDVConfigureBDE | ConvertTo-Json"],
+            capture_output=True, text=True, timeout=30
+        )
+        if rdv_result.returncode == 0 and rdv_result.stdout.strip():
+            rdv_data = json.loads(rdv_result.stdout)
+            # RDVDenyWriteAccess = 1 means deny write to unencrypted
+            deny_write = rdv_data.get("RDVDenyWriteAccess", 0)
+            removable_restricted = bool(deny_write == 1)
+
+        return bool(
+            fixed_encrypted
+            and aes256_enforced
+            and removable_restricted
+        )
+
+    except Exception:
+        return False
+
+
+def mobile_encryption_lx() -> bool:
+    """
+    AC.L2-3.1.19b - Encryption is Employed to Protect CUI on Mobile
+    Devices (Linux/Debian)
+    """
+    try:
+        luks_active = False
+        home_encrypted = False
+        strong_cipher = False
+
+        # Check for LUKS encrypted block devices via lsblk
+        lsblk_result = subprocess.run(
+            ["lsblk", "-o", "NAME,TYPE,FSTYPE,MOUNTPOINT",
+             "--json"],
+            capture_output=True, text=True, timeout=30
+        )
+        if lsblk_result.returncode == 0 and lsblk_result.stdout.strip():
+            try:
+                lsblk_data = json.loads(lsblk_result.stdout)
+                block_devices = lsblk_data.get("blockdevices", [])
+
+                def find_luks(devices):
+                    for dev in devices:
+                        fstype = (dev.get("fstype") or "").lower()
+                        dev_type = (dev.get("type") or "").lower()
+                        if fstype == "crypto_luks" or dev_type == "crypt":
+                            return True
+                        children = dev.get("children", [])
+                        if children and find_luks(children):
+                            return True
+                    return False
+
+                luks_active = find_luks(block_devices)
+            except (json.JSONDecodeError, KeyError):
+                luks_active = False
+
+        # Fall back to cryptsetup if lsblk JSON not available
+        if not luks_active:
+            cryptsetup_result = subprocess.run(
+                ["cryptsetup", "status",
+                 "$(lsblk -o NAME,TYPE | "
+                 "awk '$2==\"crypt\"{print $1}' | head -1)"],
+                capture_output=True, text=True,
+                shell=False, timeout=30
+            )
+            # Check dmsetup for active crypt devices
+            dmsetup_result = subprocess.run(
+                ["dmsetup", "ls", "--target", "crypt"],
+                capture_output=True, text=True, timeout=10
+            )
+            if dmsetup_result.returncode == 0 and \
+                    dmsetup_result.stdout.strip():
+                if "No devices found" not in dmsetup_result.stdout:
+                    luks_active = True
+
+        # Check LUKS cipher is AES-256 or stronger
+        # Get first LUKS device name from dmsetup
+        if luks_active:
+            dm_result = subprocess.run(
+                ["dmsetup", "ls", "--target", "crypt"],
+                capture_output=True, text=True, timeout=10
+            )
+            if dm_result.returncode == 0 and dm_result.stdout.strip():
+                crypt_devices = [
+                    line.split()[0]
+                    for line in dm_result.stdout.strip().splitlines()
+                    if line.strip() and "No devices" not in line
+                ]
+                for crypt_dev in crypt_devices[:3]:
+                    # Check underlying device for LUKS header
+                    status_result = subprocess.run(
+                        ["cryptsetup", "status", crypt_dev],
+                        capture_output=True, text=True, timeout=10
+                    )
+                    if status_result.returncode == 0:
+                        output = status_result.stdout.lower()
+                        cipher_match = re.search(
+                            r"cipher\s*:\s*(\S+)", output
+                        )
+                        if cipher_match:
+                            cipher = cipher_match.group(1).lower()
+                            # AES-256 variants are acceptable
+                            # aes-xts-plain64 with 512-bit key = AES-256
+                            if re.search(
+                                r"aes.*(256|512|xts)", cipher
+                            ) or "aes-xts" in cipher:
+                                strong_cipher = True
+                                break
+                            # Check key size via cryptsetup luksDump
+                            keysize_match = re.search(
+                                r"keysize\s*:\s*(\d+)", output
+                            )
+                            if keysize_match:
+                                key_size = int(keysize_match.group(1))
+                                # AES-XTS uses 512-bit key for AES-256
+                                strong_cipher = bool(key_size >= 256)
+                                if strong_cipher:
+                                    break
+
+        # Check home directory encryption
+        # Method 1: Check if /home is a LUKS-encrypted mount
+        home_mount_result = subprocess.run(
+            ["findmnt", "-n", "-o", "SOURCE,FSTYPE", "/home"],
+            capture_output=True, text=True, timeout=10
+        )
+        if home_mount_result.returncode == 0 and \
+                home_mount_result.stdout.strip():
+            parts = home_mount_result.stdout.strip().split()
+            if len(parts) >= 1:
+                source = parts[0]
+                # Check if source is a dm-crypt device
+                if source.startswith("/dev/dm-") or \
+                        source.startswith("/dev/mapper/"):
+                    home_encrypted = True
+
+        # Method 2: Check for eCryptfs mounts on home directories
+        if not home_encrypted:
+            mount_result = subprocess.run(
+                ["mount"],
+                capture_output=True, text=True, timeout=10
+            )
+            if mount_result.returncode == 0:
+                output = mount_result.stdout.lower()
+                if re.search(r"ecryptfs.*\/home", output):
+                    home_encrypted = True
+
+        # Method 3: Check for fscrypt on home filesystem
+        if not home_encrypted:
+            fscrypt_result = subprocess.run(
+                ["fscrypt", "status", "/home"],
+                capture_output=True, text=True, timeout=10
+            )
+            if fscrypt_result.returncode == 0 and \
+                    fscrypt_result.stdout.strip():
+                if "encryption enabled" in \
+                        fscrypt_result.stdout.lower():
+                    home_encrypted = True
+
+        # Method 4: Check individual user home dirs for
+        # eCryptfs Private directory structure
+        if not home_encrypted:
+            home_result = subprocess.run(
+                ["find", "/home", "-maxdepth", "2",
+                 "-name", ".ecryptfs", "-type", "d"],
+                capture_output=True, text=True, timeout=10
+            )
+            if home_result.returncode == 0 and \
+                    home_result.stdout.strip():
+                home_encrypted = True
+
+        return bool(luks_active and home_encrypted and strong_cipher)
+
+    except Exception:
+        return False
