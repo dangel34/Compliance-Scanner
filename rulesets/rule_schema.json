@@ -1,0 +1,130 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "cmmc-rule",
+  "title": "CMMC Rule",
+  "description": "Schema for CMMC compliance rule definition files",
+  "type": "object",
+  "required": [
+    "id",
+    "control_number",
+    "title",
+    "description",
+    "category",
+    "target_os",
+    "check_details",
+    "severity",
+    "remediation",
+    "tags"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Unique rule identifier (e.g. AC.L2-3.1.1)"
+    },
+    "control_number": {
+      "type": "string",
+      "minLength": 1,
+      "description": "CMMC control number, typically matches id"
+    },
+    "title": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Human-readable control title"
+    },
+    "description": {
+      "type": "string",
+      "description": "Full description of the control requirement"
+    },
+    "category": {
+      "type": "string",
+      "description": "CMMC control family abbreviation",
+      "enum": ["AC", "AU", "CM", "IA", "MA", "MP", "PE", "PS", "RA", "CA", "SC", "SI"]
+    },
+    "target_os": {
+      "type": "array",
+      "description": "Operating systems this rule applies to",
+      "minItems": 1,
+      "uniqueItems": true,
+      "items": {
+        "type": "string",
+        "enum": ["windows_client", "windows_server", "linux", "debian", "mac"]
+      }
+    },
+    "check_details": {
+      "type": "object",
+      "description": "Per-OS check definitions",
+      "additionalProperties": false,
+      "properties": {
+        "windows_client": { "$ref": "#/$defs/os_checks" },
+        "windows_server": { "$ref": "#/$defs/os_checks" },
+        "linux":          { "$ref": "#/$defs/os_checks" },
+        "debian":         { "$ref": "#/$defs/os_checks" },
+        "mac":            { "$ref": "#/$defs/os_checks" }
+      }
+    },
+    "severity": {
+      "type": "string",
+      "enum": ["Critical", "High", "Medium", "Low"],
+      "description": "Risk severity if the control is not met"
+    },
+    "remediation": {
+      "type": "string",
+      "description": "Instructions to remediate non-compliance"
+    },
+    "tags": {
+      "type": "array",
+      "description": "Searchable tags (should include category and rule id)",
+      "minItems": 1,
+      "items": { "type": "string" }
+    }
+  },
+  "$defs": {
+    "os_checks": {
+      "type": "object",
+      "required": ["checks"],
+      "additionalProperties": false,
+      "properties": {
+        "checks": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/check" }
+        }
+      }
+    },
+    "check": {
+      "type": "object",
+      "required": ["check_type", "name", "sub_control", "command", "expected_result", "purpose"],
+      "properties": {
+        "check_type": {
+          "type": "string",
+          "enum": ["command", "service", "file_permissions"],
+          "description": "How to execute this check"
+        },
+        "name": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Human-readable check name"
+        },
+        "sub_control": {
+          "type": "string",
+          "description": "Sub-control letter (a, b, c, ...)"
+        },
+        "command": {
+          "type": "string",
+          "description": "Shell command, cs_f() call, or 'NA' to skip"
+        },
+        "expected_result": {
+          "type": "string",
+          "description": "Human-readable description of a passing result"
+        },
+        "purpose": {
+          "type": "string",
+          "description": "Why this check is required"
+        }
+      },
+      "additionalProperties": false
+    }
+  }
+}
