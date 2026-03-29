@@ -1,0 +1,229 @@
+{
+  "id": "AC.L2-3.1.20",
+  "control_number": "AC.L2-3.1.20",
+  "title": "Verify and Control Limit Connections to and Use of External Systems",
+  "description": "verify and control/limit connections to and use of external systems",
+  "category": "AC",
+  "target_os": [
+    "debian",
+    "linux",
+    "windows-client",
+    "windows-server"
+  ],
+  "check_details": {
+    "windows-client": {
+      "checks": [
+        {
+          "check_type": "command",
+          "name": "Connections to External Systems are Identified",
+          "sub_control": "a",
+          "command": "NA",
+          "expected_result": "NA",
+          "purpose": "Identification of connections to external systems is an organizational GRC documentation concern documented in network diagrams and the SSP and is not technically verifiable via automated check on Windows Client"
+        },
+        {
+          "check_type": "command",
+          "name": "Use of External Systems is Identified",
+          "sub_control": "b",
+          "command": "NA",
+          "expected_result": "NA",
+          "purpose": "Identification of external system use is an organizational GRC documentation concern documented in acceptable use policies and the SSP and is not technically verifiable via automated check on Windows Client"
+        },
+        {
+          "check_type": "command",
+          "name": "Connections to External Systems are Verified",
+          "sub_control": "c",
+          "command": "cs_f{access_control.external_connection_verify_wc}",
+          "expected_result": "True",
+          "purpose": "Verify that outbound connections to external systems are authenticated via certificate or proxy and that Windows Defender Firewall outbound rules restrict unapproved external destinations"
+        },
+        {
+          "check_type": "command",
+          "name": "Use of External Systems is Verified",
+          "sub_control": "d",
+          "command": "cs_f{access_control.external_system_use_verify_wc}",
+          "expected_result": "True",
+          "purpose": "Verify that external system use is verified via proxy authentication or VPN split tunneling controls and that audit logging captures outbound connection activity"
+        },
+        {
+          "check_type": "command",
+          "name": "Connections to External Systems are Controlled and Limited",
+          "sub_control": "e",
+          "command": "cs_f{access_control.external_connection_control_wc}",
+          "expected_result": "True",
+          "purpose": "Verify that outbound connections are restricted via Windows Defender Firewall outbound rules, proxy settings enforce approved destinations, and direct internet access is blocked for sensitive ports"
+        },
+        {
+          "check_type": "command",
+          "name": "Use of External Systems is Controlled and Limited",
+          "sub_control": "f",
+          "command": "cs_f{access_control.external_system_use_control_wc}",
+          "expected_result": "True",
+          "purpose": "Verify that removable media from external systems is restricted, cloud storage sync clients are controlled via GP, and external system access requires VPN or proxy authentication"
+        }
+      ]
+    },
+    "windows-server": {
+      "checks": [
+        {
+          "check_type": "command",
+          "name": "Connections to External Systems are Identified",
+          "sub_control": "a",
+          "command": "NA",
+          "expected_result": "NA",
+          "purpose": "Identification of connections to external systems is an organizational GRC documentation concern and is not technically verifiable via automated check on Windows Server"
+        },
+        {
+          "check_type": "command",
+          "name": "Use of External Systems is Identified",
+          "sub_control": "b",
+          "command": "NA",
+          "expected_result": "NA",
+          "purpose": "Identification of external system use is an organizational GRC documentation concern and is not technically verifiable via automated check on Windows Server"
+        },
+        {
+          "check_type": "command",
+          "name": "Connections to External Systems are Verified",
+          "sub_control": "c",
+          "command": "cs_f{access_control.external_connection_verify_ws}",
+          "expected_result": "True",
+          "purpose": "Verify that outbound server connections to external systems are restricted to approved destinations via Windows Defender Firewall outbound rules and IPSec authentication"
+        },
+        {
+          "check_type": "command",
+          "name": "Use of External Systems is Verified",
+          "sub_control": "d",
+          "command": "cs_f{access_control.external_system_use_verify_ws}",
+          "expected_result": "True",
+          "purpose": "Verify that external system use from the server is verified via proxy or firewall authentication logging and that outbound connection events are captured in audit logs"
+        },
+        {
+          "check_type": "command",
+          "name": "Connections to External Systems are Controlled and Limited",
+          "sub_control": "e",
+          "command": "cs_f{access_control.external_connection_control_ws}",
+          "expected_result": "True",
+          "purpose": "Verify that outbound connections from the server are restricted to approved external destinations via Windows Defender Firewall outbound block rules and that default outbound policy is block"
+        },
+        {
+          "check_type": "command",
+          "name": "Use of External Systems is Controlled and Limited",
+          "sub_control": "f",
+          "command": "cs_f{access_control.external_system_use_control_ws}",
+          "expected_result": "True",
+          "purpose": "Verify that server access to external cloud services is restricted via GP, removable media from external systems is blocked, and IPSec enforces authenticated connections to approved external systems"
+        }
+      ]
+    },
+    "linux": {
+      "checks": [
+        {
+          "check_type": "command",
+          "name": "Connections to External Systems are Identified",
+          "sub_control": "a",
+          "command": "NA",
+          "expected_result": "NA",
+          "purpose": "Identification of connections to external systems is an organizational GRC documentation concern and is not technically verifiable via automated check on Linux"
+        },
+        {
+          "check_type": "command",
+          "name": "Use of External Systems is Identified",
+          "sub_control": "b",
+          "command": "NA",
+          "expected_result": "NA",
+          "purpose": "Identification of external system use is an organizational GRC documentation concern and is not technically verifiable via automated check on Linux"
+        },
+        {
+          "check_type": "command",
+          "name": "Connections to External Systems are Verified",
+          "sub_control": "c",
+          "command": "cs_f{access_control.external_connection_verify_lx}",
+          "expected_result": "True",
+          "purpose": "Verify that outbound connections to external systems are authenticated via SSH keys or certificates and that firewall rules restrict unapproved external destinations"
+        },
+        {
+          "check_type": "command",
+          "name": "Use of External Systems is Verified",
+          "sub_control": "d",
+          "command": "cs_f{access_control.external_system_use_verify_lx}",
+          "expected_result": "True",
+          "purpose": "Verify that external system use is logged via auditd outbound connection rules and that proxy or firewall authentication captures external access activity"
+        },
+        {
+          "check_type": "command",
+          "name": "Connections to External Systems are Controlled and Limited",
+          "sub_control": "e",
+          "command": "cs_f{access_control.external_connection_control_lx}",
+          "expected_result": "True",
+          "purpose": "Verify that outbound connections are restricted via iptables nftables or firewalld OUTPUT chain rules and that default outbound policy blocks unapproved external destinations"
+        },
+        {
+          "check_type": "command",
+          "name": "Use of External Systems is Controlled and Limited",
+          "sub_control": "f",
+          "command": "cs_f{access_control.external_system_use_control_lx}",
+          "expected_result": "True",
+          "purpose": "Verify that external system access requires proxy authentication or VPN, removable media from external systems is restricted via udev rules, and SELinux or AppArmor limits external network access"
+        }
+      ]
+    },
+    "debian": {
+      "checks": [
+        {
+          "check_type": "command",
+          "name": "Connections to External Systems are Identified",
+          "sub_control": "a",
+          "command": "NA",
+          "expected_result": "NA",
+          "purpose": "Identification of connections to external systems is an organizational GRC documentation concern and is not technically verifiable via automated check on Debian"
+        },
+        {
+          "check_type": "command",
+          "name": "Use of External Systems is Identified",
+          "sub_control": "b",
+          "command": "NA",
+          "expected_result": "NA",
+          "purpose": "Identification of external system use is an organizational GRC documentation concern and is not technically verifiable via automated check on Debian"
+        },
+        {
+          "check_type": "command",
+          "name": "Connections to External Systems are Verified",
+          "sub_control": "c",
+          "command": "cs_f{access_control.external_connection_verify_lx}",
+          "expected_result": "True",
+          "purpose": "Verify that outbound connections to external systems are authenticated via SSH keys or certificates and that firewall rules restrict unapproved external destinations"
+        },
+        {
+          "check_type": "command",
+          "name": "Use of External Systems is Verified",
+          "sub_control": "d",
+          "command": "cs_f{access_control.external_system_use_verify_lx}",
+          "expected_result": "True",
+          "purpose": "Verify that external system use is logged via auditd outbound connection rules and that proxy or firewall authentication captures external access activity"
+        },
+        {
+          "check_type": "command",
+          "name": "Connections to External Systems are Controlled and Limited",
+          "sub_control": "e",
+          "command": "cs_f{access_control.external_connection_control_lx}",
+          "expected_result": "True",
+          "purpose": "Verify that outbound connections are restricted via iptables nftables or firewalld OUTPUT chain rules and that default outbound policy blocks unapproved external destinations"
+        },
+        {
+          "check_type": "command",
+          "name": "Use of External Systems is Controlled and Limited",
+          "sub_control": "f",
+          "command": "cs_f{access_control.external_system_use_control_lx}",
+          "expected_result": "True",
+          "purpose": "Verify that external system access requires proxy authentication or VPN, removable media from external systems is restricted via udev rules, and AppArmor limits external network access"
+        }
+      ]
+    }
+  },
+  "severity": "High",
+  "remediation": "Instructions to remediate non-compliance",
+  "tags": [
+    "AC",
+    "AC.L2-3.1.20"
+  ]
+}

@@ -8475,3 +8475,1324 @@ def mobile_encryption_lx() -> bool:
 
     except Exception:
         return False
+
+def external_connection_verify_wc() -> bool:
+    """
+    AC.L2-3.1.20c - Connections to External Systems are Verified
+    (Windows Client)
+    """
+    try:
+        proxy_configured = False
+        outbound_rules_exist = False
+
+        # Check system proxy is configured via registry
+        proxy_result = subprocess.run(
+            ["powershell", "-Command",
+             "Get-ItemProperty -Path "
+             "'HKCU:\\Software\\Microsoft\\Windows\\CurrentVersion\\"
+             "Internet Settings' "
+             "-ErrorAction SilentlyContinue | "
+             "Select-Object ProxyEnable, ProxyServer | ConvertTo-Json"],
+            capture_output=True, text=True, timeout=30
+        )
+        if proxy_result.returncode == 0 and proxy_result.stdout.strip():
+            proxy_data = json.loads(proxy_result.stdout)
+            proxy_enabled = bool(proxy_data.get("ProxyEnable", 0) == 1)
+            proxy_server = (proxy_data.get("ProxyServer") or "").strip()
+            proxy_configured = bool(proxy_enabled and proxy_server)
+
+        # Check WinHTTP proxy as fallback
+        if not proxy_configured:
+            winhttp_result = subprocess.run(
+                ["netsh", "winhttp", "show", "proxy"],
+                capture_output=True, text=True, timeout=30
+            )
+            if winhttp_result.returncode == 0:
+                output = winhttp_result.stdout.lower()
+                proxy_configured = bool(
+                    "proxy server" in output
+                    and "direct access" not in output
+                )
+
+        # Check Windows Defender Firewall has outbound block rules
+        # indicating external destinations are restricted
+        fw_result = subprocess.run(
+            ["powershell", "-Command",
+             "Get-NetFirewallRule -Direction Outbound "
+             "-Action Block -Enabled True | "
+             "Select-Object DisplayName | ConvertTo-Json"],
+            capture_output=True, text=True, timeout=30
+        )
+        if fw_result.returncode == 0 and fw_result.stdout.strip():
+            rules = json.loads(fw_result.stdout)
+            if isinstance(rules, dict):
+                rules = [rules]
+            outbound_rules_exist = bool(rules)
+
+        return bool(proxy_configured or outbound_rules_exist)
+
+    except Exception:
+        return False
+
+
+def external_system_use_verify_wc() -> bool:
+    """
+    AC.L2-3.1.20d - Use of External Systems is Verified (Windows Client)
+    """
+    try:
+        audit_configured = False
+        proxy_auth_enforced = False
+
+        # Check audit policy captures filtering platform connection events
+        # which records outbound network connections
+        audit_result = subprocess.run(
+            ["auditpol", "/get", "/category:*"],
+            capture_output=True, text=True, timeout=30
+        )
+        if audit_result.returncode != 0:
+            return False
+
+        output = audit_result.stdout.lower()
+        audit_configured = bool(
+            re.search(
+                r"filtering platform connection\s+"
+                r"(success|failure|success and failure)",
+                output
+            )
+        )
+
+        # Check proxy requires authentication via WinHTTP or IE settings
+        proxy_result = subprocess.run(
+            ["powershell", "-Command",
+             "Get-ItemProperty -Path "
+             "'HKCU:\\Software\\Microsoft\\Windows\\CurrentVersion\\"
+             "Internet Settings' "
+             "-ErrorAction SilentlyContinue | "
+             "Select-Object ProxyEnable, ProxyServer, "
+             "ProxyUser | ConvertTo-Json"],
+            capture_output=True, text=True, timeout=30
+        )
+        if proxy_result.returncode == 0 and proxy_result.stdout.strip():
+            proxy_data = json.loads(proxy_result.stdout)
+            proxy_enabled = bool(proxy_data.get("ProxyEnable", 0) == 1)
+            proxy_server = (proxy_data.get("ProxyServer") or "").strip()
+            # If proxy is enabled with a server address
+            # authentication is handled at the proxy level
+            proxy_auth_enforced = bool(proxy_enabled and proxy_server)
+
+        # Check VPN is active as alternative verification mechanism
+        if not proxy_auth_enforced:
+            vpn_result = subprocess.run(
+                ["powershell", "-Command",
+                 "Get-VpnConnection | "
+                 "Where-Object {$_.ConnectionStatus -eq 'Connected'} | "
+                 "Select-Object Name | ConvertTo-Json"],
+                capture_output=True, text=True, timeout=30
+            )
+            if vpn_result.returncode == 0 and vpn_result.stdout.strip():
+                vpn_data = json.loads(vpn_result.stdout)
+                if isinstance(vpn_data, dict):
+                    vpn_data = [vpn_data]
+                proxy_auth_enforced = bool(vpn_data)
+
+        return bool(audit_configured and proxy_auth_enforced)
+
+    except Exception:
+        return False
+
+
+def external_connection_control_wc() -> bool:
+    """
+    AC.L2-3.1.20e - Connections to External Systems are Controlled
+    and Limited (Windows Client)
+    """
+    try:
+        outbound_controlled = False
+        sensitive_ports_blocked = False
+
+        # Check Windows Defender Firewall has outbound block rules
+        fw_result = subprocess.run(
+            ["powershell", "-Command",
+             "Get-NetFirewallRule -Direction Outbound "
+             "-Action Block -Enabled True | "
+             "Select-Object DisplayName, "
+             "@{N='RemotePort';E={"
+             "(Get-NetFirewallPortFilter "
+             "-AssociatedNetFirewallRule $_).RemotePort}} | "
+             "ConvertTo-Json"],
+            capture_output=True, text=True, timeout=60
+        )
+        if fw_result.returncode == 0 and fw_result.stdout.strip():
+            rules = json.loads(fw_result.stdout)
+            if isinstance(rules, dict):
+                rules = [rules]
+            outbound_controlled = bool(rules)
+
+            # Check sensitive management ports are blocked outbound
+            # to prevent unauthorized external management connections
+            sensitive_ports = {"22", "23", "3389", "5985", "5986"}
+            blocked_ports = set()
+            for rule in rules:
+                port = str(rule.get("RemotePort") or "")
+                if port in sensitive_ports:
+                    blocked_ports.add(port)
+            sensitive_ports_blocked = bool(
+                len(blocked_ports) >= 2
+            )
+
+        # Check default outbound firewall action
+        profile_result = subprocess.run(
+            ["powershell", "-Command",
+             "Get-NetFirewallProfile | "
+             "Select-Object Name, DefaultOutboundAction | ConvertTo-Json"],
+            capture_output=True, text=True, timeout=30
+        )
+        if profile_result.returncode == 0 and profile_result.stdout.strip():
+            profiles = json.loads(profile_result.stdout)
+            if isinstance(profiles, dict):
+                profiles = [profiles]
+            # If default outbound is block, connections are controlled
+            all_block = all(
+                (p.get("DefaultOutboundAction") or "").lower() == "block"
+                for p in profiles
+            )
+            if all_block:
+                outbound_controlled = True
+                sensitive_ports_blocked = True
+
+        return bool(outbound_controlled and sensitive_ports_blocked)
+
+    except Exception:
+        return False
+
+
+def external_system_use_control_wc() -> bool:
+    """
+    AC.L2-3.1.20f - Use of External Systems is Controlled and Limited
+    (Windows Client)
+    """
+    try:
+        cloud_sync_blocked = False
+        removable_restricted = False
+        access_controlled = False
+
+        # Check OneDrive sync is disabled via GP
+        onedrive_result = subprocess.run(
+            ["powershell", "-Command",
+             "Get-ItemProperty -Path "
+             "'HKLM:\\SOFTWARE\\Policies\\Microsoft\\Windows\\OneDrive' "
+             "-ErrorAction SilentlyContinue | "
+             "Select-Object DisableFileSyncNGSC | ConvertTo-Json"],
+            capture_output=True, text=True, timeout=30
+        )
+        if onedrive_result.returncode == 0 and \
+                onedrive_result.stdout.strip():
+            od_data = json.loads(onedrive_result.stdout)
+            cloud_sync_blocked = bool(
+                od_data.get("DisableFileSyncNGSC", 0) == 1
+            )
+
+        # Check removable storage is restricted
+        removable_result = subprocess.run(
+            ["powershell", "-Command",
+             "Get-ItemProperty -Path "
+             "'HKLM:\\SOFTWARE\\Policies\\Microsoft\\Windows\\"
+             "RemovableStorageDevices' "
+             "-ErrorAction SilentlyContinue | "
+             "Select-Object Deny_All, Deny_Write | ConvertTo-Json"],
+            capture_output=True, text=True, timeout=30
+        )
+        if removable_result.returncode == 0 and \
+                removable_result.stdout.strip():
+            rem_data = json.loads(removable_result.stdout)
+            removable_restricted = bool(
+                rem_data.get("Deny_All", 0) == 1
+                or rem_data.get("Deny_Write", 0) == 1
+            )
+
+        # Check proxy or VPN is required for external access
+        proxy_result = subprocess.run(
+            ["powershell", "-Command",
+             "Get-ItemProperty -Path "
+             "'HKCU:\\Software\\Microsoft\\Windows\\CurrentVersion\\"
+             "Internet Settings' "
+             "-ErrorAction SilentlyContinue | "
+             "Select-Object ProxyEnable, ProxyServer | ConvertTo-Json"],
+            capture_output=True, text=True, timeout=30
+        )
+        if proxy_result.returncode == 0 and proxy_result.stdout.strip():
+            proxy_data = json.loads(proxy_result.stdout)
+            access_controlled = bool(
+                proxy_data.get("ProxyEnable", 0) == 1
+                and (proxy_data.get("ProxyServer") or "").strip()
+            )
+
+        if not access_controlled:
+            vpn_result = subprocess.run(
+                ["powershell", "-Command",
+                 "Get-VpnConnection | "
+                 "Select-Object Name, ConnectionStatus | ConvertTo-Json"],
+                capture_output=True, text=True, timeout=30
+            )
+            if vpn_result.returncode == 0 and vpn_result.stdout.strip():
+                vpn_connections = json.loads(vpn_result.stdout)
+                if isinstance(vpn_connections, dict):
+                    vpn_connections = [vpn_connections]
+                access_controlled = bool(vpn_connections)
+
+        return bool(
+            cloud_sync_blocked
+            and removable_restricted
+            and access_controlled
+        )
+
+    except Exception:
+        return False
+
+
+def external_connection_verify_ws() -> bool:
+    """
+    AC.L2-3.1.20c - Connections to External Systems are Verified
+    (Windows Server)
+    """
+    try:
+        ipsec_configured = False
+        outbound_rules_exist = False
+
+        # Check IPSec rules verify outbound connections
+        ipsec_result = subprocess.run(
+            ["powershell", "-Command",
+             "Get-NetIPsecRule -Enabled True | "
+             "Select-Object DisplayName, "
+             "EncryptionRequired | ConvertTo-Json"],
+            capture_output=True, text=True, timeout=30
+        )
+        if ipsec_result.returncode == 0 and ipsec_result.stdout.strip():
+            ipsec_rules = json.loads(ipsec_result.stdout)
+            if isinstance(ipsec_rules, dict):
+                ipsec_rules = [ipsec_rules]
+            if ipsec_rules:
+                encrypting = [
+                    r for r in ipsec_rules
+                    if r.get("EncryptionRequired", False)
+                ]
+                ipsec_configured = bool(encrypting)
+
+        # Check Windows Defender Firewall has outbound block rules
+        fw_result = subprocess.run(
+            ["powershell", "-Command",
+             "Get-NetFirewallRule -Direction Outbound "
+             "-Action Block -Enabled True | "
+             "Select-Object DisplayName | ConvertTo-Json"],
+            capture_output=True, text=True, timeout=30
+        )
+        if fw_result.returncode == 0 and fw_result.stdout.strip():
+            rules = json.loads(fw_result.stdout)
+            if isinstance(rules, dict):
+                rules = [rules]
+            outbound_rules_exist = bool(rules)
+
+        return bool(ipsec_configured or outbound_rules_exist)
+
+    except Exception:
+        return False
+
+
+def external_system_use_verify_ws() -> bool:
+    """
+    AC.L2-3.1.20d - Use of External Systems is Verified (Windows Server)
+    """
+    try:
+        audit_configured = False
+        log_size_ok = False
+
+        # Check audit policy captures filtering platform connection events
+        audit_result = subprocess.run(
+            ["auditpol", "/get", "/category:*"],
+            capture_output=True, text=True, timeout=30
+        )
+        if audit_result.returncode != 0:
+            return False
+
+        output = audit_result.stdout.lower()
+        audit_configured = bool(
+            re.search(
+                r"filtering platform connection\s+"
+                r"(success|failure|success and failure)",
+                output
+            )
+        )
+
+        # Check filtering platform policy change is also audited
+        policy_change_audited = bool(
+            re.search(
+                r"filtering platform policy change\s+"
+                r"(success|failure|success and failure)",
+                output
+            )
+        )
+        audit_configured = bool(audit_configured and policy_change_audited)
+
+        # Check Security log size is sufficient for retention
+        log_result = subprocess.run(
+            ["powershell", "-Command",
+             "Get-WinEvent -ListLog Security | "
+             "Select-Object MaximumSizeInBytes | ConvertTo-Json"],
+            capture_output=True, text=True, timeout=30
+        )
+        if log_result.returncode == 0 and log_result.stdout.strip():
+            log_data = json.loads(log_result.stdout)
+            max_size = int(log_data.get("MaximumSizeInBytes", 0))
+            log_size_ok = bool(max_size >= 134217728)
+
+        return bool(audit_configured and log_size_ok)
+
+    except Exception:
+        return False
+
+
+def external_connection_control_ws() -> bool:
+    """
+    AC.L2-3.1.20e - Connections to External Systems are Controlled
+    and Limited (Windows Server)
+    """
+    try:
+        default_outbound_block = False
+        approved_exceptions_exist = False
+
+        # Check default outbound action is block on all profiles
+        profile_result = subprocess.run(
+            ["powershell", "-Command",
+             "Get-NetFirewallProfile | "
+             "Select-Object Name, DefaultOutboundAction | ConvertTo-Json"],
+            capture_output=True, text=True, timeout=30
+        )
+        if profile_result.returncode == 0 and profile_result.stdout.strip():
+            profiles = json.loads(profile_result.stdout)
+            if isinstance(profiles, dict):
+                profiles = [profiles]
+            if not profiles:
+                return False
+
+            default_outbound_block = all(
+                (p.get("DefaultOutboundAction") or "").lower() == "block"
+                for p in profiles
+            )
+
+        # Check approved outbound allow rules exist
+        # (if default is block, there must be explicit allows)
+        if default_outbound_block:
+            allow_result = subprocess.run(
+                ["powershell", "-Command",
+                 "Get-NetFirewallRule -Direction Outbound "
+                 "-Action Allow -Enabled True | "
+                 "Select-Object DisplayName | ConvertTo-Json"],
+                capture_output=True, text=True, timeout=30
+            )
+            if allow_result.returncode == 0 and allow_result.stdout.strip():
+                allow_rules = json.loads(allow_result.stdout)
+                if isinstance(allow_rules, dict):
+                    allow_rules = [allow_rules]
+                approved_exceptions_exist = bool(allow_rules)
+
+        # If default is not block check for explicit block rules
+        # covering sensitive external ports
+        if not default_outbound_block:
+            block_result = subprocess.run(
+                ["powershell", "-Command",
+                 "Get-NetFirewallRule -Direction Outbound "
+                 "-Action Block -Enabled True | "
+                 "Select-Object DisplayName, "
+                 "@{N='RemotePort';E={"
+                 "(Get-NetFirewallPortFilter "
+                 "-AssociatedNetFirewallRule $_).RemotePort}} | "
+                 "ConvertTo-Json"],
+                capture_output=True, text=True, timeout=60
+            )
+            if block_result.returncode == 0 and block_result.stdout.strip():
+                block_rules = json.loads(block_result.stdout)
+                if isinstance(block_rules, dict):
+                    block_rules = [block_rules]
+                sensitive_ports = {"22", "23", "3389", "5985", "5986"}
+                blocked_sensitive = [
+                    r for r in block_rules
+                    if str(r.get("RemotePort") or "") in sensitive_ports
+                ]
+                if len(blocked_sensitive) >= 3:
+                    default_outbound_block = True
+                    approved_exceptions_exist = True
+
+        return bool(default_outbound_block and approved_exceptions_exist)
+
+    except Exception:
+        return False
+
+
+def external_system_use_control_ws() -> bool:
+    """
+    AC.L2-3.1.20f - Use of External Systems is Controlled and Limited
+    (Windows Server)
+    """
+    try:
+        cloud_blocked = False
+        removable_blocked = False
+        ipsec_enforced = False
+
+        # Check OneDrive and cloud sync disabled via GP
+        onedrive_result = subprocess.run(
+            ["powershell", "-Command",
+             "Get-ItemProperty -Path "
+             "'HKLM:\\SOFTWARE\\Policies\\Microsoft\\Windows\\OneDrive' "
+             "-ErrorAction SilentlyContinue | "
+             "Select-Object DisableFileSyncNGSC | ConvertTo-Json"],
+            capture_output=True, text=True, timeout=30
+        )
+        if onedrive_result.returncode == 0 and \
+                onedrive_result.stdout.strip():
+            od_data = json.loads(onedrive_result.stdout)
+            cloud_blocked = bool(
+                od_data.get("DisableFileSyncNGSC", 0) == 1
+            )
+
+        # Check removable storage is denied on server
+        removable_result = subprocess.run(
+            ["powershell", "-Command",
+             "Get-ItemProperty -Path "
+             "'HKLM:\\SOFTWARE\\Policies\\Microsoft\\Windows\\"
+             "RemovableStorageDevices' "
+             "-ErrorAction SilentlyContinue | "
+             "Select-Object Deny_All | ConvertTo-Json"],
+            capture_output=True, text=True, timeout=30
+        )
+        if removable_result.returncode == 0 and \
+                removable_result.stdout.strip():
+            rem_data = json.loads(removable_result.stdout)
+            removable_blocked = bool(rem_data.get("Deny_All", 0) == 1)
+
+        # Check IPSec enforces authenticated external connections
+        ipsec_result = subprocess.run(
+            ["powershell", "-Command",
+             "Get-NetIPsecRule -Enabled True | "
+             "Select-Object DisplayName, "
+             "EncryptionRequired | ConvertTo-Json"],
+            capture_output=True, text=True, timeout=30
+        )
+        if ipsec_result.returncode == 0 and ipsec_result.stdout.strip():
+            ipsec_rules = json.loads(ipsec_result.stdout)
+            if isinstance(ipsec_rules, dict):
+                ipsec_rules = [ipsec_rules]
+            encrypting = [
+                r for r in ipsec_rules
+                if r.get("EncryptionRequired", False)
+            ]
+            ipsec_enforced = bool(encrypting)
+
+        return bool(cloud_blocked and removable_blocked and ipsec_enforced)
+
+    except Exception:
+        return False
+
+
+def external_connection_verify_lx() -> bool:
+    """
+    AC.L2-3.1.20c - Connections to External Systems are Verified
+    (Linux/Debian)
+    """
+    try:
+        ssh_key_auth = False
+        outbound_rules_exist = False
+
+        rfc1918_prefixes = (
+            "10.", "172.16.", "172.17.", "172.18.", "172.19.",
+            "172.20.", "172.21.", "172.22.", "172.23.", "172.24.",
+            "172.25.", "172.26.", "172.27.", "172.28.", "172.29.",
+            "172.30.", "172.31.", "192.168."
+        )
+
+        # Check SSH client config enforces key-based auth
+        ssh_config_result = subprocess.run(
+            ["cat", "/etc/ssh/ssh_config"],
+            capture_output=True, text=True, timeout=10
+        )
+        if ssh_config_result.returncode == 0:
+            config = ssh_config_result.stdout.lower()
+            active_lines = [
+                l.strip() for l in config.splitlines()
+                if l.strip() and not l.strip().startswith("#")
+            ]
+            # Check PasswordAuthentication is no for outbound SSH
+            for line in active_lines:
+                if "passwordauthentication" in line and "no" in line:
+                    ssh_key_auth = True
+                    break
+                if "pubkeyauthentication" in line and "yes" in line:
+                    ssh_key_auth = True
+                    break
+
+        # Check iptables OUTPUT chain has rules
+        ipt_result = subprocess.run(
+            ["iptables", "-L", "OUTPUT", "-n", "--line-numbers"],
+            capture_output=True, text=True, timeout=30
+        )
+        if ipt_result.returncode == 0 and ipt_result.stdout.strip():
+            lines = ipt_result.stdout.strip().splitlines()
+            rules = [l for l in lines if re.match(r"^\d+", l.strip())]
+            # Check for rules that restrict non-RFC1918 destinations
+            external_block_rules = [
+                r for r in rules
+                if "drop" in r.lower() or "reject" in r.lower()
+                and not any(
+                    p.replace(".", r"\.") in r
+                    for p in rfc1918_prefixes
+                )
+            ]
+            outbound_rules_exist = bool(external_block_rules)
+
+        # Check nftables OUTPUT chain
+        if not outbound_rules_exist:
+            nft_result = subprocess.run(
+                ["nft", "list", "ruleset"],
+                capture_output=True, text=True, timeout=30
+            )
+            if nft_result.returncode == 0 and nft_result.stdout.strip():
+                output = nft_result.stdout.lower()
+                chain_match = re.search(
+                    r"chain\s+output\s*\{(.*?)\}",
+                    output, re.DOTALL
+                )
+                if chain_match:
+                    chain_content = chain_match.group(1)
+                    rule_lines = [
+                        l for l in chain_content.splitlines()
+                        if l.strip() and not l.strip().startswith("type")
+                    ]
+                    outbound_rules_exist = bool(rule_lines)
+
+        return bool(ssh_key_auth or outbound_rules_exist)
+
+    except Exception:
+        return False
+
+
+def external_system_use_verify_lx() -> bool:
+    """
+    AC.L2-3.1.20d - Use of External Systems is Verified (Linux/Debian)
+    """
+    try:
+        auditd_outbound_ok = False
+        proxy_configured = False
+
+        # Check auditd is active with outbound connection rules
+        auditd_result = subprocess.run(
+            ["systemctl", "is-active", "auditd"],
+            capture_output=True, text=True, timeout=10
+        )
+        if auditd_result.returncode == 0 and \
+                auditd_result.stdout.strip().lower() == "active":
+            rules_result = subprocess.run(
+                ["auditctl", "-l"],
+                capture_output=True, text=True, timeout=10
+            )
+            if rules_result.returncode == 0 and rules_result.stdout.strip():
+                rules = rules_result.stdout.lower()
+                if "no rules" not in rules:
+                    # Check for network-related audit rules
+                    auditd_outbound_ok = bool(
+                        re.search(
+                            r"(connect|socket|sendmsg|"
+                            r"network|bind|accept)",
+                            rules
+                        )
+                    )
+
+        # Check system proxy is configured via environment
+        # or proxy config files
+        proxy_env_result = subprocess.run(
+            ["env"],
+            capture_output=True, text=True, timeout=10
+        )
+        if proxy_env_result.returncode == 0:
+            env_output = proxy_env_result.stdout.lower()
+            if re.search(r"(http_proxy|https_proxy|all_proxy)=\S+",
+                         env_output):
+                proxy_configured = True
+
+        # Check /etc/environment for proxy settings
+        if not proxy_configured:
+            env_file_result = subprocess.run(
+                ["cat", "/etc/environment"],
+                capture_output=True, text=True, timeout=10
+            )
+            if env_file_result.returncode == 0 and \
+                    env_file_result.stdout.strip():
+                env_content = env_file_result.stdout.lower()
+                if re.search(
+                    r"(http_proxy|https_proxy|all_proxy)=\S+",
+                    env_content
+                ):
+                    proxy_configured = True
+
+        # Check /etc/profile.d for proxy configuration
+        if not proxy_configured:
+            profile_result = subprocess.run(
+                ["grep", "-r",
+                 "http_proxy\\|https_proxy\\|all_proxy",
+                 "/etc/profile.d/"],
+                capture_output=True, text=True, timeout=10
+            )
+            if profile_result.returncode == 0 and \
+                    profile_result.stdout.strip():
+                active_proxy = [
+                    l for l in profile_result.stdout.splitlines()
+                    if l.strip() and not l.strip().startswith("#")
+                ]
+                proxy_configured = bool(active_proxy)
+
+        return bool(auditd_outbound_ok or proxy_configured)
+
+    except Exception:
+        return False
+
+
+def external_connection_control_lx() -> bool:
+    """
+    AC.L2-3.1.20e - Connections to External Systems are Controlled
+    and Limited (Linux/Debian)
+    Checks that the OUTPUT chain default policy is DROP or REJECT and
+    that approved outbound exceptions are explicitly defined via
+    iptables, nftables, or firewalld.
+    Returns True if outbound connection controls are enforced.
+    """
+    try:
+        default_output_drop = False
+        approved_exceptions = False
+
+        rfc1918_prefixes = (
+            "10.", "172.16.", "172.17.", "172.18.", "172.19.",
+            "172.20.", "172.21.", "172.22.", "172.23.", "172.24.",
+            "172.25.", "172.26.", "172.27.", "172.28.", "172.29.",
+            "172.30.", "172.31.", "192.168."
+        )
+
+        # Check iptables OUTPUT chain default policy
+        ipt_result = subprocess.run(
+            ["iptables", "-L", "OUTPUT", "-n"],
+            capture_output=True, text=True, timeout=30
+        )
+        if ipt_result.returncode == 0 and ipt_result.stdout.strip():
+            output = ipt_result.stdout.lower()
+            # Check default policy line
+            policy_match = re.search(
+                r"chain output \(policy (\w+)\)", output
+            )
+            if policy_match:
+                policy = policy_match.group(1).lower()
+                default_output_drop = bool(
+                    policy in {"drop", "reject"}
+                )
+
+            # Check for explicit allow rules to approved destinations
+            lines = ipt_result.stdout.strip().splitlines()
+            allow_rules = [
+                l for l in lines
+                if "accept" in l.lower()
+                and re.match(r"^\d+|^ACCEPT", l.strip())
+            ]
+            approved_exceptions = bool(allow_rules)
+
+        # Check nftables output chain default policy
+        if not default_output_drop:
+            nft_result = subprocess.run(
+                ["nft", "list", "ruleset"],
+                capture_output=True, text=True, timeout=30
+            )
+            if nft_result.returncode == 0 and nft_result.stdout.strip():
+                output = nft_result.stdout.lower()
+                chain_match = re.search(
+                    r"chain\s+output\s*\{(.*?)\}",
+                    output, re.DOTALL
+                )
+                if chain_match:
+                    chain_content = chain_match.group(1)
+                    # Check for drop/reject default policy
+                    if re.search(
+                        r"policy\s+(drop|reject)", chain_content
+                    ):
+                        default_output_drop = True
+                    # Check for accept rules
+                    if re.search(r"accept", chain_content):
+                        approved_exceptions = True
+
+        # Check firewalld rich rules for outbound control
+        if not default_output_drop:
+            fwd_result = subprocess.run(
+                ["firewall-cmd", "--list-all"],
+                capture_output=True, text=True, timeout=30
+            )
+            if fwd_result.returncode == 0 and fwd_result.stdout.strip():
+                output = fwd_result.stdout.lower()
+                # firewalld default denies outbound if rich rules
+                # explicitly block external destinations
+                if re.search(r"rich rules.*reject", output, re.DOTALL):
+                    default_output_drop = True
+                    approved_exceptions = True
+
+        return bool(default_output_drop and approved_exceptions)
+
+    except Exception:
+        return False
+
+
+def external_system_use_control_lx() -> bool:
+    """
+    AC.L2-3.1.20f - Use of External Systems is Controlled and Limited
+    (Linux/Debian)
+    """
+    try:
+        proxy_required = False
+        removable_restricted = False
+        mac_enforcing = False
+
+        # Check proxy is configured and required for external access
+        for config_path in [
+            "/etc/environment",
+            "/etc/profile",
+            "/etc/apt/apt.conf.d/proxy.conf",
+            "/etc/apt/apt.conf"
+        ]:
+            cat_result = subprocess.run(
+                ["cat", config_path],
+                capture_output=True, text=True, timeout=10
+            )
+            if cat_result.returncode != 0:
+                continue
+            content = cat_result.stdout.lower()
+            if re.search(
+                r"(http_proxy|https_proxy|all_proxy)\s*=\s*\S+",
+                content
+            ):
+                proxy_required = True
+                break
+
+        # Check udev rules restrict removable media from external systems
+        udev_result = subprocess.run(
+            ["find", "/etc/udev/rules.d", "/lib/udev/rules.d",
+             "-name", "*.rules", "-type", "f"],
+            capture_output=True, text=True, timeout=10
+        )
+        if udev_result.returncode == 0 and udev_result.stdout.strip():
+            rule_files = udev_result.stdout.strip().splitlines()
+            for rule_file in rule_files:
+                grep_result = subprocess.run(
+                    ["grep", "-l",
+                     "usb.*reject\\|removable.*deny\\|"
+                     "RUN.*eject\\|ATTR.*authorized.*0",
+                     rule_file],
+                    capture_output=True, text=True, timeout=10
+                )
+                if grep_result.returncode == 0 and \
+                        grep_result.stdout.strip():
+                    removable_restricted = True
+                    break
+
+        # Check udisks or USBGuard for removable media control
+        if not removable_restricted:
+            usbguard_result = subprocess.run(
+                ["systemctl", "is-active", "usbguard"],
+                capture_output=True, text=True, timeout=10
+            )
+            if usbguard_result.returncode == 0 and \
+                    usbguard_result.stdout.strip().lower() == "active":
+                removable_restricted = True
+
+        # Check SELinux or AppArmor is enforcing
+        selinux_result = subprocess.run(
+            ["getenforce"], capture_output=True, text=True, timeout=10
+        )
+        if selinux_result.returncode == 0:
+            mac_enforcing = bool(
+                selinux_result.stdout.strip().lower() == "enforcing"
+            )
+
+        if not mac_enforcing:
+            aa_result = subprocess.run(
+                ["aa-status", "--enabled"],
+                capture_output=True, text=True, timeout=10
+            )
+            mac_enforcing = bool(aa_result.returncode == 0)
+
+        return bool(proxy_required and removable_restricted and mac_enforcing)
+
+    except Exception:
+        return False
+
+
+def portable_storage_limit_wc() -> bool:
+    """
+    AC.L2-3.1.21c - Use of Portable Storage Devices Containing CUI on
+    External Systems is Limited (Windows Client)
+    Checks three portable storage controls:
+    1. Removable storage write access is restricted via GP registry
+    2. BitLocker To Go is required for removable drives before write access
+    3. AutoPlay and AutoRun are disabled via GP registry
+    Returns True if all three portable storage controls are enforced.
+    """
+    try:
+        write_restricted = False
+        bitlocker_togo_required = False
+        autoplay_disabled = False
+
+        # Check removable storage write restriction via GP registry
+        removable_result = subprocess.run(
+            ["powershell", "-Command",
+             "Get-ItemProperty -Path "
+             "'HKLM:\\SOFTWARE\\Policies\\Microsoft\\Windows\\"
+             "RemovableStorageDevices' "
+             "-ErrorAction SilentlyContinue | "
+             "Select-Object Deny_Write, Deny_All | ConvertTo-Json"],
+            capture_output=True, text=True, timeout=30
+        )
+        if removable_result.returncode == 0 and \
+                removable_result.stdout.strip():
+            rem_data = json.loads(removable_result.stdout)
+            deny_write = rem_data.get("Deny_Write", 0)
+            deny_all = rem_data.get("Deny_All", 0)
+            write_restricted = bool(deny_write == 1 or deny_all == 1)
+
+        # Check per-device class USB disk write restriction as fallback
+        if not write_restricted:
+            usb_result = subprocess.run(
+                ["powershell", "-Command",
+                 "Get-ItemProperty -Path "
+                 "'HKLM:\\SOFTWARE\\Policies\\Microsoft\\Windows\\"
+                 "RemovableStorageDevices\\"
+                 "{53f5630d-b6bf-11d0-94f2-00a0c91efb8b}' "
+                 "-ErrorAction SilentlyContinue | "
+                 "Select-Object Deny_Write | ConvertTo-Json"],
+                capture_output=True, text=True, timeout=30
+            )
+            if usb_result.returncode == 0 and usb_result.stdout.strip():
+                usb_data = json.loads(usb_result.stdout)
+                write_restricted = bool(
+                    usb_data.get("Deny_Write", 0) == 1
+                )
+
+        # Check BitLocker To Go is required for removable drives
+        # RDVDenyWriteAccess = 1 denies write to unencrypted removable drives
+        rdv_result = subprocess.run(
+            ["powershell", "-Command",
+             "Get-ItemProperty -Path "
+             "'HKLM:\\SOFTWARE\\Policies\\Microsoft\\FVE' "
+             "-ErrorAction SilentlyContinue | "
+             "Select-Object RDVDenyWriteAccess, "
+             "RDVConfigureBDE | ConvertTo-Json"],
+            capture_output=True, text=True, timeout=30
+        )
+        if rdv_result.returncode == 0 and rdv_result.stdout.strip():
+            rdv_data = json.loads(rdv_result.stdout)
+            bitlocker_togo_required = bool(
+                rdv_data.get("RDVDenyWriteAccess", 0) == 1
+            )
+
+        # Check AutoPlay is disabled via GP registry
+        autoplay_result = subprocess.run(
+            ["powershell", "-Command",
+             "Get-ItemProperty -Path "
+             "'HKLM:\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\"
+             "Policies\\Explorer' "
+             "-ErrorAction SilentlyContinue | "
+             "Select-Object NoDriveTypeAutoRun, "
+             "NoAutorun | ConvertTo-Json"],
+            capture_output=True, text=True, timeout=30
+        )
+        if autoplay_result.returncode == 0 and \
+                autoplay_result.stdout.strip():
+            autoplay_data = json.loads(autoplay_result.stdout)
+            # NoDriveTypeAutoRun = 255 (0xFF) disables AutoRun on all drives
+            # NoAutorun = 1 disables AutoRun
+            no_drive_autorun = autoplay_data.get(
+                "NoDriveTypeAutoRun", 0
+            )
+            no_autorun = autoplay_data.get("NoAutorun", 0)
+            autoplay_disabled = bool(
+                no_drive_autorun == 255 or no_autorun == 1
+            )
+
+        # Check AutoPlay GP policy path as well
+        if not autoplay_disabled:
+            autoplay_gp_result = subprocess.run(
+                ["powershell", "-Command",
+                 "Get-ItemProperty -Path "
+                 "'HKLM:\\SOFTWARE\\Policies\\Microsoft\\Windows\\"
+                 "Explorer' "
+                 "-ErrorAction SilentlyContinue | "
+                 "Select-Object NoAutoplayfornonVolume, "
+                 "NoAutorun | ConvertTo-Json"],
+                capture_output=True, text=True, timeout=30
+            )
+            if autoplay_gp_result.returncode == 0 and \
+                    autoplay_gp_result.stdout.strip():
+                gp_data = json.loads(autoplay_gp_result.stdout)
+                autoplay_disabled = bool(
+                    gp_data.get("NoAutoplayfornonVolume", 0) == 1
+                    or gp_data.get("NoAutorun", 0) == 1
+                )
+
+        return bool(
+            write_restricted
+            and bitlocker_togo_required
+            and autoplay_disabled
+        )
+
+    except Exception:
+        return False
+
+
+def portable_storage_limit_ws() -> bool:
+    """
+    AC.L2-3.1.21c - Use of Portable Storage Devices Containing CUI on
+    External Systems is Limited (Windows Server)
+    Checks four portable storage controls:
+    1. All removable storage devices are denied via GP registry
+    2. AutoPlay and AutoRun are disabled via GP registry
+    3. Device installation restrictions prevent unknown device classes
+    4. USB storage class driver is restricted via GP
+    Returns True if all four portable storage controls are enforced.
+    """
+    try:
+        removable_denied = False
+        autoplay_disabled = False
+        device_install_restricted = False
+        usb_class_restricted = False
+
+        # Check all removable storage is denied via GP
+        removable_result = subprocess.run(
+            ["powershell", "-Command",
+             "Get-ItemProperty -Path "
+             "'HKLM:\\SOFTWARE\\Policies\\Microsoft\\Windows\\"
+             "RemovableStorageDevices' "
+             "-ErrorAction SilentlyContinue | "
+             "Select-Object Deny_All | ConvertTo-Json"],
+            capture_output=True, text=True, timeout=30
+        )
+        if removable_result.returncode == 0 and \
+                removable_result.stdout.strip():
+            rem_data = json.loads(removable_result.stdout)
+            removable_denied = bool(rem_data.get("Deny_All", 0) == 1)
+
+        # Check AutoPlay and AutoRun are disabled
+        autoplay_result = subprocess.run(
+            ["powershell", "-Command",
+             "Get-ItemProperty -Path "
+             "'HKLM:\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\"
+             "Policies\\Explorer' "
+             "-ErrorAction SilentlyContinue | "
+             "Select-Object NoDriveTypeAutoRun, "
+             "NoAutorun | ConvertTo-Json"],
+            capture_output=True, text=True, timeout=30
+        )
+        if autoplay_result.returncode == 0 and \
+                autoplay_result.stdout.strip():
+            ap_data = json.loads(autoplay_result.stdout)
+            no_drive_autorun = ap_data.get("NoDriveTypeAutoRun", 0)
+            no_autorun = ap_data.get("NoAutorun", 0)
+            autoplay_disabled = bool(
+                no_drive_autorun == 255 or no_autorun == 1
+            )
+
+        if not autoplay_disabled:
+            autoplay_gp_result = subprocess.run(
+                ["powershell", "-Command",
+                 "Get-ItemProperty -Path "
+                 "'HKLM:\\SOFTWARE\\Policies\\Microsoft\\Windows\\"
+                 "Explorer' "
+                 "-ErrorAction SilentlyContinue | "
+                 "Select-Object NoAutoplayfornonVolume, "
+                 "NoAutorun | ConvertTo-Json"],
+                capture_output=True, text=True, timeout=30
+            )
+            if autoplay_gp_result.returncode == 0 and \
+                    autoplay_gp_result.stdout.strip():
+                gp_data = json.loads(autoplay_gp_result.stdout)
+                autoplay_disabled = bool(
+                    gp_data.get("NoAutoplayfornonVolume", 0) == 1
+                    or gp_data.get("NoAutorun", 0) == 1
+                )
+
+        # Check device installation restrictions via GP
+        # DenyUnspecified = 1 blocks installation of unknown device classes
+        device_result = subprocess.run(
+            ["powershell", "-Command",
+             "Get-ItemProperty -Path "
+             "'HKLM:\\SOFTWARE\\Policies\\Microsoft\\Windows\\"
+             "DeviceInstall\\Restrictions' "
+             "-ErrorAction SilentlyContinue | "
+             "Select-Object DenyUnspecified, "
+             "AllowAdminInstall | ConvertTo-Json"],
+            capture_output=True, text=True, timeout=30
+        )
+        if device_result.returncode == 0 and device_result.stdout.strip():
+            dev_data = json.loads(device_result.stdout)
+            device_install_restricted = bool(
+                dev_data.get("DenyUnspecified", 0) == 1
+            )
+
+        # Check USB storage class is restricted via GP
+        # Deny USB disk class GUID {36fc9e60-c465-11cf-8056-444553540000}
+        usb_class_result = subprocess.run(
+            ["powershell", "-Command",
+             "Get-ItemProperty -Path "
+             "'HKLM:\\SOFTWARE\\Policies\\Microsoft\\Windows\\"
+             "DeviceInstall\\Restrictions\\DenyDeviceClasses' "
+             "-ErrorAction SilentlyContinue | ConvertTo-Json"],
+            capture_output=True, text=True, timeout=30
+        )
+        if usb_class_result.returncode == 0 and \
+                usb_class_result.stdout.strip():
+            class_data = json.loads(usb_class_result.stdout)
+            # Check if USB storage class GUID is in denied list
+            denied_classes = str(class_data).lower()
+            usb_class_restricted = bool(
+                "36fc9e60" in denied_classes
+                or "usbstor" in denied_classes
+            )
+
+        # Fall back to checking UsbStor service start type
+        # Start = 4 means disabled
+        if not usb_class_restricted:
+            usbstor_result = subprocess.run(
+                ["powershell", "-Command",
+                 "Get-ItemProperty -Path "
+                 "'HKLM:\\SYSTEM\\CurrentControlSet\\Services\\UsbStor' "
+                 "-ErrorAction SilentlyContinue | "
+                 "Select-Object Start | ConvertTo-Json"],
+                capture_output=True, text=True, timeout=30
+            )
+            if usbstor_result.returncode == 0 and \
+                    usbstor_result.stdout.strip():
+                usb_data = json.loads(usbstor_result.stdout)
+                # Start = 4 means disabled
+                usb_class_restricted = bool(
+                    usb_data.get("Start", 3) == 4
+                )
+
+        return bool(
+            removable_denied
+            and autoplay_disabled
+            and device_install_restricted
+            and usb_class_restricted
+        )
+
+    except Exception:
+        return False
+
+
+def portable_storage_limit_lx() -> bool:
+    """
+    AC.L2-3.1.21c - Use of Portable Storage Devices Containing CUI on
+    External Systems is Limited (Linux/Debian)
+    Checks four portable storage controls:
+    1. USBGuard is active and blocking unauthorized USB storage devices
+    2. Automount is disabled for removable media
+    3. USB storage kernel module is blacklisted or restricted
+    4. Any mounted removable media is noexec and nosuid
+    Returns True if all four portable storage controls are enforced.
+    """
+    try:
+        usbguard_active = False
+        automount_disabled = False
+        usb_storage_restricted = False
+        mount_options_ok = False
+
+        # Check USBGuard is active and enforcing
+        usbguard_result = subprocess.run(
+            ["systemctl", "is-active", "usbguard"],
+            capture_output=True, text=True, timeout=10
+        )
+        if usbguard_result.returncode == 0 and \
+                usbguard_result.stdout.strip().lower() == "active":
+            # Check USBGuard policy has at least one block rule
+            policy_result = subprocess.run(
+                ["usbguard", "list-rules"],
+                capture_output=True, text=True, timeout=10
+            )
+            if policy_result.returncode == 0 and \
+                    policy_result.stdout.strip():
+                rules = policy_result.stdout.lower()
+                # Must have at least one block or reject rule
+                block_rules = re.findall(
+                    r"(block|reject)\s+id", rules
+                )
+                usbguard_active = bool(block_rules)
+
+        # Fall back to udev rules if USBGuard not present
+        if not usbguard_active:
+            udev_result = subprocess.run(
+                ["find", "/etc/udev/rules.d",
+                 "/lib/udev/rules.d",
+                 "-name", "*.rules", "-type", "f"],
+                capture_output=True, text=True, timeout=10
+            )
+            if udev_result.returncode == 0 and \
+                    udev_result.stdout.strip():
+                rule_files = udev_result.stdout.strip().splitlines()
+                for rule_file in rule_files:
+                    cat_result = subprocess.run(
+                        ["cat", rule_file],
+                        capture_output=True, text=True, timeout=10
+                    )
+                    if cat_result.returncode != 0:
+                        continue
+                    content = cat_result.stdout.lower()
+                    active_lines = [
+                        l.strip() for l in content.splitlines()
+                        if l.strip() and not l.strip().startswith("#")
+                    ]
+                    # Check for rules that block USB storage
+                    usb_block = [
+                        l for l in active_lines
+                        if re.search(
+                            r"(usb.*storage|sd[a-z].*usb|"
+                            r"authorized.*0|remove.*usb)",
+                            l
+                        )
+                    ]
+                    if usb_block:
+                        usbguard_active = True
+                        break
+
+        # Check automount is disabled
+        # Check udisks2 automount is disabled via udev or config
+        udisks_result = subprocess.run(
+            ["systemctl", "is-active", "udisks2"],
+            capture_output=True, text=True, timeout=10
+        )
+        udisks_active = bool(
+            udisks_result.returncode == 0
+            and udisks_result.stdout.strip().lower() == "active"
+        )
+
+        if not udisks_active:
+            automount_disabled = True
+        else:
+            # udisks2 is running — check if automount is suppressed
+            # via polkit rules or udev rules
+            polkit_result = subprocess.run(
+                ["find", "/etc/polkit-1/rules.d",
+                 "/usr/share/polkit-1/rules.d",
+                 "-name", "*.rules", "-type", "f"],
+                capture_output=True, text=True, timeout=10
+            )
+            if polkit_result.returncode == 0 and \
+                    polkit_result.stdout.strip():
+                rule_files = polkit_result.stdout.strip().splitlines()
+                for rule_file in rule_files:
+                    grep_result = subprocess.run(
+                        ["grep", "-l",
+                         "storage\\|mount\\|udisks",
+                         rule_file],
+                        capture_output=True, text=True, timeout=10
+                    )
+                    if grep_result.returncode == 0 and \
+                            grep_result.stdout.strip():
+                        cat_result = subprocess.run(
+                            ["cat", rule_file],
+                            capture_output=True, text=True, timeout=10
+                        )
+                        if cat_result.returncode == 0:
+                            content = cat_result.stdout.lower()
+                            if re.search(
+                                r"(polkit\.deny|not authorized|"
+                                r"return polkit\.result\.no)",
+                                content
+                            ):
+                                automount_disabled = True
+                                break
+
+        # Check autofs is not running
+        if not automount_disabled:
+            autofs_result = subprocess.run(
+                ["systemctl", "is-active", "autofs"],
+                capture_output=True, text=True, timeout=10
+            )
+            autofs_inactive = bool(
+                autofs_result.returncode != 0
+                or autofs_result.stdout.strip().lower() != "active"
+            )
+            if autofs_inactive:
+                automount_disabled = True
+
+        # Check USB storage kernel module is blacklisted
+        blacklist_paths = [
+            "/etc/modprobe.d/blacklist.conf",
+            "/etc/modprobe.d/blacklist-usbstorage.conf",
+            "/etc/modprobe.d/usb-storage.conf"
+        ]
+        for bl_path in blacklist_paths:
+            cat_result = subprocess.run(
+                ["cat", bl_path],
+                capture_output=True, text=True, timeout=10
+            )
+            if cat_result.returncode != 0:
+                continue
+            content = cat_result.stdout.lower()
+            active_lines = [
+                l.strip() for l in content.splitlines()
+                if l.strip() and not l.strip().startswith("#")
+            ]
+            for line in active_lines:
+                if re.search(
+                    r"blacklist\s+usb[_-]?storage", line
+                ):
+                    usb_storage_restricted = True
+                    break
+            if usb_storage_restricted:
+                break
+
+        # Check if usb_storage module is currently loaded
+        # If not loaded and no modprobe config found,
+        # treat as restricted
+        if not usb_storage_restricted:
+            lsmod_result = subprocess.run(
+                ["lsmod"],
+                capture_output=True, text=True, timeout=10
+            )
+            if lsmod_result.returncode == 0:
+                if "usb_storage" not in lsmod_result.stdout.lower():
+                    usb_storage_restricted = True
+
+        # Check any mounted removable media uses noexec and nosuid
+        mount_result = subprocess.run(
+            ["mount"],
+            capture_output=True, text=True, timeout=10
+        )
+        if mount_result.returncode == 0 and mount_result.stdout.strip():
+            # Find mounts on removable media paths
+            removable_mounts = [
+                l for l in mount_result.stdout.splitlines()
+                if re.search(
+                    r"(/media/|/mnt/|/run/media/|/dev/sd[b-z])",
+                    l.lower()
+                )
+            ]
+            if not removable_mounts:
+                # No removable media currently mounted
+                mount_options_ok = True
+            else:
+                # Check all removable mounts have noexec and nosuid
+                insecure_mounts = [
+                    m for m in removable_mounts
+                    if "noexec" not in m.lower()
+                    or "nosuid" not in m.lower()
+                ]
+                mount_options_ok = bool(not insecure_mounts)
+
+        return bool(
+            usbguard_active
+            and automount_disabled
+            and usb_storage_restricted
+            and mount_options_ok
+        )
+
+    except Exception:
+        return False

@@ -1,0 +1,101 @@
+{
+  "id": "AC.L2-3.1.21",
+  "control_number": "AC.L2-3.1.21",
+  "title": "Limit Use of Portable Storage Devices on External Systems",
+  "description": "limit use of portable storage devices on external systems",
+  "category": "AC",
+  "target_os": [
+    "debian",
+    "linux",
+    "windows-client",
+    "windows-server"
+  ],
+  "check_details": {
+    "windows-client": {
+      "checks": [
+        {
+          "check_type": "command",
+          "name": "Limits on Portable Storage Device Use on External Systems are Defined",
+          "sub_control": "b",
+          "command": "NA",
+          "expected_result": "NA",
+          "purpose": "Definition of limits on portable storage device use containing CUI on external systems is an organizational GRC documentation concern documented in removable media and acceptable use policies and is not technically verifiable via automated check on Windows Client"
+        },
+        {
+          "check_type": "command",
+          "name": "Use of Portable Storage Devices Containing CUI on External Systems is Limited",
+          "sub_control": "c",
+          "command": "cs_f{access_control.portable_storage_limit_wc}",
+          "expected_result": "True",
+          "purpose": "Verify that removable storage device write access is restricted via Group Policy registry, BitLocker To Go is required for removable drives, and AutoPlay is disabled to prevent unauthorized data transfer from external portable storage"
+        }
+      ]
+    },
+    "windows-server": {
+      "checks": [
+        {
+          "check_type": "command",
+          "name": "Limits on Portable Storage Device Use on External Systems are Defined",
+          "sub_control": "b",
+          "command": "NA",
+          "expected_result": "NA",
+          "purpose": "Definition of limits on portable storage device use is an organizational GRC documentation concern and is not technically verifiable via automated check on Windows Server"
+        },
+        {
+          "check_type": "command",
+          "name": "Use of Portable Storage Devices Containing CUI on External Systems is Limited",
+          "sub_control": "c",
+          "command": "cs_f{access_control.portable_storage_limit_ws}",
+          "expected_result": "True",
+          "purpose": "Verify that all removable storage devices are denied write access via Group Policy, AutoPlay and AutoRun are disabled, and device installation restrictions prevent unauthorized portable storage connections on the server"
+        }
+      ]
+    },
+    "linux": {
+      "checks": [
+        {
+          "check_type": "command",
+          "name": "Limits on Portable Storage Device Use on External Systems are Defined",
+          "sub_control": "b",
+          "command": "NA",
+          "expected_result": "NA",
+          "purpose": "Definition of limits on portable storage device use is an organizational GRC documentation concern and is not technically verifiable via automated check on Linux"
+        },
+        {
+          "check_type": "command",
+          "name": "Use of Portable Storage Devices Containing CUI on External Systems is Limited",
+          "sub_control": "c",
+          "command": "cs_f{access_control.portable_storage_limit_lx}",
+          "expected_result": "True",
+          "purpose": "Verify that USB storage devices are restricted via USBGuard or udev rules, removable media automount is disabled, and any mounted removable media requires explicit authorization"
+        }
+      ]
+    },
+    "debian": {
+      "checks": [
+        {
+          "check_type": "command",
+          "name": "Limits on Portable Storage Device Use on External Systems are Defined",
+          "sub_control": "b",
+          "command": "NA",
+          "expected_result": "NA",
+          "purpose": "Definition of limits on portable storage device use is an organizational GRC documentation concern and is not technically verifiable via automated check on Debian"
+        },
+        {
+          "check_type": "command",
+          "name": "Use of Portable Storage Devices Containing CUI on External Systems is Limited",
+          "sub_control": "c",
+          "command": "cs_f{access_control.portable_storage_limit_lx}",
+          "expected_result": "True",
+          "purpose": "Verify that USB storage devices are restricted via USBGuard or udev rules, removable media automount is disabled, and any mounted removable media requires explicit authorization"
+        }
+      ]
+    }
+  },
+  "severity": "High",
+  "remediation": "Instructions to remediate non-compliance",
+  "tags": [
+    "AC",
+    "AC.L2-3.1.21"
+  ]
+}
