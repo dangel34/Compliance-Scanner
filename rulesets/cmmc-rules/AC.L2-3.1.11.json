@@ -1,0 +1,101 @@
+{
+  "id": "AC.L2-3.1.11",
+  "control_number": "AC.L2-3.1.11",
+  "title": "Terminate Automatically a User Session After a Defined Condition",
+  "description": "terminate (automatically) a user session after a defined condition",
+  "category": "AC",
+  "target_os": [
+    "debian",
+    "linux",
+    "windows-client",
+    "windows-server"
+  ],
+  "check_details": {
+    "windows-client": {
+      "checks": [
+        {
+          "check_type": "command",
+          "name": "Conditions Requiring Session Termination are Defined",
+          "sub_control": "a",
+          "command": "NA",
+          "expected_result": "NA",
+          "purpose": "Definition of conditions requiring automatic session termination is an organizational GRC documentation concern and is not technically verifiable via automated check on Windows Client"
+        },
+        {
+          "check_type": "command",
+          "name": "User Session is Automatically Terminated After Defined Conditions",
+          "sub_control": "b",
+          "command": "cs_f{access_control.session_termination_wc}",
+          "expected_result": "True",
+          "purpose": "Verify that automatic session termination is enforced via screen saver timeout with password requirement, interactive logon machine inactivity limit, and logon hours restrictions where applicable"
+        }
+      ]
+    },
+    "windows-server": {
+      "checks": [
+        {
+          "check_type": "command",
+          "name": "Conditions Requiring Session Termination are Defined",
+          "sub_control": "a",
+          "command": "NA",
+          "expected_result": "NA",
+          "purpose": "Definition of conditions requiring automatic session termination is an organizational GRC documentation concern and is not technically verifiable via automated check on Windows Server"
+        },
+        {
+          "check_type": "command",
+          "name": "User Session is Automatically Terminated After Defined Conditions",
+          "sub_control": "b",
+          "command": "cs_f{access_control.session_termination_ws}",
+          "expected_result": "True",
+          "purpose": "Verify that RDP idle session timeout disconnects and terminates sessions, interactive logon machine inactivity limit is configured, and session time limits are enforced via Group Policy"
+        }
+      ]
+    },
+    "linux": {
+      "checks": [
+        {
+          "check_type": "command",
+          "name": "Conditions Requiring Session Termination are Defined",
+          "sub_control": "a",
+          "command": "NA",
+          "expected_result": "NA",
+          "purpose": "Definition of conditions requiring automatic session termination is an organizational GRC documentation concern and is not technically verifiable via automated check on Linux"
+        },
+        {
+          "check_type": "command",
+          "name": "User Session is Automatically Terminated After Defined Conditions",
+          "sub_control": "b",
+          "command": "cs_f{access_control.session_termination_lx}",
+          "expected_result": "True",
+          "purpose": "Verify that SSH sessions are terminated via ClientAliveInterval and ClientAliveCountMax, TMOUT is set as readonly for shell sessions, and PAM session limits are configured"
+        }
+      ]
+    },
+    "debian": {
+      "checks": [
+        {
+          "check_type": "command",
+          "name": "Conditions Requiring Session Termination are Defined",
+          "sub_control": "a",
+          "command": "NA",
+          "expected_result": "NA",
+          "purpose": "Definition of conditions requiring automatic session termination is an organizational GRC documentation concern and is not technically verifiable via automated check on Debian"
+        },
+        {
+          "check_type": "command",
+          "name": "User Session is Automatically Terminated After Defined Conditions",
+          "sub_control": "b",
+          "command": "cs_f{access_control.session_termination_lx}",
+          "expected_result": "True",
+          "purpose": "Verify that SSH sessions are terminated via ClientAliveInterval and ClientAliveCountMax, TMOUT is set as readonly for shell sessions, and PAM session limits are configured"
+        }
+      ]
+    }
+  },
+  "severity": "Medium",
+  "remediation": "Instructions to remediate non-compliance",
+  "tags": [
+    "AC",
+    "AC.L2-3.1.11"
+  ]
+}

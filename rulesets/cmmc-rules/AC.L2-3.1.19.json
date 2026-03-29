@@ -1,0 +1,101 @@
+{
+  "id": "AC.L2-3.1.19",
+  "control_number": "AC.L2-3.1.19",
+  "title": "Encrypt CUI on Mobile Devices and Mobile Computing Platforms",
+  "description": "encrypt CUI on mobile devices and mobile computing platforms",
+  "category": "AC",
+  "target_os": [
+    "debian",
+    "linux",
+    "windows-client",
+    "windows-server"
+  ],
+  "check_details": {
+    "windows-client": {
+      "checks": [
+        {
+          "check_type": "command",
+          "name": "Mobile Devices that Process Store or Transmit CUI are Identified",
+          "sub_control": "a",
+          "command": "NA",
+          "expected_result": "NA",
+          "purpose": "Identification of mobile devices that process store or transmit CUI is an organizational GRC documentation concern and is not technically verifiable via automated check on Windows Client"
+        },
+        {
+          "check_type": "command",
+          "name": "Encryption is Employed to Protect CUI on Mobile Devices",
+          "sub_control": "b",
+          "command": "cs_f{access_control.mobile_encryption_wc}",
+          "expected_result": "True",
+          "purpose": "Verify that BitLocker full disk encryption is enabled and enforced on all fixed and removable drives with TPM protection and a strong encryption algorithm via Group Policy"
+        }
+      ]
+    },
+    "windows-server": {
+      "checks": [
+        {
+          "check_type": "command",
+          "name": "Mobile Devices that Process Store or Transmit CUI are Identified",
+          "sub_control": "a",
+          "command": "NA",
+          "expected_result": "NA",
+          "purpose": "Identification of mobile devices that process store or transmit CUI is an organizational GRC documentation concern and is not technically verifiable via automated check on Windows Server"
+        },
+        {
+          "check_type": "command",
+          "name": "Encryption is Employed to Protect CUI on Mobile Devices",
+          "sub_control": "b",
+          "command": "cs_f{access_control.mobile_encryption_ws}",
+          "expected_result": "True",
+          "purpose": "Verify that BitLocker is enabled on all fixed drives with TPM protection and AES-256 encryption enforced via Group Policy and that removable drive encryption is required before write access is granted"
+        }
+      ]
+    },
+    "linux": {
+      "checks": [
+        {
+          "check_type": "command",
+          "name": "Mobile Devices that Process Store or Transmit CUI are Identified",
+          "sub_control": "a",
+          "command": "NA",
+          "expected_result": "NA",
+          "purpose": "Identification of mobile devices that process store or transmit CUI is an organizational GRC documentation concern and is not technically verifiable via automated check on Linux"
+        },
+        {
+          "check_type": "command",
+          "name": "Encryption is Employed to Protect CUI on Mobile Devices",
+          "sub_control": "b",
+          "command": "cs_f{access_control.mobile_encryption_lx}",
+          "expected_result": "True",
+          "purpose": "Verify that LUKS full disk encryption is active on system volumes, home directories are encrypted, and any removable media containing CUI uses LUKS or eCryptfs encryption"
+        }
+      ]
+    },
+    "debian": {
+      "checks": [
+        {
+          "check_type": "command",
+          "name": "Mobile Devices that Process Store or Transmit CUI are Identified",
+          "sub_control": "a",
+          "command": "NA",
+          "expected_result": "NA",
+          "purpose": "Identification of mobile devices that process store or transmit CUI is an organizational GRC documentation concern and is not technically verifiable via automated check on Debian"
+        },
+        {
+          "check_type": "command",
+          "name": "Encryption is Employed to Protect CUI on Mobile Devices",
+          "sub_control": "b",
+          "command": "cs_f{access_control.mobile_encryption_lx}",
+          "expected_result": "True",
+          "purpose": "Verify that LUKS full disk encryption is active on system volumes, home directories are encrypted, and any removable media containing CUI uses LUKS or eCryptfs encryption"
+        }
+      ]
+    }
+  },
+  "severity": "High",
+  "remediation": "Instructions to remediate non-compliance",
+  "tags": [
+    "AC",
+    "AC.L2-3.1.19"
+  ]
+}

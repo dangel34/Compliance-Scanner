@@ -1,0 +1,101 @@
+{
+  "id": "AC.L2-3.1.6",
+  "control_number": "AC.L2-3.1.6",
+  "title": "Use Non-Privileged Accounts or Roles When Accessing Nonsecurity Functions",
+  "description": "use non-privileged accounts or roles when accessing nonsecurity functions",
+  "category": "AC",
+  "target_os": [
+    "debian",
+    "linux",
+    "windows-client",
+    "windows-server"
+  ],
+  "check_details": {
+    "windows-client": {
+      "checks": [
+        {
+          "check_type": "command",
+          "name": "Nonsecurity Functions are Identified",
+          "sub_control": "a",
+          "command": "NA",
+          "expected_result": "NA",
+          "purpose": "Identification of nonsecurity functions is a GRC documentation concern on Windows Client and is not technically verifiable via automated check"
+        },
+        {
+          "check_type": "command",
+          "name": "Users are Required to Use Non-Privileged Accounts for Nonsecurity Functions",
+          "sub_control": "b",
+          "command": "cs_f{access_control.nonprivileged_access_wc}",
+          "expected_result": "True",
+          "purpose": "Confirm that standard user accounts are used for nonsecurity functions by verifying UAC is enforced, admin accounts are not used for daily tasks, and no standard users hold unnecessary elevated rights"
+        }
+      ]
+    },
+    "windows-server": {
+      "checks": [
+        {
+          "check_type": "command",
+          "name": "Nonsecurity Functions are Identified",
+          "sub_control": "a",
+          "command": "NA",
+          "expected_result": "NA",
+          "purpose": "Identification of nonsecurity functions is a GRC documentation concern on Windows Server and is not technically verifiable via automated check"
+        },
+        {
+          "check_type": "command",
+          "name": "Users are Required to Use Non-Privileged Accounts for Nonsecurity Functions",
+          "sub_control": "b",
+          "command": "cs_f{access_control.nonprivileged_access_ws}",
+          "expected_result": "True",
+          "purpose": "Confirm that administrative accounts are not used for routine nonsecurity tasks by verifying UAC enforcement, admin account usage patterns, and that Domain Admins are not assigned standard user mailboxes or workstation logins"
+        }
+      ]
+    },
+    "linux": {
+      "checks": [
+        {
+          "check_type": "command",
+          "name": "Nonsecurity Functions are Identified",
+          "sub_control": "a",
+          "command": "awk -F: '$3 >= 1000 && $1 != \"nobody\" {print $1}' /etc/passwd",
+          "expected_result": "Named standard user accounts exist separately from privileged accounts with no standard user holding UID 0 or unrestricted sudo access",
+          "purpose": "Identify nonsecurity function users by enumerating standard accounts and confirming they are distinct from privileged identities used for security functions"
+        },
+        {
+          "check_type": "command",
+          "name": "Users are Required to Use Non-Privileged Accounts for Nonsecurity Functions",
+          "sub_control": "b",
+          "command": "cs_f{access_control.nonprivileged_access_lx}",
+          "expected_result": "True",
+          "purpose": "Confirm that standard users do not have unrestricted sudo access, root login is disabled, and no standard user account is also used as a service or privileged identity"
+        }
+      ]
+    },
+    "debian": {
+      "checks": [
+        {
+          "check_type": "command",
+          "name": "Nonsecurity Functions are Identified",
+          "sub_control": "a",
+          "command": "awk -F: '$3 >= 1000 && $1 != \"nobody\" {print $1}' /etc/passwd",
+          "expected_result": "Named standard user accounts exist separately from privileged accounts with no standard user holding UID 0 or unrestricted sudo access",
+          "purpose": "Identify nonsecurity function users by enumerating standard accounts and confirming they are distinct from privileged identities used for security functions"
+        },
+        {
+          "check_type": "command",
+          "name": "Users are Required to Use Non-Privileged Accounts for Nonsecurity Functions",
+          "sub_control": "b",
+          "command": "cs_f{access_control.nonprivileged_access_lx}",
+          "expected_result": "True",
+          "purpose": "Confirm that standard users do not have unrestricted sudo access, root login is disabled, and no standard user account is also used as a service or privileged identity"
+        }
+      ]
+    }
+  },
+  "severity": "Medium",
+  "remediation": "Instructions to remediate non-compliance",
+  "tags": [
+    "AC",
+    "AC.L2-3.1.6"
+  ]
+}
