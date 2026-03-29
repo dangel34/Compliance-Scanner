@@ -7,17 +7,17 @@
   "target_os": [
     "debian",
     "linux",
-    "windows-client",
-    "windows-server"
+    "windows_client",
+    "windows_server"
   ],
   "check_details": {
-    "windows-client": {
+    "windows_client": {
       "checks": [
         {
           "check_type": "command",
           "name": "Wireless Access is Protected Using Authentication",
           "sub_control": "a",
-          "command": "cs_f{access_control.wireless_auth_wc}",
+          "command": "cs_f(access_control.wireless_auth_wc)",
           "expected_result": "True",
           "purpose": "Verify that all active wireless connections and saved profiles use WPA2 or WPA3 enterprise 802.1X EAP authentication and that open or PSK-based profiles are not present"
         },
@@ -25,19 +25,19 @@
           "check_type": "command",
           "name": "Wireless Access is Protected Using Encryption",
           "sub_control": "b",
-          "command": "cs_f{access_control.wireless_encryption_wc}",
+          "command": "cs_f(access_control.wireless_encryption_wc)",
           "expected_result": "True",
           "purpose": "Verify that all active wireless connections use AES-CCMP or GCMP encryption and that WEP, TKIP, and other weak ciphers are not in use on any wireless profile"
         }
       ]
     },
-    "windows-server": {
+    "windows_server": {
       "checks": [
         {
           "check_type": "command",
           "name": "Wireless Access is Protected Using Authentication",
           "sub_control": "a",
-          "command": "cs_f{access_control.wireless_auth_ws}",
+          "command": "cs_f(access_control.wireless_auth_ws)",
           "expected_result": "True",
           "purpose": "Verify that wireless adapters are disabled on the server or if active use WPA2 or WPA3 enterprise 802.1X EAP authentication with no PSK or open profiles present"
         },
@@ -45,7 +45,7 @@
           "check_type": "command",
           "name": "Wireless Access is Protected Using Encryption",
           "sub_control": "b",
-          "command": "cs_f{access_control.wireless_encryption_ws}",
+          "command": "cs_f(access_control.wireless_encryption_ws)",
           "expected_result": "True",
           "purpose": "Verify that any active wireless connection on the server uses AES-CCMP or GCMP encryption and that FIPS-compliant wireless encryption is enforced via Group Policy"
         }
@@ -57,7 +57,7 @@
           "check_type": "command",
           "name": "Wireless Access is Protected Using Authentication",
           "sub_control": "a",
-          "command": "cs_f{access_control.wireless_auth_lx}",
+          "command": "cs_f(access_control.wireless_auth_lx)",
           "expected_result": "True",
           "purpose": "Verify that any active wireless interface uses WPA2 or WPA3 enterprise 802.1X EAP authentication via wpa_supplicant and that no open or PSK connections are active or saved"
         },
@@ -65,7 +65,7 @@
           "check_type": "command",
           "name": "Wireless Access is Protected Using Encryption",
           "sub_control": "b",
-          "command": "cs_f{access_control.wireless_encryption_lx}",
+          "command": "cs_f(access_control.wireless_encryption_lx)",
           "expected_result": "True",
           "purpose": "Verify that any active wireless interface uses AES-CCMP or GCMP pairwise and group ciphers and that WEP and TKIP are explicitly absent from wpa_supplicant and NetworkManager configurations"
         }
@@ -77,7 +77,7 @@
           "check_type": "command",
           "name": "Wireless Access is Protected Using Authentication",
           "sub_control": "a",
-          "command": "cs_f{access_control.wireless_auth_lx}",
+          "command": "cs_f(access_control.wireless_auth_lx)",
           "expected_result": "True",
           "purpose": "Verify that any active wireless interface uses WPA2 or WPA3 enterprise 802.1X EAP authentication via wpa_supplicant and that no open or PSK connections are active or saved"
         },
@@ -85,7 +85,7 @@
           "check_type": "command",
           "name": "Wireless Access is Protected Using Encryption",
           "sub_control": "b",
-          "command": "cs_f{access_control.wireless_encryption_lx}",
+          "command": "cs_f(access_control.wireless_encryption_lx)",
           "expected_result": "True",
           "purpose": "Verify that any active wireless interface uses AES-CCMP or GCMP pairwise and group ciphers and that WEP and TKIP are explicitly absent from wpa_supplicant and NetworkManager configurations"
         }

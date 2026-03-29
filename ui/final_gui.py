@@ -693,10 +693,11 @@ class AccordionSection:
         btn = self.rule_buttons.get(path)
         if btn is None:
             return
-        icon     = self._ICON_MAP.get(status, "")
-        color    = self._COLOR_MAP.get(status, ("transparent", "transparent"))
-        text_col = ("white", "white") if color != ("transparent", "transparent") else ("#1a1a1a", "#e0e0e0")
-        btn.configure(text=f"{rule_id}{icon}", fg_color=color, text_color=text_col)
+        icon = self._ICON_MAP.get(status, "")
+        color = self._COLOR_MAP.get(status)
+        fg_color = color if color is not None else "transparent"
+        text_col = ("white", "white") if color is not None else ("#1a1a1a", "#e0e0e0")
+        btn.configure(text=f"{rule_id}{icon}", fg_color=fg_color, text_color=text_col)
 
     def highlight_selected(self, selected_path: str, results_by_path: Dict[str, RunResult]):
         for path, btn in self.rule_buttons.items():

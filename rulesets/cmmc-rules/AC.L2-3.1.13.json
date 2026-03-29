@@ -7,11 +7,11 @@
   "target_os": [
     "debian",
     "linux",
-    "windows-client",
-    "windows-server"
+    "windows_client",
+    "windows_server"
   ],
   "check_details": {
-    "windows-client": {
+    "windows_client": {
       "checks": [
         {
           "check_type": "command",
@@ -25,13 +25,13 @@
           "check_type": "command",
           "name": "Cryptographic Mechanisms for Remote Access Sessions are Implemented",
           "sub_control": "b",
-          "command": "cs_f{access_control.remote_crypto_wc}",
+          "command": "cs_f(access_control.remote_crypto_wc)",
           "expected_result": "True",
           "purpose": "Verify that RDP enforces NLA and TLS encryption, FIPS-compliant algorithms are enabled via Group Policy or registry, and weak SSL/TLS versions are disabled for remote access"
         }
       ]
     },
-    "windows-server": {
+    "windows_server": {
       "checks": [
         {
           "check_type": "command",
@@ -45,7 +45,7 @@
           "check_type": "command",
           "name": "Cryptographic Mechanisms for Remote Access Sessions are Implemented",
           "sub_control": "b",
-          "command": "cs_f{access_control.remote_crypto_ws}",
+          "command": "cs_f(access_control.remote_crypto_ws)",
           "expected_result": "True",
           "purpose": "Verify that RDP enforces NLA and TLS encryption, FIPS-compliant algorithms are enabled via Group Policy, weak SSL/TLS versions are disabled, and IPSec is configured for server-to-server remote access"
         }
@@ -65,7 +65,7 @@
           "check_type": "command",
           "name": "Cryptographic Mechanisms for Remote Access Sessions are Implemented",
           "sub_control": "b",
-          "command": "cs_f{access_control.remote_crypto_lx}",
+          "command": "cs_f(access_control.remote_crypto_lx)",
           "expected_result": "True",
           "purpose": "Verify that SSH enforces strong ciphers, MACs, and key exchange algorithms, weak algorithms are explicitly disabled, and SSH protocol version 1 is not permitted"
         }
@@ -85,7 +85,7 @@
           "check_type": "command",
           "name": "Cryptographic Mechanisms for Remote Access Sessions are Implemented",
           "sub_control": "b",
-          "command": "cs_f{access_control.remote_crypto_lx}",
+          "command": "cs_f(access_control.remote_crypto_lx)",
           "expected_result": "True",
           "purpose": "Verify that SSH enforces strong ciphers, MACs, and key exchange algorithms, weak algorithms are explicitly disabled, and SSH protocol version 1 is not permitted"
         }

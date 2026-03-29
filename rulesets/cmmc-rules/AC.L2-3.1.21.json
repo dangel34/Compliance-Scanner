@@ -7,11 +7,11 @@
   "target_os": [
     "debian",
     "linux",
-    "windows-client",
-    "windows-server"
+    "windows_client",
+    "windows_server"
   ],
   "check_details": {
-    "windows-client": {
+    "windows_client": {
       "checks": [
         {
           "check_type": "command",
@@ -25,13 +25,13 @@
           "check_type": "command",
           "name": "Use of Portable Storage Devices Containing CUI on External Systems is Limited",
           "sub_control": "c",
-          "command": "cs_f{access_control.portable_storage_limit_wc}",
+          "command": "cs_f(access_control.portable_storage_limit_wc)",
           "expected_result": "True",
           "purpose": "Verify that removable storage device write access is restricted via Group Policy registry, BitLocker To Go is required for removable drives, and AutoPlay is disabled to prevent unauthorized data transfer from external portable storage"
         }
       ]
     },
-    "windows-server": {
+    "windows_server": {
       "checks": [
         {
           "check_type": "command",
@@ -45,7 +45,7 @@
           "check_type": "command",
           "name": "Use of Portable Storage Devices Containing CUI on External Systems is Limited",
           "sub_control": "c",
-          "command": "cs_f{access_control.portable_storage_limit_ws}",
+          "command": "cs_f(access_control.portable_storage_limit_ws)",
           "expected_result": "True",
           "purpose": "Verify that all removable storage devices are denied write access via Group Policy, AutoPlay and AutoRun are disabled, and device installation restrictions prevent unauthorized portable storage connections on the server"
         }
@@ -65,7 +65,7 @@
           "check_type": "command",
           "name": "Use of Portable Storage Devices Containing CUI on External Systems is Limited",
           "sub_control": "c",
-          "command": "cs_f{access_control.portable_storage_limit_lx}",
+          "command": "cs_f(access_control.portable_storage_limit_lx)",
           "expected_result": "True",
           "purpose": "Verify that USB storage devices are restricted via USBGuard or udev rules, removable media automount is disabled, and any mounted removable media requires explicit authorization"
         }
@@ -85,7 +85,7 @@
           "check_type": "command",
           "name": "Use of Portable Storage Devices Containing CUI on External Systems is Limited",
           "sub_control": "c",
-          "command": "cs_f{access_control.portable_storage_limit_lx}",
+          "command": "cs_f(access_control.portable_storage_limit_lx)",
           "expected_result": "True",
           "purpose": "Verify that USB storage devices are restricted via USBGuard or udev rules, removable media automount is disabled, and any mounted removable media requires explicit authorization"
         }

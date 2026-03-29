@@ -7,11 +7,11 @@
   "target_os": [
     "debian",
     "linux",
-    "windows-client",
-    "windows-server"
+    "windows_client",
+    "windows_server"
   ],
   "check_details": {
-    "windows-client": {
+    "windows_client": {
       "checks": [
         {
           "check_type": "command",
@@ -25,13 +25,13 @@
           "check_type": "command",
           "name": "Encryption is Employed to Protect CUI on Mobile Devices",
           "sub_control": "b",
-          "command": "cs_f{access_control.mobile_encryption_wc}",
+          "command": "cs_f(access_control.mobile_encryption_wc)",
           "expected_result": "True",
           "purpose": "Verify that BitLocker full disk encryption is enabled and enforced on all fixed and removable drives with TPM protection and a strong encryption algorithm via Group Policy"
         }
       ]
     },
-    "windows-server": {
+    "windows_server": {
       "checks": [
         {
           "check_type": "command",
@@ -45,7 +45,7 @@
           "check_type": "command",
           "name": "Encryption is Employed to Protect CUI on Mobile Devices",
           "sub_control": "b",
-          "command": "cs_f{access_control.mobile_encryption_ws}",
+          "command": "cs_f(access_control.mobile_encryption_ws)",
           "expected_result": "True",
           "purpose": "Verify that BitLocker is enabled on all fixed drives with TPM protection and AES-256 encryption enforced via Group Policy and that removable drive encryption is required before write access is granted"
         }
@@ -65,7 +65,7 @@
           "check_type": "command",
           "name": "Encryption is Employed to Protect CUI on Mobile Devices",
           "sub_control": "b",
-          "command": "cs_f{access_control.mobile_encryption_lx}",
+          "command": "cs_f(access_control.mobile_encryption_lx)",
           "expected_result": "True",
           "purpose": "Verify that LUKS full disk encryption is active on system volumes, home directories are encrypted, and any removable media containing CUI uses LUKS or eCryptfs encryption"
         }
@@ -85,7 +85,7 @@
           "check_type": "command",
           "name": "Encryption is Employed to Protect CUI on Mobile Devices",
           "sub_control": "b",
-          "command": "cs_f{access_control.mobile_encryption_lx}",
+          "command": "cs_f(access_control.mobile_encryption_lx)",
           "expected_result": "True",
           "purpose": "Verify that LUKS full disk encryption is active on system volumes, home directories are encrypted, and any removable media containing CUI uses LUKS or eCryptfs encryption"
         }

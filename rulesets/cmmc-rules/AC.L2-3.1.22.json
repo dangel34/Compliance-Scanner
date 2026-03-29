@@ -7,11 +7,11 @@
   "target_os": [
     "debian",
     "linux",
-    "windows-client",
-    "windows-server"
+    "windows_client",
+    "windows_server"
   ],
   "check_details": {
-    "windows-client": {
+    "windows_client": {
       "checks": [
         {
           "check_type": "command",
@@ -55,7 +55,7 @@
         }
       ]
     },
-    "windows-server": {
+    "windows_server": {
       "checks": [
         {
           "check_type": "command",
@@ -137,7 +137,7 @@
           "check_type": "command",
           "name": "Mechanisms are in Place to Remove and Address Improper Posting of CUI",
           "sub_control": "e",
-          "command": "cs_f{access_control.cui_removal_mechanism_lx}",
+          "command": "cs_f(access_control.cui_removal_mechanism_lx)",
           "expected_result": "True",
           "purpose": "Verify that technical mechanisms exist to detect and address improper CUI posting including auditd monitoring of web content directories, file permission controls restricting write access to public content paths, and SELinux or AppArmor policy confining web server processes"
         }

@@ -7,17 +7,17 @@
   "target_os": [
     "debian",
     "linux",
-    "windows-client",
-    "windows-server"
+    "windows_client",
+    "windows_server"
   ],
   "check_details": {
-    "windows-client": {
+    "windows_client": {
       "checks": [
         {
           "check_type": "command",
           "name": "Information Flow Control Policies are Defined",
           "sub_control": "a",
-          "command": "cs_f{access_control.cui_flow_policy_wc}",
+          "command": "cs_f(access_control.cui_flow_policy_wc)",
           "expected_result": "True",
           "purpose": "Verify that information flow control policies exist via Group Policy, Windows Firewall rules, or DLP configuration governing CUI movement"
         },
@@ -25,7 +25,7 @@
           "check_type": "command",
           "name": "Methods and Enforcement Mechanisms for Controlling CUI Flow are Defined",
           "sub_control": "b",
-          "command": "cs_f{access_control.cui_flow_enforcement_wc}",
+          "command": "cs_f(access_control.cui_flow_enforcement_wc)",
           "expected_result": "True",
           "purpose": "Confirm that technical enforcement mechanisms such as Windows Defender Firewall, DLP policies, and removable media controls are active and configured"
         },
@@ -33,7 +33,7 @@
           "check_type": "command",
           "name": "Designated Sources and Destinations for CUI are Identified",
           "sub_control": "c",
-          "command": "cs_f{access_control.device_restriction_wc}",
+          "command": "cs_f(access_control.device_restriction_wc)",
           "expected_result": "True",
           "purpose": "Verify that approved sources and destinations for CUI are reflected in firewall rules and domain join status restricting connectivity to known devices and subnets"
         },
@@ -41,19 +41,19 @@
           "check_type": "command",
           "name": "Authorizations for Controlling CUI Flow are Defined",
           "sub_control": "d",
-          "command": "cs_f{access_control.cui_flow_authorization_wc}",
+          "command": "cs_f(access_control.cui_flow_authorization_wc)",
           "expected_result": "True",
           "purpose": "Confirm that CUI flow authorizations are reflected in Group Policy assignments, user rights, and DLP rule scoping to named groups or roles"
         }
       ]
     },
-    "windows-server": {
+    "windows_server": {
       "checks": [
         {
           "check_type": "command",
           "name": "Information Flow Control Policies are Defined",
           "sub_control": "a",
-          "command": "cs_f{access_control.cui_flow_policy_ws}",
+          "command": "cs_f(access_control.cui_flow_policy_ws)",
           "expected_result": "True",
           "purpose": "Verify that information flow control policies exist via Group Policy, Windows Firewall rules, or DLP configuration governing CUI movement on the server"
         },
@@ -61,7 +61,7 @@
           "check_type": "command",
           "name": "Methods and Enforcement Mechanisms for Controlling CUI Flow are Defined",
           "sub_control": "b",
-          "command": "cs_f{access_control.cui_flow_enforcement_ws}",
+          "command": "cs_f(access_control.cui_flow_enforcement_ws)",
           "expected_result": "True",
           "purpose": "Confirm that technical enforcement mechanisms such as Windows Defender Firewall, IPSec policies, share permissions, and NTFS controls are active and configured"
         },
@@ -69,7 +69,7 @@
           "check_type": "command",
           "name": "Designated Sources and Destinations for CUI are Identified",
           "sub_control": "c",
-          "command": "cs_f{access_control.device_restriction_ws}",
+          "command": "cs_f(access_control.device_restriction_ws)",
           "expected_result": "True",
           "purpose": "Verify that approved sources and destinations for CUI are reflected in firewall rules restricting inbound access to approved subnets and domain-joined devices only"
         },
@@ -77,7 +77,7 @@
           "check_type": "command",
           "name": "Authorizations for Controlling CUI Flow are Defined",
           "sub_control": "d",
-          "command": "cs_f{access_control.cui_flow_authorization_ws}",
+          "command": "cs_f(access_control.cui_flow_authorization_ws)",
           "expected_result": "True",
           "purpose": "Confirm that CUI flow authorizations are reflected in AD group assignments, NTFS permissions, and share permissions scoped to named authorized groups"
         }
@@ -89,7 +89,7 @@
           "check_type": "command",
           "name": "Information Flow Control Policies are Defined",
           "sub_control": "a",
-          "command": "cs_f{access_control.cui_flow_policy_lx}",
+          "command": "cs_f(access_control.cui_flow_policy_lx)",
           "expected_result": "True",
           "purpose": "Verify that information flow control policies exist via SELinux/AppArmor policy definitions and firewall rule configurations governing CUI movement"
         },
@@ -97,7 +97,7 @@
           "check_type": "command",
           "name": "Methods and Enforcement Mechanisms for Controlling CUI Flow are Defined",
           "sub_control": "b",
-          "command": "cs_f{access_control.cui_flow_enforcement_lx}",
+          "command": "cs_f(access_control.cui_flow_enforcement_lx)",
           "expected_result": "True",
           "purpose": "Confirm that technical enforcement mechanisms such as iptables/nftables/firewalld, SELinux/AppArmor, and file permission controls are active and configured"
         },
@@ -105,7 +105,7 @@
           "check_type": "command",
           "name": "Designated Sources and Destinations for CUI are Identified",
           "sub_control": "c",
-          "command": "cs_f{access_control.firewall_rules_lx}",
+          "command": "cs_f(access_control.firewall_rules_lx)",
           "expected_result": "True",
           "purpose": "Verify that approved sources and destinations for CUI are reflected in firewall rules restricting inbound and outbound connections to known subnets and systems"
         },
@@ -113,7 +113,7 @@
           "check_type": "command",
           "name": "Authorizations for Controlling CUI Flow are Defined",
           "sub_control": "d",
-          "command": "cs_f{access_control.cui_flow_authorization_lx}",
+          "command": "cs_f(access_control.cui_flow_authorization_lx)",
           "expected_result": "True",
           "purpose": "Confirm that CUI flow authorizations are reflected in file ownership, group permissions, ACLs, and SELinux/AppArmor policy scoping to named users and roles"
         }
@@ -125,7 +125,7 @@
           "check_type": "command",
           "name": "Information Flow Control Policies are Defined",
           "sub_control": "a",
-          "command": "cs_f{access_control.cui_flow_policy_lx}",
+          "command": "cs_f(access_control.cui_flow_policy_lx)",
           "expected_result": "True",
           "purpose": "Verify that information flow control policies exist via AppArmor policy definitions and firewall rule configurations governing CUI movement"
         },
@@ -133,7 +133,7 @@
           "check_type": "command",
           "name": "Methods and Enforcement Mechanisms for Controlling CUI Flow are Defined",
           "sub_control": "b",
-          "command": "cs_f{access_control.cui_flow_enforcement_lx}",
+          "command": "cs_f(access_control.cui_flow_enforcement_lx)",
           "expected_result": "True",
           "purpose": "Confirm that technical enforcement mechanisms such as iptables/nftables/firewalld, AppArmor, and file permission controls are active and configured"
         },
@@ -141,7 +141,7 @@
           "check_type": "command",
           "name": "Designated Sources and Destinations for CUI are Identified",
           "sub_control": "c",
-          "command": "cs_f{access_control.firewall_rules_lx}",
+          "command": "cs_f(access_control.firewall_rules_lx)",
           "expected_result": "True",
           "purpose": "Verify that approved sources and destinations for CUI are reflected in firewall rules restricting inbound and outbound connections to known subnets and systems"
         },
@@ -149,7 +149,7 @@
           "check_type": "command",
           "name": "Authorizations for Controlling CUI Flow are Defined",
           "sub_control": "d",
-          "command": "cs_f{access_control.cui_flow_authorization_lx}",
+          "command": "cs_f(access_control.cui_flow_authorization_lx)",
           "expected_result": "True",
           "purpose": "Confirm that CUI flow authorizations are reflected in file ownership, group permissions, ACLs, and AppArmor policy scoping to named users and roles"
         }

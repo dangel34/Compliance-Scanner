@@ -7,11 +7,11 @@
   "target_os": [
     "debian",
     "linux",
-    "windows-client",
-    "windows-server"
+    "windows_client",
+    "windows_server"
   ],
   "check_details": {
-    "windows-client": {
+    "windows_client": {
       "checks": [
         {
           "check_type": "command",
@@ -25,7 +25,7 @@
           "check_type": "command",
           "name": "Session Lock is Initiated After Defined Period of Inactivity",
           "sub_control": "b",
-          "command": "cs_f{access_control.session_lock_wc}",
+          "command": "cs_f(access_control.session_lock_wc)",
           "expected_result": "True",
           "purpose": "Verify that a screen saver or session lock is configured to activate after no more than 15 minutes of inactivity and requires password to unlock via Group Policy or registry"
         },
@@ -33,13 +33,13 @@
           "check_type": "command",
           "name": "Previously Visible Information is Concealed via Pattern-Hiding Display",
           "sub_control": "c",
-          "command": "cs_f{access_control.pattern_hiding_wc}",
+          "command": "cs_f(access_control.pattern_hiding_wc)",
           "expected_result": "True",
           "purpose": "Confirm that the screen saver is configured to display a blank or pattern-hiding screen rather than a transparent or preview display when the session lock activates"
         }
       ]
     },
-    "windows-server": {
+    "windows_server": {
       "checks": [
         {
           "check_type": "command",
@@ -53,7 +53,7 @@
           "check_type": "command",
           "name": "Session Lock is Initiated After Defined Period of Inactivity",
           "sub_control": "b",
-          "command": "cs_f{access_control.session_lock_ws}",
+          "command": "cs_f(access_control.session_lock_ws)",
           "expected_result": "True",
           "purpose": "Verify that a screen saver or session lock is configured to activate after no more than 15 minutes of inactivity and requires password to unlock via Group Policy or registry"
         },
@@ -61,7 +61,7 @@
           "check_type": "command",
           "name": "Previously Visible Information is Concealed via Pattern-Hiding Display",
           "sub_control": "c",
-          "command": "cs_f{access_control.pattern_hiding_ws}",
+          "command": "cs_f(access_control.pattern_hiding_ws)",
           "expected_result": "True",
           "purpose": "Confirm that the screen saver is configured to display a blank or pattern-hiding screen and that RDP idle session limits are enforced to disconnect inactive sessions"
         }
@@ -81,7 +81,7 @@
           "check_type": "command",
           "name": "Session Lock is Initiated After Defined Period of Inactivity",
           "sub_control": "b",
-          "command": "cs_f{access_control.session_lock_lx}",
+          "command": "cs_f(access_control.session_lock_lx)",
           "expected_result": "True",
           "purpose": "Verify that SSH idle timeout is configured via ClientAliveInterval and ClientAliveCountMax, and that TMOUT is set for shell sessions to lock after the defined inactivity period"
         },
@@ -89,7 +89,7 @@
           "check_type": "command",
           "name": "Previously Visible Information is Concealed via Pattern-Hiding Display",
           "sub_control": "c",
-          "command": "cs_f{access_control.pattern_hiding_lx}",
+          "command": "cs_f(access_control.pattern_hiding_lx)",
           "expected_result": "True",
           "purpose": "Confirm that shell sessions are terminated or locked on inactivity via TMOUT and that any GUI session lock is configured to blank the screen rather than show a preview"
         }
@@ -109,7 +109,7 @@
           "check_type": "command",
           "name": "Session Lock is Initiated After Defined Period of Inactivity",
           "sub_control": "b",
-          "command": "cs_f{access_control.session_lock_lx}",
+          "command": "cs_f(access_control.session_lock_lx)",
           "expected_result": "True",
           "purpose": "Verify that SSH idle timeout is configured via ClientAliveInterval and ClientAliveCountMax, and that TMOUT is set for shell sessions to lock after the defined inactivity period"
         },
@@ -117,7 +117,7 @@
           "check_type": "command",
           "name": "Previously Visible Information is Concealed via Pattern-Hiding Display",
           "sub_control": "c",
-          "command": "cs_f{access_control.pattern_hiding_lx}",
+          "command": "cs_f(access_control.pattern_hiding_lx)",
           "expected_result": "True",
           "purpose": "Confirm that shell sessions are terminated or locked on inactivity via TMOUT and that any GUI session lock is configured to blank the screen rather than show a preview"
         }
