@@ -7,17 +7,17 @@
   "target_os": [
     "debian",
     "linux",
-    "windows-client",
-    "windows-server"
+    "windows_client",
+    "windows_server"
   ],
   "check_details": {
-    "windows-client": {
+    "windows_client": {
       "checks": [
         {
           "check_type": "command",
           "name": "Privileged Functions are Defined",
           "sub_control": "a",
-          "command": "cs_f{access_control.privileged_accounts_identified_wc}",
+          "command": "cs_f(access_control.privileged_accounts_identified_wc)",
           "expected_result": "True",
           "purpose": "Verify that privileged functions are defined by confirming elevated user rights assignments and local Administrators group membership are scoped to named accounts only"
         },
@@ -25,7 +25,7 @@
           "check_type": "command",
           "name": "Non-Privileged Users are Defined",
           "sub_control": "b",
-          "command": "cs_f{access_control.nonprivileged_access_wc}",
+          "command": "cs_f(access_control.nonprivileged_access_wc)",
           "expected_result": "True",
           "purpose": "Verify that non-privileged users are defined by confirming standard Users group membership is distinct from Administrators and no standard user holds elevated rights"
         },
@@ -33,7 +33,7 @@
           "check_type": "command",
           "name": "Non-Privileged Users are Prevented from Executing Privileged Functions",
           "sub_control": "c",
-          "command": "cs_f{access_control.privileged_function_prevention_wc}",
+          "command": "cs_f(access_control.privileged_function_prevention_wc)",
           "expected_result": "True",
           "purpose": "Confirm that UAC, AppLocker or Software Restriction Policies, and user rights assignments actively prevent standard users from executing privileged functions"
         },
@@ -41,19 +41,19 @@
           "check_type": "command",
           "name": "Execution of Privileged Functions is Captured in Audit Logs",
           "sub_control": "d",
-          "command": "cs_f{access_control.privileged_function_audit_wc}",
+          "command": "cs_f(access_control.privileged_function_audit_wc)",
           "expected_result": "True",
           "purpose": "Verify that Windows audit policy captures privilege use, account management, and policy change events so privileged function execution is recorded in audit logs"
         }
       ]
     },
-    "windows-server": {
+    "windows_server": {
       "checks": [
         {
           "check_type": "command",
           "name": "Privileged Functions are Defined",
           "sub_control": "a",
-          "command": "cs_f{access_control.privileged_accounts_identified_ws}",
+          "command": "cs_f(access_control.privileged_accounts_identified_ws)",
           "expected_result": "True",
           "purpose": "Verify that privileged functions are defined by confirming Domain Admins, Schema Admins, and other high-privilege AD group memberships are scoped to named accounts only"
         },
@@ -61,7 +61,7 @@
           "check_type": "command",
           "name": "Non-Privileged Users are Defined",
           "sub_control": "b",
-          "command": "cs_f{access_control.nonprivileged_access_ws}",
+          "command": "cs_f(access_control.nonprivileged_access_ws)",
           "expected_result": "True",
           "purpose": "Verify that non-privileged users are defined by confirming DA accounts are not used for daily tasks and standard users are explicitly separated from privileged identities"
         },
@@ -69,7 +69,7 @@
           "check_type": "command",
           "name": "Non-Privileged Users are Prevented from Executing Privileged Functions",
           "sub_control": "c",
-          "command": "cs_f{access_control.privileged_function_prevention_ws}",
+          "command": "cs_f(access_control.privileged_function_prevention_ws)",
           "expected_result": "True",
           "purpose": "Confirm that AD group restrictions, UAC enforcement, and user rights assignments actively prevent standard users from executing privileged functions on the server"
         },
@@ -77,7 +77,7 @@
           "check_type": "command",
           "name": "Execution of Privileged Functions is Captured in Audit Logs",
           "sub_control": "d",
-          "command": "cs_f{access_control.privileged_function_audit_ws}",
+          "command": "cs_f(access_control.privileged_function_audit_ws)",
           "expected_result": "True",
           "purpose": "Verify that Windows advanced audit policy captures privilege use, account management, policy change, and sensitive privilege use events on the server"
         }
@@ -105,7 +105,7 @@
           "check_type": "command",
           "name": "Non-Privileged Users are Prevented from Executing Privileged Functions",
           "sub_control": "c",
-          "command": "cs_f{access_control.privileged_function_prevention_lx}",
+          "command": "cs_f(access_control.privileged_function_prevention_lx)",
           "expected_result": "True",
           "purpose": "Confirm that sudoers restrictions, PAM controls, SELinux/AppArmor enforcement, and file permissions actively prevent standard users from executing privileged functions"
         },
@@ -113,7 +113,7 @@
           "check_type": "command",
           "name": "Execution of Privileged Functions is Captured in Audit Logs",
           "sub_control": "d",
-          "command": "cs_f{access_control.privileged_function_audit_lx}",
+          "command": "cs_f(access_control.privileged_function_audit_lx)",
           "expected_result": "True",
           "purpose": "Verify that auditd is active with rules capturing sudo usage, privilege escalation attempts, and sensitive file access so privileged function execution is recorded"
         }
@@ -141,7 +141,7 @@
           "check_type": "command",
           "name": "Non-Privileged Users are Prevented from Executing Privileged Functions",
           "sub_control": "c",
-          "command": "cs_f{access_control.privileged_function_prevention_lx}",
+          "command": "cs_f(access_control.privileged_function_prevention_lx)",
           "expected_result": "True",
           "purpose": "Confirm that sudoers restrictions, PAM controls, AppArmor enforcement, and file permissions actively prevent standard users from executing privileged functions"
         },
@@ -149,7 +149,7 @@
           "check_type": "command",
           "name": "Execution of Privileged Functions is Captured in Audit Logs",
           "sub_control": "d",
-          "command": "cs_f{access_control.privileged_function_audit_lx}",
+          "command": "cs_f(access_control.privileged_function_audit_lx)",
           "expected_result": "True",
           "purpose": "Verify that auditd is active with rules capturing sudo usage, privilege escalation attempts, and sensitive file access so privileged function execution is recorded"
         }

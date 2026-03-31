@@ -7,8 +7,8 @@
   "target_os": [
     "debian",
     "linux",
-    "windows-client",
-    "windows-server"
+    "windows_client",
+    "windows_server"
   ],
   "check_details": {
     "windows_client": {

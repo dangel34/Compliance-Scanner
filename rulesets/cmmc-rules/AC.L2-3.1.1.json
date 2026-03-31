@@ -7,8 +7,8 @@
   "target_os": [
     "debian",
     "linux",
-    "windows-client",
-    "windows-server"
+    "windows_client",
+    "windows_server"
   ],
   "check_details": {
     "windows_client": {
@@ -17,7 +17,7 @@
           "check_type": "command",
           "name": "Authorized Users are Identified",
           "sub_control": "a",
-          "command": "cs_f{access_control.authorized_user_wc}",
+          "command": "cs_f(access_control.authorized_user_wc)",
           "expected_result": "True",
           "purpose": "Verify authorized local and domain users are identified on the windows client"
         },
@@ -49,7 +49,7 @@
           "check_type": "command",
           "name": "System Access is Limited to Authorized Processes",
           "sub_control": "e",
-          "command": "cs_f{access_control.service_account_identity_wc}",
+          "command": "cs_f(access_control.service_account_identity_wc)",
           "expected_result": "True",
           "purpose": "Ensure scheduled tasks and services run under named service accounts, not LocalSystem or anonymous identities"
         },
@@ -57,7 +57,7 @@
           "check_type": "command",
           "name": "System Access is Limited to Authorized Devices",
           "sub_control": "f",
-          "command": "cs_f{access_control.device_restriction_wc}",
+          "command": "cs_f(access_control.device_restriction_wc)",
           "expected_result": "True",
           "purpose": "Verify Windows Defender Firewall rules and domain join status restrict access to approved devices and subnets only"
         }
@@ -77,7 +77,7 @@
           "check_type": "command",
           "name": "Processes Acting on Behalf of Authorized Users are Identified",
           "sub_control": "b",
-          "command": "cs_f{access_control.process_identity_ws}",
+          "command": "cs_f(access_control.process_identity_ws)",
           "expected_result": "True",
           "purpose": "Ensure services and scheduled tasks run under named service accounts or gMSAs, not LocalSystem or anonymous identities"
         },
@@ -85,7 +85,7 @@
           "check_type": "command",
           "name": "Authorized Devices are Identified",
           "sub_control": "c",
-          "command": "cs_f{access_control.domain_joined_ws}",
+          "command": "cs_f(access_control.domain_joined_ws)",
           "expected_result": "True",
           "purpose": "Verify the server is domain joined and computer accounts exist in AD for device identification"
         },
@@ -93,7 +93,7 @@
           "check_type": "command",
           "name": "System Access is Limited to Authorized Users",
           "sub_control": "d",
-          "command": "cs_f{access_control.system_access_ws}",
+          "command": "cs_f(access_control.system_access_ws)",
           "expected_result": "True",
           "purpose": "Confirm AD group restrictions, logon rights policies, and RDP access are scoped to authorized users only"
         },
@@ -101,7 +101,7 @@
           "check_type": "command",
           "name": "System Access is Limited to Authorized Processes",
           "sub_control": "e",
-          "command": "cs_f{access_control.service_account_identity_ws}",
+          "command": "cs_f(access_control.service_account_identity_ws)",
           "expected_result": "True",
           "purpose": "Ensure no orphaned or unknown service accounts exist and all services are mapped to documented, least-privilege identities"
         },
@@ -109,7 +109,7 @@
           "check_type": "command",
           "name": "System Access is Limited to Authorized Devices",
           "sub_control": "f",
-          "command": "cs_f{access_control.device_restriction_ws}",
+          "command": "cs_f(access_control.device_restriction_ws)",
           "expected_result": "True",
           "purpose": "Verify Windows Defender Firewall rules restrict inbound access to approved subnets and domain-joined devices only"
         }
@@ -129,7 +129,7 @@
           "check_type": "command",
           "name": "Processes Acting on Behalf of Authorized Users are Identified",
           "sub_control": "b",
-          "command": "cs_f{access_control.process_identity_lx}",
+          "command": "cs_f(access_control.process_identity_lx)",
           "expected_result": "True",
           "purpose": "Verify all running daemons and systemd services have a User= directive or named service account and none are running as root unnecessarily"
         },
@@ -137,7 +137,7 @@
           "check_type": "command",
           "name": "Authorized Devices are Identified",
           "sub_control": "c",
-          "command": "cs_f{access_control.device_restriction_lx}",
+          "command": "cs_f(access_control.device_restriction_lx)",
           "expected_result": "True",
           "purpose": "Confirm SSH is restricted to known IP ranges or subnets via sshd_config or firewall rules (iptables/nftables/firewalld)"
         },
@@ -153,7 +153,7 @@
           "check_type": "command",
           "name": "System Access is Limited to Authorized Processes",
           "sub_control": "e",
-          "command": "cs_f{access_control.service_account_identity_lx}",
+          "command": "cs_f(access_control.service_account_identity_lx)",
           "expected_result": "True",
           "purpose": "Ensure all systemd services run under a restricted named service account (e.g., www-data) with least privilege and no unnecessary root-level services"
         },
@@ -161,7 +161,7 @@
           "check_type": "command",
           "name": "System Access is Limited to Authorized Devices",
           "sub_control": "f",
-          "command": "cs_f{access_control.firewall_rules_lx}",
+          "command": "cs_f(access_control.firewall_rules_lx)",
           "expected_result": "True",
           "purpose": "Verify iptables/nftables/firewalld rules restrict inbound connections to approved IP ranges and subnets only"
         }
@@ -181,7 +181,7 @@
           "check_type": "command",
           "name": "Processes Acting on Behalf of Authorized Users are Identified",
           "sub_control": "b",
-          "command": "cs_f{access_control.process_identity_lx}",
+          "command": "cs_f(access_control.process_identity_lx)",
           "expected_result": "True",
           "purpose": "Verify all running daemons and systemd services have a User= directive or named service account and none are running as root unnecessarily"
         },
@@ -189,7 +189,7 @@
           "check_type": "command",
           "name": "Authorized Devices are Identified",
           "sub_control": "c",
-          "command": "cs_f{access_control.device_restriction_lx}",
+          "command": "cs_f(access_control.device_restriction_lx)",
           "expected_result": "True",
           "purpose": "Confirm SSH is restricted to known IP ranges or subnets via sshd_config or firewall rules (iptables/nftables/firewalld)"
         },
@@ -205,7 +205,7 @@
           "check_type": "command",
           "name": "System Access is Limited to Authorized Processes",
           "sub_control": "e",
-          "command": "cs_f{access_control.service_account_identity_lx}",
+          "command": "cs_f(access_control.service_account_identity_lx)",
           "expected_result": "True",
           "purpose": "Ensure all systemd services run under a restricted named service account (e.g., www-data) with least privilege and no unnecessary root-level services"
         },
@@ -213,7 +213,7 @@
           "check_type": "command",
           "name": "System Access is Limited to Authorized Devices",
           "sub_control": "f",
-          "command": "cs_f{access_control.firewall_rules_lx}",
+          "command": "cs_f(access_control.firewall_rules_lx)",
           "expected_result": "True",
           "purpose": "Verify iptables/nftables/firewalld rules restrict inbound connections to approved IP ranges and subnets only"
         }

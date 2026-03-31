@@ -7,11 +7,11 @@
   "target_os": [
     "debian",
     "linux",
-    "windows-client",
-    "windows-server"
+    "windows_client",
+    "windows_server"
   ],
   "check_details": {
-    "windows-client": {
+    "windows_client": {
       "checks": [
         {
           "check_type": "command",
@@ -25,13 +25,13 @@
           "check_type": "command",
           "name": "Wireless Access is Authorized Prior to Allowing Connections",
           "sub_control": "b",
-          "command": "cs_f{access_control.wireless_authorization_wc}",
+          "command": "cs_f(access_control.wireless_authorization_wc)",
           "expected_result": "True",
           "purpose": "Verify that any active wireless adapter is connected only to authorized networks using WPA2 or WPA3 enterprise authentication and that unauthorized wireless profiles are not present"
         }
       ]
     },
-    "windows-server": {
+    "windows_server": {
       "checks": [
         {
           "check_type": "command",
@@ -45,7 +45,7 @@
           "check_type": "command",
           "name": "Wireless Access is Authorized Prior to Allowing Connections",
           "sub_control": "b",
-          "command": "cs_f{access_control.wireless_authorization_ws}",
+          "command": "cs_f(access_control.wireless_authorization_ws)",
           "expected_result": "True",
           "purpose": "Verify that wireless adapters are disabled on the server or if present are connected only to authorized networks with enterprise authentication, and that Group Policy restricts unauthorized wireless connections"
         }
@@ -65,7 +65,7 @@
           "check_type": "command",
           "name": "Wireless Access is Authorized Prior to Allowing Connections",
           "sub_control": "b",
-          "command": "cs_f{access_control.wireless_authorization_lx}",
+          "command": "cs_f(access_control.wireless_authorization_lx)",
           "expected_result": "True",
           "purpose": "Verify that any active wireless interface is connected to an authorized network using WPA2 or WPA3 enterprise authentication and that unauthorized wireless interfaces are disabled or absent"
         }
@@ -85,7 +85,7 @@
           "check_type": "command",
           "name": "Wireless Access is Authorized Prior to Allowing Connections",
           "sub_control": "b",
-          "command": "cs_f{access_control.wireless_authorization_lx}",
+          "command": "cs_f(access_control.wireless_authorization_lx)",
           "expected_result": "True",
           "purpose": "Verify that any active wireless interface is connected to an authorized network using WPA2 or WPA3 enterprise authentication and that unauthorized wireless interfaces are disabled or absent"
         }

@@ -7,11 +7,11 @@
   "target_os": [
     "debian",
     "linux",
-    "windows-client",
-    "windows-server"
+    "windows_client",
+    "windows_server"
   ],
   "check_details": {
-    "windows-client": {
+    "windows_client": {
       "checks": [
         {
           "check_type": "command",
@@ -25,13 +25,13 @@
           "check_type": "command",
           "name": "Privacy and Security Notices are Displayed",
           "sub_control": "b",
-          "command": "cs_f{access_control.login_banner_wc}",
+          "command": "cs_f(access_control.login_banner_wc)",
           "expected_result": "True",
           "purpose": "Verify that a logon banner containing privacy and security notice text is configured and displayed to users prior to system access via Group Policy or local registry"
         }
       ]
     },
-    "windows-server": {
+    "windows_server": {
       "checks": [
         {
           "check_type": "command",
@@ -45,7 +45,7 @@
           "check_type": "command",
           "name": "Privacy and Security Notices are Displayed",
           "sub_control": "b",
-          "command": "cs_f{access_control.login_banner_ws}",
+          "command": "cs_f(access_control.login_banner_ws)",
           "expected_result": "True",
           "purpose": "Verify that a logon banner containing privacy and security notice text is configured and displayed to users prior to system access via Group Policy or local registry"
         }
@@ -65,7 +65,7 @@
           "check_type": "command",
           "name": "Privacy and Security Notices are Displayed",
           "sub_control": "b",
-          "command": "cs_f{access_control.login_banner_lx}",
+          "command": "cs_f(access_control.login_banner_lx)",
           "expected_result": "True",
           "purpose": "Verify that a logon banner is configured in /etc/issue, /etc/issue.net, /etc/motd, and sshd_config Banner directive with non-empty CUI-relevant notice text"
         }
@@ -85,7 +85,7 @@
           "check_type": "command",
           "name": "Privacy and Security Notices are Displayed",
           "sub_control": "b",
-          "command": "cs_f{access_control.login_banner_lx}",
+          "command": "cs_f(access_control.login_banner_lx)",
           "expected_result": "True",
           "purpose": "Verify that a logon banner is configured in /etc/issue, /etc/issue.net, /etc/motd, and sshd_config Banner directive with non-empty CUI-relevant notice text"
         }

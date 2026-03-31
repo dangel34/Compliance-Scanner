@@ -7,11 +7,11 @@
   "target_os": [
     "debian",
     "linux",
-    "windows-client",
-    "windows-server"
+    "windows_client",
+    "windows_server"
   ],
   "check_details": {
-    "windows-client": {
+    "windows_client": {
       "checks": [
         {
           "check_type": "command",
@@ -33,7 +33,7 @@
           "check_type": "command",
           "name": "Remote Access Sessions are Controlled",
           "sub_control": "c",
-          "command": "cs_f{access_control.remote_access_control_wc}",
+          "command": "cs_f(access_control.remote_access_control_wc)",
           "expected_result": "True",
           "purpose": "Verify that RDP access is restricted to named groups, NLA is enforced, Windows Defender Firewall restricts RDP to approved subnets, and remote access requires MFA or certificate-based authentication"
         },
@@ -41,13 +41,13 @@
           "check_type": "command",
           "name": "Remote Access Sessions are Monitored",
           "sub_control": "d",
-          "command": "cs_f{access_control.remote_access_monitoring_wc}",
+          "command": "cs_f(access_control.remote_access_monitoring_wc)",
           "expected_result": "True",
           "purpose": "Verify that Windows audit policy captures logon and logoff events for remote sessions and that RDP session audit logging is active"
         }
       ]
     },
-    "windows-server": {
+    "windows_server": {
       "checks": [
         {
           "check_type": "command",
@@ -69,7 +69,7 @@
           "check_type": "command",
           "name": "Remote Access Sessions are Controlled",
           "sub_control": "c",
-          "command": "cs_f{access_control.remote_access_control_ws}",
+          "command": "cs_f(access_control.remote_access_control_ws)",
           "expected_result": "True",
           "purpose": "Verify that RDP access is restricted to named AD groups, NLA is enforced, Windows Defender Firewall restricts RDP to approved subnets, and RDP session limits are configured"
         },
@@ -77,7 +77,7 @@
           "check_type": "command",
           "name": "Remote Access Sessions are Monitored",
           "sub_control": "d",
-          "command": "cs_f{access_control.remote_access_monitoring_ws}",
+          "command": "cs_f(access_control.remote_access_monitoring_ws)",
           "expected_result": "True",
           "purpose": "Verify that Windows advanced audit policy captures logon, logoff, and account logon events for remote sessions and that RDP audit logging is active with sufficient log retention"
         }
@@ -105,7 +105,7 @@
           "check_type": "command",
           "name": "Remote Access Sessions are Controlled",
           "sub_control": "c",
-          "command": "cs_f{access_control.remote_access_control_lx}",
+          "command": "cs_f(access_control.remote_access_control_lx)",
           "expected_result": "True",
           "purpose": "Verify that SSH is restricted to named users or groups, root login is disabled, key-based authentication is enforced, and firewall rules limit SSH to approved source IPs"
         },
@@ -113,7 +113,7 @@
           "check_type": "command",
           "name": "Remote Access Sessions are Monitored",
           "sub_control": "d",
-          "command": "cs_f{access_control.remote_access_monitoring_lx}",
+          "command": "cs_f(access_control.remote_access_monitoring_lx)",
           "expected_result": "True",
           "purpose": "Verify that auditd captures SSH session events, auth log is active and non-empty, and PAM session logging is configured to record remote access activity"
         }
@@ -141,7 +141,7 @@
           "check_type": "command",
           "name": "Remote Access Sessions are Controlled",
           "sub_control": "c",
-          "command": "cs_f{access_control.remote_access_control_lx}",
+          "command": "cs_f(access_control.remote_access_control_lx)",
           "expected_result": "True",
           "purpose": "Verify that SSH is restricted to named users or groups, root login is disabled, key-based authentication is enforced, and firewall rules limit SSH to approved source IPs"
         },
@@ -149,7 +149,7 @@
           "check_type": "command",
           "name": "Remote Access Sessions are Monitored",
           "sub_control": "d",
-          "command": "cs_f{access_control.remote_access_monitoring_lx}",
+          "command": "cs_f(access_control.remote_access_monitoring_lx)",
           "expected_result": "True",
           "purpose": "Verify that auditd captures SSH session events, auth log is active and non-empty, and PAM session logging is configured to record remote access activity"
         }

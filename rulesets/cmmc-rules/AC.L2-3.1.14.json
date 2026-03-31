@@ -7,11 +7,11 @@
   "target_os": [
     "debian",
     "linux",
-    "windows-client",
-    "windows-server"
+    "windows_client",
+    "windows_server"
   ],
   "check_details": {
-    "windows-client": {
+    "windows_client": {
       "checks": [
         {
           "check_type": "command",
@@ -25,13 +25,13 @@
           "check_type": "command",
           "name": "Remote Access is Routed Through Managed Network Access Control Points",
           "sub_control": "b",
-          "command": "cs_f{access_control.managed_access_routing_wc}",
+          "command": "cs_f(access_control.managed_access_routing_wc)",
           "expected_result": "True",
           "purpose": "Verify that a VPN client is installed and active, direct RDP to external IPs is blocked via Windows Defender Firewall, and default gateway routes traffic through a managed network entry point"
         }
       ]
     },
-    "windows-server": {
+    "windows_server": {
       "checks": [
         {
           "check_type": "command",
@@ -45,7 +45,7 @@
           "check_type": "command",
           "name": "Remote Access is Routed Through Managed Network Access Control Points",
           "sub_control": "b",
-          "command": "cs_f{access_control.managed_access_routing_ws}",
+          "command": "cs_f(access_control.managed_access_routing_ws)",
           "expected_result": "True",
           "purpose": "Verify that inbound RDP and management traffic is restricted to approved internal subnets only, no direct external access is permitted, and IPSec or VPN tunnels are configured for remote management"
         }
@@ -65,7 +65,7 @@
           "check_type": "command",
           "name": "Remote Access is Routed Through Managed Network Access Control Points",
           "sub_control": "b",
-          "command": "cs_f{access_control.managed_access_routing_lx}",
+          "command": "cs_f(access_control.managed_access_routing_lx)",
           "expected_result": "True",
           "purpose": "Verify that SSH is restricted to internal or VPN subnet source addresses, direct public internet SSH access is blocked via firewall rules, and default route traffic passes through a managed gateway"
         }
@@ -85,7 +85,7 @@
           "check_type": "command",
           "name": "Remote Access is Routed Through Managed Network Access Control Points",
           "sub_control": "b",
-          "command": "cs_f{access_control.managed_access_routing_lx}",
+          "command": "cs_f(access_control.managed_access_routing_lx)",
           "expected_result": "True",
           "purpose": "Verify that SSH is restricted to internal or VPN subnet source addresses, direct public internet SSH access is blocked via firewall rules, and default route traffic passes through a managed gateway"
         }

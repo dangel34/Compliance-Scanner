@@ -7,17 +7,17 @@
   "target_os": [
     "debian",
     "linux",
-    "windows-client",
-    "windows-server"
+    "windows_client",
+    "windows_server"
   ],
   "check_details": {
-    "windows-client": {
+    "windows_client": {
       "checks": [
         {
           "check_type": "command",
           "name": "Permitted Transactions and Functions are Defined for Authorized Users",
           "sub_control": "a",
-          "command": "cs_f{access_control.system_access_wc}",
+          "command": "cs_f(access_control.system_access_wc)",
           "expected_result": "True",
           "purpose": "Verify that authorized user roles and permitted functions are defined via AD group policy, NTFS permissions, and logon rights"
         },
@@ -25,19 +25,19 @@
           "check_type": "command",
           "name": "System Access is Limited to Defined Transactions and Functions",
           "sub_control": "b",
-          "command": "cs_f{access_control.function_restriction_wc}",
+          "command": "cs_f(access_control.function_restriction_wc)",
           "expected_result": "True",
           "purpose": "Confirm that enforcement mechanisms such as AppLocker, Software Restriction Policies, or NTFS permissions actively limit users to their permitted functions"
         }
       ]
     },
-    "windows-server": {
+    "windows_server": {
       "checks": [
         {
           "check_type": "command",
           "name": "Permitted Transactions and Functions are Defined for Authorized Users",
           "sub_control": "a",
-          "command": "cs_f{access_control.system_access_ws}",
+          "command": "cs_f(access_control.system_access_ws)",
           "expected_result": "True",
           "purpose": "Verify that authorized user roles and permitted functions are defined via AD group policy, NTFS permissions, and logon rights"
         },
@@ -45,7 +45,7 @@
           "check_type": "command",
           "name": "System Access is Limited to Defined Transactions and Functions",
           "sub_control": "b",
-          "command": "cs_f{access_control.function_restriction_ws}",
+          "command": "cs_f(access_control.function_restriction_ws)",
           "expected_result": "True",
           "purpose": "Confirm that enforcement mechanisms such as NTFS permissions, share permissions, and AD role assignments actively limit users to their permitted functions"
         }
@@ -65,7 +65,7 @@
           "check_type": "command",
           "name": "System Access is Limited to Defined Transactions and Functions",
           "sub_control": "b",
-          "command": "cs_f{access_control.function_restriction_lx}",
+          "command": "cs_f(access_control.function_restriction_lx)",
           "expected_result": "True",
           "purpose": "Confirm that file permissions, sudoers restrictions, PAM controls, and SELinux/AppArmor actively enforce function-level access limits"
         }
@@ -85,7 +85,7 @@
           "check_type": "command",
           "name": "System Access is Limited to Defined Transactions and Functions",
           "sub_control": "b",
-          "command": "cs_f{access_control.function_restriction_lx}",
+          "command": "cs_f(access_control.function_restriction_lx)",
           "expected_result": "True",
           "purpose": "Confirm that file permissions, sudoers restrictions, PAM controls, and AppArmor actively enforce function-level access limits"
         }

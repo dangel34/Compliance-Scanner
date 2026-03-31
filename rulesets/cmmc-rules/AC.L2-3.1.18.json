@@ -7,11 +7,11 @@
   "target_os": [
     "debian",
     "linux",
-    "windows-client",
-    "windows-server"
+    "windows_client",
+    "windows_server"
   ],
   "check_details": {
-    "windows-client": {
+    "windows_client": {
       "checks": [
         {
           "check_type": "command",
@@ -33,13 +33,13 @@
           "check_type": "command",
           "name": "Mobile Device Connections are Monitored and Logged",
           "sub_control": "c",
-          "command": "cs_f{access_control.mobile_device_monitoring_wc}",
+          "command": "cs_f(access_control.mobile_device_monitoring_wc)",
           "expected_result": "True",
           "purpose": "Verify that mobile device connections via Bluetooth and USB are logged via Windows audit policy and that removable device connection events are captured in the Security or System event log"
         }
       ]
     },
-    "windows-server": {
+    "windows_server": {
       "checks": [
         {
           "check_type": "command",
@@ -61,7 +61,7 @@
           "check_type": "command",
           "name": "Mobile Device Connections are Monitored and Logged",
           "sub_control": "c",
-          "command": "cs_f{access_control.mobile_device_monitoring_ws}",
+          "command": "cs_f(access_control.mobile_device_monitoring_ws)",
           "expected_result": "True",
           "purpose": "Verify that removable device and USB connection events are captured in Windows audit logs, Bluetooth is disabled or restricted via Group Policy, and device installation events are logged"
         }
@@ -89,7 +89,7 @@
           "check_type": "command",
           "name": "Mobile Device Connections are Monitored and Logged",
           "sub_control": "c",
-          "command": "cs_f{access_control.mobile_device_monitoring_lx}",
+          "command": "cs_f(access_control.mobile_device_monitoring_lx)",
           "expected_result": "True",
           "purpose": "Verify that USB and Bluetooth device connection events are captured via auditd or udev rules and that system logs record mobile device attachment and detachment events"
         }
@@ -117,7 +117,7 @@
           "check_type": "command",
           "name": "Mobile Device Connections are Monitored and Logged",
           "sub_control": "c",
-          "command": "cs_f{access_control.mobile_device_monitoring_lx}",
+          "command": "cs_f(access_control.mobile_device_monitoring_lx)",
           "expected_result": "True",
           "purpose": "Verify that USB and Bluetooth device connection events are captured via auditd or udev rules and that system logs record mobile device attachment and detachment events"
         }

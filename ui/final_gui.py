@@ -81,6 +81,62 @@ def _escape_xml(value: str) -> str:
     return _html.escape(str(value))
 
 
+def _fmt_duration(seconds: float) -> str:
+    """Format a duration in seconds as a compact human-readable string."""
+    s = max(0, int(seconds))
+    if s < 60:
+        return f"{s}s"
+    m, s = divmod(s, 60)
+    if m < 60:
+        return f"{m}m {s:02d}s"
+    h, m = divmod(m, 60)
+    return f"{h}h {m:02d}m"
+
+
+# --- JSON Schema validation (optional; skipped gracefully if jsonschema missing) ---
+
+_RULE_SCHEMA: Optional[Dict[str, Any]] = None
+_RULE_SCHEMA_LOADED: bool = False
+
+
+def _load_rule_schema() -> Optional[Dict[str, Any]]:
+    """Load rule_schema.json once and cache it. Returns None on any failure."""
+    global _RULE_SCHEMA, _RULE_SCHEMA_LOADED
+    if _RULE_SCHEMA_LOADED:
+        return _RULE_SCHEMA
+    _RULE_SCHEMA_LOADED = True
+    schema_path = os.path.join(PROJECT_ROOT, "rulesets", "rule_schema.json")
+    try:
+        with open(schema_path, "r", encoding="utf-8") as f:
+            _RULE_SCHEMA = json.load(f)
+    except (OSError, json.JSONDecodeError) as exc:
+        print(f"[WARN] Could not load rule_schema.json: {exc}", file=sys.stderr)
+    return _RULE_SCHEMA
+
+
+def _validate_rule(data: Dict[str, Any]) -> List[str]:
+    """
+    Validate a parsed rule dict against rule_schema.json.
+    Returns a list of human-readable error strings (empty = valid).
+    Silently returns [] if jsonschema is not installed or schema is missing.
+    """
+    try:
+        import jsonschema  # optional dependency
+    except ImportError:
+        return []
+    schema = _load_rule_schema()
+    if schema is None:
+        return []
+    try:
+        jsonschema.validate(data, schema)
+        return []
+    except jsonschema.ValidationError as exc:
+        return [exc.message]
+    except jsonschema.SchemaError as exc:
+        print(f"[WARN] rule_schema.json is itself invalid: {exc.message}", file=sys.stderr)
+        return []
+
+
 def discover_rule_files(rules_dir: str) -> Dict[str, List[Dict[str, str]]]:
     """
     Walk rules_dir, read each JSON once, and return:
@@ -100,7 +156,7 @@ def discover_rule_files(rules_dir: str) -> Dict[str, List[Dict[str, str]]]:
         for name in sorted(files):
             if not name.lower().endswith(".json"):
                 continue
-            if name.lower() == "rule_template.json":
+            if name.lower() in ("rule_template.json", "rule_schema.json"):
                 continue
 
             full_path = os.path.join(root, name)
@@ -116,6 +172,8 @@ def discover_rule_files(rules_dir: str) -> Dict[str, List[Dict[str, str]]]:
             try:
                 with open(real_path, "r", encoding="utf-8") as f:
                     data = json.load(f)
+                for err in _validate_rule(data):
+                    print(f"[WARN] Schema validation error in {real_path}: {err}", file=sys.stderr)
                 category = _safe_str(data.get("category") or "Uncategorised") or "Uncategorised"
                 rule_id  = _safe_str(data.get("id") or data.get("rule_id") or name)
                 title    = _safe_str(data.get("title") or data.get("control_number") or name)
@@ -693,10 +751,11 @@ class AccordionSection:
         btn = self.rule_buttons.get(path)
         if btn is None:
             return
-        icon     = self._ICON_MAP.get(status, "")
-        color    = self._COLOR_MAP.get(status, ("transparent", "transparent"))
-        text_col = ("white", "white") if color != ("transparent", "transparent") else ("#1a1a1a", "#e0e0e0")
-        btn.configure(text=f"{rule_id}{icon}", fg_color=color, text_color=text_col)
+        icon = self._ICON_MAP.get(status, "")
+        color = self._COLOR_MAP.get(status)
+        fg_color = color if color is not None else "transparent"
+        text_col = ("white", "white") if color is not None else ("#1a1a1a", "#e0e0e0")
+        btn.configure(text=f"{rule_id}{icon}", fg_color=fg_color, text_color=text_col)
 
     def highlight_selected(self, selected_path: str, results_by_path: Dict[str, RunResult]):
         for path, btn in self.rule_buttons.items():
@@ -994,23 +1053,33 @@ class ComplianceDebugApp(ctk.CTk):
         # Throttle UI updates: only post to main thread when ≥100 ms have
         # elapsed or this is the final rule — avoids flooding the event queue.
         _last_update: List[float] = [0.0]
+        _scan_start:  List[float] = [time.monotonic()]
 
         def progress_cb(i: int, total: int, _path: str):
-            now = time.monotonic()  # time is imported at the top level
+            now = time.monotonic()
             if i == total or (now - _last_update[0]) >= 0.1:
                 _last_update[0] = now
-                progress    = i / total if total else 0
-                status_text = f"Running… ({i}/{total})"
+                progress  = i / total if total else 0
+                # callback fires *before* rule i runs, so i-1 rules are done
+                completed = i - 1
+                elapsed   = now - _scan_start[0]
+                if completed > 0 and i < total:
+                    rate      = elapsed / completed
+                    remaining = (total - completed) * rate
+                    status_text = f"Running… ({i}/{total}) — ~{_fmt_duration(remaining)} remaining"
+                else:
+                    status_text = f"Running… ({i}/{total})"
                 self.after(0, lambda p=progress, s=status_text:
                            (self.set_status(s), self._update_progress(p)))
 
         def worker():
             results = run_rules_blocking(rule_paths, progress_cb=progress_cb)
-            self.after(0, lambda: self._on_all_rules_done(results))
+            elapsed = time.monotonic() - _scan_start[0]
+            self.after(0, lambda r=results, e=elapsed: self._on_all_rules_done(r, e))
 
         threading.Thread(target=worker, daemon=True).start()
 
-    def _on_all_rules_done(self, results: Dict[str, RunResult]):
+    def _on_all_rules_done(self, results: Dict[str, RunResult], elapsed: float = 0.0):
         self.running         = False
         self.results_by_path = results
         pass_count = fail_count = skip_count = 0
@@ -1043,7 +1112,7 @@ class ComplianceDebugApp(ctk.CTk):
             f"- SKIP        : {skip_count}"
         ))
         self._update_progress(1.0)
-        self.set_status("Done")
+        self.set_status(f"Done  ({_fmt_duration(elapsed)} total)")
         self.all_rules_run = True
 
         result_to_show = (
