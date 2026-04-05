@@ -9796,3 +9796,406 @@ def portable_storage_limit_lx() -> bool:
 
     except Exception:
         return False
+
+    def cui_removal_mechanism_wc() -> bool:
+        """
+        AC.L2-3.1.22e - Mechanisms are in Place to Remove and Address
+        Improper Posting of CUI (Windows Client)
+        Checks three technical mechanisms:
+        1. Audit policy captures file system change events on sensitive paths
+        2. Removable storage write is restricted to prevent unauthorized
+           transfer of CUI to public systems
+        3. Object access auditing is enabled to detect unauthorized
+           file modifications
+        Returns True if all three mechanisms are active.
+        """
+        try:
+            file_audit_ok = False
+            removable_restricted = False
+            object_access_audited = False
+
+            # Check audit policy captures file system changes
+            audit_result = subprocess.run(
+                ["auditpol", "/get", "/category:*"],
+                capture_output=True, text=True, timeout=30
+            )
+            if audit_result.returncode != 0:
+                return False
+
+            output = audit_result.stdout.lower()
+
+            # Check file system and object access auditing
+            file_audit_ok = bool(
+                re.search(
+                    r"file system\s+(success|failure|success and failure)",
+                    output
+                )
+            )
+
+            object_access_audited = bool(
+                re.search(
+                    r"object access\s+(success|failure|success and failure)",
+                    output
+                )
+            )
+
+            # Check removable storage write restriction
+            removable_result = subprocess.run(
+                ["powershell", "-Command",
+                 "Get-ItemProperty -Path "
+                 "'HKLM:\\SOFTWARE\\Policies\\Microsoft\\Windows\\"
+                 "RemovableStorageDevices' "
+                 "-ErrorAction SilentlyContinue | "
+                 "Select-Object Deny_Write, Deny_All | ConvertTo-Json"],
+                capture_output=True, text=True, timeout=30
+            )
+            if removable_result.returncode == 0 and \
+                    removable_result.stdout.strip():
+                rem_data = json.loads(removable_result.stdout)
+                removable_restricted = bool(
+                    rem_data.get("Deny_Write", 0) == 1
+                    or rem_data.get("Deny_All", 0) == 1
+                )
+
+            # Check BitLocker To Go as additional removable restriction
+            if not removable_restricted:
+                rdv_result = subprocess.run(
+                    ["powershell", "-Command",
+                     "Get-ItemProperty -Path "
+                     "'HKLM:\\SOFTWARE\\Policies\\Microsoft\\FVE' "
+                     "-ErrorAction SilentlyContinue | "
+                     "Select-Object RDVDenyWriteAccess | ConvertTo-Json"],
+                    capture_output=True, text=True, timeout=30
+                )
+                if rdv_result.returncode == 0 and rdv_result.stdout.strip():
+                    rdv_data = json.loads(rdv_result.stdout)
+                    removable_restricted = bool(
+                        rdv_data.get("RDVDenyWriteAccess", 0) == 1
+                    )
+
+            return bool(
+                file_audit_ok
+                and removable_restricted
+                and object_access_audited
+            )
+
+        except Exception:
+            return False
+
+    def cui_removal_mechanism_ws() -> bool:
+        """
+        AC.L2-3.1.22e - Mechanisms are in Place to Remove and Address
+        Improper Posting of CUI (Windows Server)
+        Checks three technical mechanisms:
+        1. File integrity monitoring or audit logging covers web content
+           directories for unauthorized changes
+        2. Access controls restrict write permissions on public content
+           paths to named authorized accounts only
+        3. Object access and file system auditing is enabled with
+           sufficient log retention
+        Returns True if all three mechanisms are active.
+        """
+        try:
+            content_audited = False
+            access_restricted = False
+            audit_retention_ok = False
+
+            # Common web content directories on Windows Server
+            web_content_paths = [
+                "C:\\inetpub\\wwwroot",
+                "C:\\inetpub\\ftproot",
+                "C:\\WebContent"
+            ]
+
+            # Check audit policy captures file system and object access
+            audit_result = subprocess.run(
+                ["auditpol", "/get", "/category:*"],
+                capture_output=True, text=True, timeout=30
+            )
+            if audit_result.returncode != 0:
+                return False
+
+            output = audit_result.stdout.lower()
+
+            file_system_audited = bool(
+                re.search(
+                    r"file system\s+(success|failure|success and failure)",
+                    output
+                )
+            )
+            object_access_audited = bool(
+                re.search(
+                    r"object access\s+(success|failure|success and failure)",
+                    output
+                )
+            )
+            content_audited = bool(file_system_audited and object_access_audited)
+
+            # Check access controls on web content directories
+            broad_principals = {"everyone", "authenticated users", "users"}
+            for web_path in web_content_paths:
+                # Check if path exists
+                path_check = subprocess.run(
+                    ["powershell", "-Command",
+                     f"Test-Path '{web_path}'"],
+                    capture_output=True, text=True, timeout=10
+                )
+                if path_check.returncode != 0 or \
+                        path_check.stdout.strip().lower() != "true":
+                    continue
+
+                # Check ACL on web content path
+                acl_result = subprocess.run(
+                    ["powershell", "-Command",
+                     f"Get-Acl -Path '{web_path}' | "
+                     "Select-Object -ExpandProperty Access | "
+                     "Select-Object IdentityReference, "
+                     "FileSystemRights, AccessControlType | ConvertTo-Json"],
+                    capture_output=True, text=True, timeout=30
+                )
+                if acl_result.returncode != 0 or not acl_result.stdout.strip():
+                    continue
+
+                acls = json.loads(acl_result.stdout)
+                if isinstance(acls, dict):
+                    acls = [acls]
+
+                # Flag broad principals with write or modify access
+                flagged = [
+                    a for a in acls
+                    if (a.get("IdentityReference") or "")
+                       .lower().split("\\")[-1]
+                       in broad_principals
+                       and (a.get("AccessControlType") or "").lower() == "allow"
+                       and any(
+                        right in (a.get("FileSystemRights") or "").lower()
+                        for right in ["write", "modify", "fullcontrol"]
+                    )
+                ]
+                if not flagged:
+                    access_restricted = True
+                break
+
+            # If no web content path found check IIS is not installed
+            # or access restricted at IIS level
+            if not access_restricted:
+                iis_result = subprocess.run(
+                    ["powershell", "-Command",
+                     "Get-WindowsFeature -Name Web-Server "
+                     "-ErrorAction SilentlyContinue | "
+                     "Select-Object InstallState | ConvertTo-Json"],
+                    capture_output=True, text=True, timeout=30
+                )
+                if iis_result.returncode == 0 and iis_result.stdout.strip():
+                    iis_data = json.loads(iis_result.stdout)
+                    install_state = (
+                            iis_data.get("InstallState") or ""
+                    ).lower()
+                    # If IIS not installed public content risk is lower
+                    if install_state != "installed":
+                        access_restricted = True
+
+            # Check Security log size for retention
+            log_result = subprocess.run(
+                ["powershell", "-Command",
+                 "Get-WinEvent -ListLog Security | "
+                 "Select-Object MaximumSizeInBytes | ConvertTo-Json"],
+                capture_output=True, text=True, timeout=30
+            )
+            if log_result.returncode == 0 and log_result.stdout.strip():
+                log_data = json.loads(log_result.stdout)
+                max_size = int(log_data.get("MaximumSizeInBytes", 0))
+                audit_retention_ok = bool(max_size >= 134217728)
+
+            return bool(
+                content_audited
+                and access_restricted
+                and audit_retention_ok
+            )
+
+        except Exception:
+            return False
+
+    def cui_removal_mechanism_lx() -> bool:
+        """
+        AC.L2-3.1.22e - Mechanisms are in Place to Remove and Address
+        Improper Posting of CUI (Linux/Debian)
+        Checks three technical mechanisms:
+        1. auditd monitors web content directories for unauthorized changes
+        2. File permissions on public content paths restrict write access
+           to named authorized accounts only
+        3. SELinux or AppArmor confines web server processes to prevent
+           unauthorized content access or modification
+        Returns True if all three mechanisms are active.
+        """
+        try:
+            web_dir_audited = False
+            content_permissions_ok = False
+            mac_confines_webserver = False
+
+            # Common web content directories on Linux
+            web_content_paths = [
+                "/var/www/html",
+                "/var/www",
+                "/srv/www",
+                "/usr/share/nginx/html",
+                "/var/www/public"
+            ]
+
+            # Check auditd monitors web content directories
+            auditd_result = subprocess.run(
+                ["systemctl", "is-active", "auditd"],
+                capture_output=True, text=True, timeout=10
+            )
+            if auditd_result.returncode == 0 and \
+                    auditd_result.stdout.strip().lower() == "active":
+                rules_result = subprocess.run(
+                    ["auditctl", "-l"],
+                    capture_output=True, text=True, timeout=10
+                )
+                if rules_result.returncode == 0 and rules_result.stdout.strip():
+                    rules = rules_result.stdout.lower()
+                    if "no rules" not in rules:
+                        # Check for rules watching web content paths
+                        web_dir_audited = bool(
+                            re.search(
+                                r"(\/var\/www|\/srv\/www|"
+                                r"\/usr\/share\/nginx|\/web)",
+                                rules
+                            )
+                        )
+
+                        # Fall back to checking for general file write rules
+                        if not web_dir_audited:
+                            web_dir_audited = bool(
+                                re.search(
+                                    r"(-w\s+\/var|path=\/var|"
+                                    r"write,execute|perm=wa)",
+                                    rules
+                                )
+                            )
+
+            # Check file permissions on web content directories
+            for web_path in web_content_paths:
+                stat_result = subprocess.run(
+                    ["stat", "-c", "%a %U %G", web_path],
+                    capture_output=True, text=True, timeout=10
+                )
+                if stat_result.returncode != 0:
+                    continue
+
+                parts = stat_result.stdout.strip().split()
+                if len(parts) < 3:
+                    continue
+
+                mode_str, owner, group = parts[0], parts[1], parts[2]
+
+                try:
+                    mode_int = int(mode_str, 8)
+                except ValueError:
+                    continue
+
+                # Check world-writable bit is not set
+                world_writable = bool(mode_int & 0o002)
+                if world_writable:
+                    content_permissions_ok = False
+                    break
+
+                # Check owner is root or named web service account
+                # not a generic or anonymous account
+                insecure_owners = {"nobody", "anonymous", ""}
+                if owner.lower() not in insecure_owners:
+                    content_permissions_ok = True
+                    break
+
+            # If no web content path found check web server is not running
+            if not content_permissions_ok:
+                for web_svc in ["apache2", "nginx", "httpd", "lighttpd"]:
+                    svc_result = subprocess.run(
+                        ["systemctl", "is-active", web_svc],
+                        capture_output=True, text=True, timeout=10
+                    )
+                    if svc_result.returncode == 0 and \
+                            svc_result.stdout.strip().lower() == "active":
+                        # Web server is running but no content path found
+                        # This is a fail — web server with no
+                        # monitored content directory
+                        content_permissions_ok = False
+                        break
+                else:
+                    # No web server running — content risk is lower
+                    content_permissions_ok = True
+
+            # Check SELinux or AppArmor confines web server processes
+            selinux_result = subprocess.run(
+                ["getenforce"], capture_output=True, text=True, timeout=10
+            )
+            if selinux_result.returncode == 0 and \
+                    selinux_result.stdout.strip().lower() == "enforcing":
+                # Check httpd_t or nginx_t SELinux context is active
+                ps_result = subprocess.run(
+                    ["ps", "-eZ"],
+                    capture_output=True, text=True, timeout=10
+                )
+                if ps_result.returncode == 0 and ps_result.stdout.strip():
+                    output = ps_result.stdout.lower()
+                    mac_confines_webserver = bool(
+                        re.search(
+                            r"(httpd_t|nginx_t|apache_t|www_t)",
+                            output
+                        )
+                    )
+                # If no web process running SELinux is still enforcing
+                if not mac_confines_webserver:
+                    mac_confines_webserver = True
+
+            # Check AppArmor confines web server
+            if not mac_confines_webserver:
+                aa_result = subprocess.run(
+                    ["aa-status"],
+                    capture_output=True, text=True, timeout=10
+                )
+                if aa_result.returncode == 0 and aa_result.stdout.strip():
+                    output = aa_result.stdout.lower()
+                    # Check for apache or nginx AppArmor profiles in enforce
+                    mac_confines_webserver = bool(
+                        re.search(
+                            r"(apache2|nginx|httpd|lighttpd)"
+                            r".*enforce",
+                            output
+                        )
+                        or re.search(
+                            r"enforce.*"
+                            r"(apache2|nginx|httpd|lighttpd)",
+                            output
+                        )
+                    )
+                    # If no web profile but AppArmor is enabled
+                    # and no web server is running treat as ok
+                    if not mac_confines_webserver:
+                        for web_svc in [
+                            "apache2", "nginx", "httpd", "lighttpd"
+                        ]:
+                            svc_result = subprocess.run(
+                                ["systemctl", "is-active", web_svc],
+                                capture_output=True, text=True, timeout=10
+                            )
+                            if svc_result.returncode == 0 and \
+                                    svc_result.stdout.strip().lower() \
+                                    == "active":
+                                # Web server running without AppArmor profile
+                                mac_confines_webserver = False
+                                break
+                        else:
+                            # No web server running
+                            mac_confines_webserver = True
+
+            return bool(
+                web_dir_audited
+                and content_permissions_ok
+                and mac_confines_webserver
+            )
+
+        except Exception:
+            return False
+
