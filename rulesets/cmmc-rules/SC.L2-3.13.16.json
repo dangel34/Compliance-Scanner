@@ -1,0 +1,141 @@
+{
+  "id": "SC.L2-3.13.16",
+  "control_number": "SC.L2-3.13.16",
+  "title": "Protect the Confidentiality of CUI at Rest",
+  "description": "Protect the confidentiality of CUI at rest.",
+  "category": "SC",
+  "target_os": [
+    "debian",
+    "linux",
+    "windows_client",
+    "windows_server"
+  ],
+  "check_details": {
+    "windows_client": {
+      "checks": [
+        {
+          "check_type": "command",
+          "name": "BitLocker is Enabled on System Drive",
+          "sub_control": "a",
+          "command": "cs_f(system_communications_protection.bitlocker_enabled_wc)",
+          "expected_result": "True",
+          "purpose": "Verify BitLocker protection is On for the C: drive via manage-bde to ensure CUI stored on the system drive is encrypted at rest"
+        },
+        {
+          "check_type": "command",
+          "name": "BitLocker Encryption is 100% Complete",
+          "sub_control": "b",
+          "command": "cs_f(system_communications_protection.bitlocker_full_encryption_wc)",
+          "expected_result": "True",
+          "purpose": "Confirm the BitLocker encryption percentage is 100%, ensuring no unencrypted data remains on the system drive"
+        },
+        {
+          "check_type": "command",
+          "name": "CUI at Rest Encryption Policy Documented",
+          "sub_control": "c",
+          "command": "NA",
+          "expected_result": "NA",
+          "purpose": "Verify documented policy identifies all locations where CUI is stored at rest and mandates encryption for each \u00e2\u20ac\u201d policy review only"
+        }
+      ]
+    },
+    "windows_server": {
+      "checks": [
+        {
+          "check_type": "command",
+          "name": "BitLocker is Enabled on System Drive",
+          "sub_control": "a",
+          "command": "cs_f(system_communications_protection.bitlocker_enabled_ws)",
+          "expected_result": "True",
+          "purpose": "Verify BitLocker protection is On for the server's C: drive to encrypt CUI at rest"
+        },
+        {
+          "check_type": "command",
+          "name": "BitLocker Encryption is 100% Complete",
+          "sub_control": "b",
+          "command": "cs_f(system_communications_protection.bitlocker_full_encryption_ws)",
+          "expected_result": "True",
+          "purpose": "Confirm BitLocker encryption percentage is 100% on the server's system drive, ensuring all CUI is fully protected"
+        },
+        {
+          "check_type": "command",
+          "name": "CUI at Rest Encryption Policy Documented",
+          "sub_control": "c",
+          "command": "NA",
+          "expected_result": "NA",
+          "purpose": "Verify documented policy mandates encryption for all CUI at rest locations including databases, file shares, and backup media \u00e2\u20ac\u201d policy review only"
+        },
+        {
+          "check_type": "command",
+          "name": "Data Drive Encryption Verified",
+          "sub_control": "d",
+          "command": "NA",
+          "expected_result": "NA",
+          "purpose": "Verify BitLocker or EFS encryption is applied to all data drives storing CUI, not just the system drive \u00e2\u20ac\u201d requires manual review of additional volumes"
+        }
+      ]
+    },
+    "linux": {
+      "checks": [
+        {
+          "check_type": "command",
+          "name": "LUKS Encrypted Partitions Exist",
+          "sub_control": "a",
+          "command": "cs_f(system_communications_protection.luks_active_lx)",
+          "expected_result": "True",
+          "purpose": "Verify LUKS-encrypted partitions exist on the system via lsblk, confirming data-at-rest encryption is deployed for CUI storage"
+        },
+        {
+          "check_type": "command",
+          "name": "LUKS Device Mappings are Active",
+          "sub_control": "b",
+          "command": "cs_f(system_communications_protection.luks_mapping_active_lx)",
+          "expected_result": "True",
+          "purpose": "Confirm LUKS device mappings (dm-crypt) are active and mounted, verifying that encrypted volumes are properly unlocked and accessible only through the encryption layer"
+        },
+        {
+          "check_type": "command",
+          "name": "CUI at Rest Encryption Policy Documented",
+          "sub_control": "c",
+          "command": "NA",
+          "expected_result": "NA",
+          "purpose": "Verify documented policy mandates encryption for all CUI stored at rest \u00e2\u20ac\u201d policy review only"
+        }
+      ]
+    },
+    "debian": {
+      "checks": [
+        {
+          "check_type": "command",
+          "name": "LUKS Encrypted Partitions Exist",
+          "sub_control": "a",
+          "command": "cs_f(system_communications_protection.luks_active_lx)",
+          "expected_result": "True",
+          "purpose": "Verify LUKS-encrypted partitions exist on the system via lsblk, confirming data-at-rest encryption is deployed for CUI storage"
+        },
+        {
+          "check_type": "command",
+          "name": "LUKS Device Mappings are Active",
+          "sub_control": "b",
+          "command": "cs_f(system_communications_protection.luks_mapping_active_lx)",
+          "expected_result": "True",
+          "purpose": "Confirm LUKS device mappings (dm-crypt) are active and mounted, verifying that encrypted volumes are properly unlocked and accessible only through the encryption layer"
+        },
+        {
+          "check_type": "command",
+          "name": "CUI at Rest Encryption Policy Documented",
+          "sub_control": "c",
+          "command": "NA",
+          "expected_result": "NA",
+          "purpose": "Verify documented policy mandates encryption for all CUI stored at rest \u00e2\u20ac\u201d policy review only"
+        }
+      ]
+    }
+  },
+  "severity": "High",
+  "remediation": "Enable BitLocker on all drives storing CUI via GPO or manage-bde. Ensure encryption percentage reaches 100%. Configure TPM+PIN key protectors and escrow recovery keys. On Linux, ensure all partitions containing CUI are encrypted with LUKS (set up during OS installation or via cryptsetup luksFormat on data volumes).",
+  "tags": [
+    "SC",
+    "SC.L2-3.13.16"
+  ]
+}

@@ -1,0 +1,109 @@
+{
+  "id": "SC.L2-3.13.6",
+  "control_number": "SC.L2-3.13.6",
+  "title": "Deny Network Communications Traffic by Default",
+  "description": "Deny network communications traffic by default and allow network communications traffic by exception (i.e., deny all, permit by exception).",
+  "category": "SC",
+  "target_os": [
+    "debian",
+    "linux",
+    "windows_client",
+    "windows_server"
+  ],
+  "check_details": {
+    "windows_client": {
+      "checks": [
+        {
+          "check_type": "command",
+          "name": "Default Inbound Action is Block on All Profiles",
+          "sub_control": "a",
+          "command": "cs_f(system_communications_protection.inbound_default_block_wc)",
+          "expected_result": "True",
+          "purpose": "Verify Windows Defender Firewall DefaultInboundAction is Block on Domain, Private, and Public profiles to enforce deny-by-default for inbound traffic"
+        },
+        {
+          "check_type": "command",
+          "name": "Explicit Outbound Allow Rules Exist",
+          "sub_control": "b",
+          "command": "cs_f(system_communications_protection.outbound_rules_exist_wc)",
+          "expected_result": "True",
+          "purpose": "Confirm explicit outbound Allow rules are defined rather than relying on a default allow-all posture, supporting permit-by-exception for outbound traffic"
+        }
+      ]
+    },
+    "windows_server": {
+      "checks": [
+        {
+          "check_type": "command",
+          "name": "Default Inbound Action is Block on All Profiles",
+          "sub_control": "a",
+          "command": "cs_f(system_communications_protection.inbound_default_block_ws)",
+          "expected_result": "True",
+          "purpose": "Verify Windows Defender Firewall default inbound action is Block on all profiles on the server"
+        },
+        {
+          "check_type": "command",
+          "name": "Explicit Outbound Allow Rules Exist",
+          "sub_control": "b",
+          "command": "cs_f(system_communications_protection.outbound_rules_exist_ws)",
+          "expected_result": "True",
+          "purpose": "Confirm explicit outbound Allow rules are defined on the server to support permit-by-exception posture"
+        },
+        {
+          "check_type": "command",
+          "name": "Deny-by-Default Policy Documented",
+          "sub_control": "c",
+          "command": "NA",
+          "expected_result": "NA",
+          "purpose": "Verify a network policy documents deny-all/permit-by-exception as the default communications stance — policy review only"
+        }
+      ]
+    },
+    "linux": {
+      "checks": [
+        {
+          "check_type": "command",
+          "name": "iptables Default Policy is DROP/REJECT on All Chains",
+          "sub_control": "a",
+          "command": "cs_f(system_communications_protection.iptables_default_drop_lx)",
+          "expected_result": "True",
+          "purpose": "Verify iptables INPUT, OUTPUT, and FORWARD chain default policies are DROP or REJECT to enforce deny-by-default for all traffic directions"
+        },
+        {
+          "check_type": "command",
+          "name": "UFW or firewalld Default Deny Incoming",
+          "sub_control": "b",
+          "command": "cs_f(system_communications_protection.ufw_default_deny_lx)",
+          "expected_result": "True",
+          "purpose": "Confirm ufw default incoming policy is deny or firewalld default zone is drop/block to enforce deny-by-default at the host boundary"
+        }
+      ]
+    },
+    "debian": {
+      "checks": [
+        {
+          "check_type": "command",
+          "name": "iptables Default Policy is DROP/REJECT on All Chains",
+          "sub_control": "a",
+          "command": "cs_f(system_communications_protection.iptables_default_drop_lx)",
+          "expected_result": "True",
+          "purpose": "Verify iptables INPUT, OUTPUT, and FORWARD chain default policies are DROP or REJECT to enforce deny-by-default for all traffic directions"
+        },
+        {
+          "check_type": "command",
+          "name": "UFW or firewalld Default Deny Incoming",
+          "sub_control": "b",
+          "command": "cs_f(system_communications_protection.ufw_default_deny_lx)",
+          "expected_result": "True",
+          "purpose": "Confirm ufw default incoming policy is deny or firewalld default zone is drop/block to enforce deny-by-default at the host boundary"
+        }
+      ]
+    }
+  },
+  "severity": "High",
+  "remediation": "Configure Windows Defender Firewall DefaultInboundAction to Block for all profiles via GPO. Define explicit outbound Allow rules for required services. On Linux, set iptables/nftables default policies to DROP for INPUT, OUTPUT, and FORWARD chains, or configure ufw default deny incoming/outgoing.",
+  "tags": [
+    "SC",
+    "SC.L2-3.13.6"
+  ]
+}

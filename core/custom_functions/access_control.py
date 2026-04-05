@@ -46,16 +46,17 @@ def domain_joined_wc():
         return True
 
 def system_access_wc(): # Chat Ran in elevated Privilages
-    parse_cmd = 'Select-String "SeInteractiveLogonRight","SeRemoteInteractiveLogonRight" C:\secpol.cfg'
+    parse_cmd = r'Select-String "SeInteractiveLogonRight","SeRemoteInteractiveLogonRight" C:\secpol.cfg'
     create_log = run_command(
-        'powershell -NoProfile -Command "secedit /export /cfg C:\secpol.cfg"')
+        r'powershell -NoProfile -Command "secedit /export /cfg C:\secpol.cfg"')
     result = run_command(
         f'powershell -NoProfile -Command "{parse_cmd}"')
+    remove_cmd = r'powershell -NoProfile -Command "rm C:\secpol.cfg"'
     if result['returncode'] != 0:
-        remove_cmd = f'powershell -NoProfile -Command "rm C:\secpol.cfg"'
+        run_command(remove_cmd)
         return False
     else:
-        remove_cmd = f'powershell -NoProfile -Command "rm C:\secpol.cfg"'
+        run_command(remove_cmd)
         return True
 
 
@@ -828,7 +829,7 @@ def function_restriction_lx() -> bool:
 
         # Check PAM for access control configuration
         pam_result = subprocess.run(
-            ["grep", "-r", "pam_access\|pam_listfile\|pam_wheel", "/etc/pam.d/"],
+            ["grep", "-r", r"pam_access\|pam_listfile\|pam_wheel", "/etc/pam.d/"],
             capture_output=True, text=True, timeout=30
         )
         if pam_result.returncode == 0 and pam_result.stdout.strip():

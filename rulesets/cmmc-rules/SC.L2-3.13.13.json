@@ -1,0 +1,141 @@
+{
+  "id": "SC.L2-3.13.13",
+  "control_number": "SC.L2-3.13.13",
+  "title": "Control and Monitor the Use of Mobile Code",
+  "description": "Control and monitor the use of mobile code.",
+  "category": "SC",
+  "target_os": [
+    "debian",
+    "linux",
+    "windows_client",
+    "windows_server"
+  ],
+  "check_details": {
+    "windows_client": {
+      "checks": [
+        {
+          "check_type": "command",
+          "name": "PowerShell Execution Policy is RemoteSigned or AllSigned",
+          "sub_control": "a",
+          "command": "cs_f(system_communications_protection.ps_execution_policy_wc)",
+          "expected_result": "True",
+          "purpose": "Verify PowerShell execution policy is RemoteSigned or AllSigned to control execution of downloaded and unsigned scripts (a form of mobile code)"
+        },
+        {
+          "check_type": "command",
+          "name": "Windows Script Host is Disabled",
+          "sub_control": "b",
+          "command": "cs_f(system_communications_protection.wsh_disabled_wc)",
+          "expected_result": "True",
+          "purpose": "Verify Windows Script Host Enabled = 0 in registry to prevent execution of VBScript and JScript mobile code outside of controlled environments"
+        },
+        {
+          "check_type": "command",
+          "name": "AppLocker or WDAC Policies are Enforced",
+          "sub_control": "c",
+          "command": "cs_f(system_communications_protection.applocker_active_wc)",
+          "expected_result": "True",
+          "purpose": "Confirm AppLocker or Windows Defender Application Control policies are active and in Enforce mode to control which scripts and executables may run"
+        }
+      ]
+    },
+    "windows_server": {
+      "checks": [
+        {
+          "check_type": "command",
+          "name": "PowerShell Execution Policy is RemoteSigned or AllSigned",
+          "sub_control": "a",
+          "command": "cs_f(system_communications_protection.ps_execution_policy_ws)",
+          "expected_result": "True",
+          "purpose": "Verify PowerShell execution policy restricts unsigned script execution on the server"
+        },
+        {
+          "check_type": "command",
+          "name": "Windows Script Host is Disabled",
+          "sub_control": "b",
+          "command": "cs_f(system_communications_protection.wsh_disabled_ws)",
+          "expected_result": "True",
+          "purpose": "Verify Windows Script Host is disabled on the server to prevent VBScript/JScript mobile code execution"
+        },
+        {
+          "check_type": "command",
+          "name": "AppLocker or WDAC Policies are Enforced",
+          "sub_control": "c",
+          "command": "cs_f(system_communications_protection.applocker_active_ws)",
+          "expected_result": "True",
+          "purpose": "Confirm application control policies are active on the server to restrict unauthorized code execution"
+        },
+        {
+          "check_type": "command",
+          "name": "Mobile Code Policy Documented",
+          "sub_control": "d",
+          "command": "NA",
+          "expected_result": "NA",
+          "purpose": "Verify a documented policy identifies authorized mobile code technologies and controls their use \u00e2\u20ac\u201d policy review only"
+        }
+      ]
+    },
+    "linux": {
+      "checks": [
+        {
+          "check_type": "command",
+          "name": "noexec Option on /tmp and /home",
+          "sub_control": "a",
+          "command": "cs_f(system_communications_protection.noexec_tmp_lx)",
+          "expected_result": "True",
+          "purpose": "Verify /tmp and /home are mounted with the noexec option to prevent execution of downloaded scripts and mobile code in user-writable directories"
+        },
+        {
+          "check_type": "command",
+          "name": "No World-Writable Directories in PATH",
+          "sub_control": "b",
+          "command": "cs_f(system_communications_protection.no_world_writable_path_lx)",
+          "expected_result": "True",
+          "purpose": "Verify no world-writable directories exist in the system PATH, preventing injection of malicious executables that could masquerade as system commands"
+        },
+        {
+          "check_type": "command",
+          "name": "Mobile Code Policy Documented",
+          "sub_control": "c",
+          "command": "NA",
+          "expected_result": "NA",
+          "purpose": "Verify organizational policy controls authorized mobile code \u00e2\u20ac\u201d policy review only"
+        }
+      ]
+    },
+    "debian": {
+      "checks": [
+        {
+          "check_type": "command",
+          "name": "noexec Option on /tmp and /home",
+          "sub_control": "a",
+          "command": "cs_f(system_communications_protection.noexec_tmp_lx)",
+          "expected_result": "True",
+          "purpose": "Verify /tmp and /home are mounted with the noexec option to prevent execution of downloaded scripts and mobile code in user-writable directories"
+        },
+        {
+          "check_type": "command",
+          "name": "No World-Writable Directories in PATH",
+          "sub_control": "b",
+          "command": "cs_f(system_communications_protection.no_world_writable_path_lx)",
+          "expected_result": "True",
+          "purpose": "Verify no world-writable directories exist in the system PATH, preventing injection of malicious executables that could masquerade as system commands"
+        },
+        {
+          "check_type": "command",
+          "name": "Mobile Code Policy Documented",
+          "sub_control": "c",
+          "command": "NA",
+          "expected_result": "NA",
+          "purpose": "Verify organizational policy controls authorized mobile code \u00e2\u20ac\u201d policy review only"
+        }
+      ]
+    }
+  },
+  "severity": "Medium",
+  "remediation": "Set PowerShell execution policy to RemoteSigned or AllSigned via GPO. Disable Windows Script Host via registry (HKLM:\\SOFTWARE\\Microsoft\\Windows Script Host\\Settings Enabled = 0). Deploy AppLocker or WDAC policies in Enforce mode. On Linux, add noexec to /tmp and /home mount options in /etc/fstab and remove world-writable directories from PATH.",
+  "tags": [
+    "SC",
+    "SC.L2-3.13.13"
+  ]
+}
