@@ -130,13 +130,13 @@ class RuleRunner:
 
     def run_checks(self) -> Dict[str, Any]:
         results = []
-        check_type = self.rule.get("check_type", "command")
         scanner = self._get_scanner()
         checks_skipped = 0
 
         for check in self.get_checks():
             name = check.get("name", "Unnamed Check")
             sub_control = check.get("sub_control", "Unnamed Subcontrol")
+            check_type = check.get("check_type", "command")
 
             # Skip NA subcontrols for speed (no executable command)
             if self._is_na_check(check):

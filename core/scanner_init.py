@@ -5,16 +5,21 @@ import sys
 
 def get_linux_flavor():
     """
-    Get the distro and similar flavor of Linux
-    :return:
+    Get the distro and similar flavor of Linux.
+    Returns ('unknown', '') if /etc/os-release is missing or malformed.
     """
     info = {}
-    with open("/etc/os-release") as f:
-        for line in f:
-            if "=" in line:
-                key, value = line.split("=", 1)
-                info[key] = value.strip('"')
-    distro = info.get("ID").strip(" ")
+    for path in ("/etc/os-release", "/usr/lib/os-release"):
+        try:
+            with open(path) as f:
+                for line in f:
+                    if "=" in line:
+                        key, value = line.split("=", 1)
+                        info[key.strip()] = value.strip().strip('"')
+            break
+        except OSError:
+            continue
+    distro = (info.get("ID") or "unknown").strip()
     id_like = info.get("ID_LIKE", "")
     return distro, id_like
 
