@@ -1,0 +1,133 @@
+{
+  "id": "AC.L2-3.1.4",
+  "control_number": "AC.L2-3.1.4",
+  "title": "Separate the Duties of Individuals to Reduce the Risk of Malevolent Activity",
+  "description": "separate the duties of individuals to reduce the risk of malevolent activity without collusion",
+  "category": "AC",
+  "target_os": [
+    "debian",
+    "linux",
+    "windows-client",
+    "windows-server"
+  ],
+  "check_details": {
+    "windows-client": {
+      "checks": [
+        {
+          "check_type": "command",
+          "name": "Duties Requiring Separation are Defined",
+          "sub_control": "a",
+          "command": "cs_f(access_control.separation_of_duties_defined_wc)",
+          "expected_result": "True",
+          "purpose": "Verify that distinct roles with separated duties are defined via local group membership and Group Policy, ensuring no single user holds conflicting privileges"
+        },
+        {
+          "check_type": "command",
+          "name": "Responsibilities for Separated Duties are Assigned to Separate Individuals",
+          "sub_control": "b",
+          "command": "cs_f(access_control.separation_of_duties_assigned_wc)",
+          "expected_result": "True",
+          "purpose": "Confirm that no single user account is a member of both administrative and standard user groups simultaneously, enforcing separation of responsibilities"
+        },
+        {
+          "check_type": "command",
+          "name": "Access Privileges Enabling Individual Duties are Assigned to Separate Individuals",
+          "sub_control": "c",
+          "command": "cs_f(access_control.system_access_wc)",
+          "expected_result": "True",
+          "purpose": "Verify that access privileges are scoped per role and no individual holds excessive cross-role privileges that would undermine separation of duties"
+        }
+      ]
+    },
+    "windows-server": {
+      "checks": [
+        {
+          "check_type": "command",
+          "name": "Duties Requiring Separation are Defined",
+          "sub_control": "a",
+          "command": "cs_f(access_control.separation_of_duties_defined_ws)",
+          "expected_result": "True",
+          "purpose": "Verify that distinct roles with separated duties are defined via AD security groups and Group Policy, ensuring no single account holds conflicting administrative privileges"
+        },
+        {
+          "check_type": "command",
+          "name": "Responsibilities for Separated Duties are Assigned to Separate Individuals",
+          "sub_control": "b",
+          "command": "cs_f(access_control.separation_of_duties_assigned_ws)",
+          "expected_result": "True",
+          "purpose": "Confirm that no single AD user account is a member of multiple high-privilege groups simultaneously such as Domain Admins and Backup Operators"
+        },
+        {
+          "check_type": "command",
+          "name": "Access Privileges Enabling Individual Duties are Assigned to Separate Individuals",
+          "sub_control": "c",
+          "command": "cs_f(access_control.system_access_ws)",
+          "expected_result": "True",
+          "purpose": "Verify that access privileges are scoped per role via AD group assignments and no individual holds excessive cross-role privileges that would undermine separation of duties"
+        }
+      ]
+    },
+    "linux": {
+      "checks": [
+        {
+          "check_type": "command",
+          "name": "Duties Requiring Separation are Defined",
+          "sub_control": "a",
+          "command": "cs_f(access_control.separation_of_duties_defined_lx)",
+          "expected_result": "True",
+          "purpose": "Verify that distinct roles with separated duties are defined via group membership, sudoers scoping, and PAM controls with no single user holding conflicting privileges"
+        },
+        {
+          "check_type": "command",
+          "name": "Responsibilities for Separated Duties are Assigned to Separate Individuals",
+          "sub_control": "b",
+          "command": "cs_f(access_control.separation_of_duties_assigned_lx)",
+          "expected_result": "True",
+          "purpose": "Confirm that no single user account is a member of both sudo/wheel and other sensitive groups simultaneously, enforcing separation of responsibilities"
+        },
+        {
+          "check_type": "command",
+          "name": "Access Privileges Enabling Individual Duties are Assigned to Separate Individuals",
+          "sub_control": "c",
+          "command": "cs_f(access_control.service_account_identity_lx)",
+          "expected_result": "True",
+          "purpose": "Verify that service accounts and user accounts are kept separate and no individual user account is also used as a service identity"
+        }
+      ]
+    },
+    "debian": {
+      "checks": [
+        {
+          "check_type": "command",
+          "name": "Duties Requiring Separation are Defined",
+          "sub_control": "a",
+          "command": "cs_f(access_control.separation_of_duties_defined_lx)",
+          "expected_result": "True",
+          "purpose": "Verify that distinct roles with separated duties are defined via group membership, sudoers scoping, and PAM controls with no single user holding conflicting privileges"
+        },
+        {
+          "check_type": "command",
+          "name": "Responsibilities for Separated Duties are Assigned to Separate Individuals",
+          "sub_control": "b",
+          "command": "cs_f(access_control.separation_of_duties_assigned_lx)",
+          "expected_result": "True",
+          "purpose": "Confirm that no single user account is a member of both sudo/wheel and other sensitive groups simultaneously, enforcing separation of responsibilities"
+        },
+        {
+          "check_type": "command",
+          "name": "Access Privileges Enabling Individual Duties are Assigned to Separate Individuals",
+          "sub_control": "c",
+          "command": "cs_f(access_control.service_account_identity_lx)",
+          "expected_result": "True",
+          "purpose": "Verify that service accounts and user accounts are kept separate and no individual user account is also used as a service identity"
+        }
+      ]
+    }
+  },
+  "severity": "High",
+  "remediation": "Instructions to remediate non-compliance",
+  "tags": [
+    "AC",
+    "AC.L2-3.1.4"
+  ]
+}
