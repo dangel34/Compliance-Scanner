@@ -13,18 +13,17 @@ class DebianModule(ScannerTarget):
                 capture_output=True,
                 text=True,
                 shell=True,
+                timeout=30,
             )
             return {
                 "stdout": result.stdout.strip(),
                 "stderr": result.stderr.strip(),
                 "returncode": result.returncode,
             }
+        except subprocess.TimeoutExpired:
+            return {"stdout": "", "stderr": "command timed out", "returncode": -1}
         except Exception as e:
-            return {
-                "stdout": "",
-                "stderr": str(e),
-                "returncode": -1,
-            }
+            return {"stdout": "", "stderr": str(e), "returncode": -1}
 
     def check_service(self, name: str) -> str:
         try:
@@ -32,8 +31,11 @@ class DebianModule(ScannerTarget):
                 ["systemctl", "is-active", name],
                 capture_output=True,
                 text=True,
+                timeout=10,
             )
             return result.stdout.strip()
+        except subprocess.TimeoutExpired:
+            return ""
         except Exception:
             return ""
 
@@ -43,7 +45,10 @@ class DebianModule(ScannerTarget):
                 ["stat", "-c", "%a %U %G %n", path],
                 capture_output=True,
                 text=True,
+                timeout=5,
             )
             return result.stdout.strip()
+        except subprocess.TimeoutExpired:
+            return ""
         except Exception:
             return ""

@@ -44,13 +44,16 @@ class RuleRunner:
                 cmd,
                 capture_output=True,
                 text=True,
-                shell=True
+                shell=True,
+                timeout=60
             )
             return {
                 "stdout": result.stdout.strip(),
                 "stderr": result.stderr.strip(),
                 "returncode": result.returncode
             }
+        except subprocess.TimeoutExpired:
+            return {"stdout": "", "stderr": "command timed out", "returncode": -1}
         except Exception as e:
             return {
                 "stdout": "",

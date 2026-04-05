@@ -13,6 +13,7 @@ Naming convention:
 
 import subprocess
 import re
+import shlex
 from pathlib import Path
 
 
@@ -20,15 +21,19 @@ from pathlib import Path
 # Helpers
 # ---------------------------------------------------------------------------
 
-def _run(cmd: str, shell: bool = True) -> tuple[int, str, str]:
+def _run(cmd: str, shell: bool = True, timeout: int = 30) -> tuple[int, str, str]:
     """Run a shell command and return (returncode, stdout, stderr)."""
-    result = subprocess.run(
-        cmd,
-        shell=shell,
-        capture_output=True,
-        text=True
-    )
-    return result.returncode, result.stdout.strip(), result.stderr.strip()
+    try:
+        result = subprocess.run(
+            cmd,
+            shell=shell,
+            capture_output=True,
+            text=True,
+            timeout=timeout
+        )
+        return result.returncode, result.stdout.strip(), result.stderr.strip()
+    except subprocess.TimeoutExpired:
+        return -1, "", "command timed out"
 
 
 def _ps(cmd: str) -> tuple[int, str, str]:
@@ -152,8 +157,8 @@ def no_orphaned_accounts_ws() -> bool:
 
 
 def unique_user_ids_lx() -> bool:
-    """Verify no duplicate UIDs in /etc/passwd on Linux/Debian."""
-    rc, out, _ = _run("awk -F: '{print $3}' /etc/passwd | sort | uniq -d")
+    """Verify no duplicate UIDs among regular user accounts (UID >= 1000) in /etc/passwd on Linux/Debian."""
+    rc, out, _ = _run("awk -F: '$3 >= 1000 {print $3}' /etc/passwd | sort | uniq -d")
     return rc == 0 and not out.strip()
 
 
@@ -168,7 +173,9 @@ def named_service_accounts_lx() -> bool:
     services = [s.strip() for s in out.splitlines() if s.strip()]
     root_services = []
     for svc in services[:20]:  # sample first 20 to avoid excessive checks
-        rc2, out2, _ = _run(f"systemctl show {svc} -p User 2>/dev/null | cut -d= -f2")
+        rc2, out2, _ = _run(
+            f"systemctl show {shlex.quote(svc)} -p User 2>/dev/null | cut -d= -f2"
+        )
         if out2.strip() in ("", "root"):
             root_services.append(svc)
     # Allow up to 5 root-running services (kernel/system services)
@@ -525,7 +532,9 @@ def guest_account_disabled_lx() -> bool:
         return True  # Accounts don't exist — good
     accounts = out.strip().splitlines()
     for acct in accounts:
-        rc2, out2, _ = _run(f"passwd -S {acct.strip()} 2>/dev/null | awk '{{print $2}}'")
+        rc2, out2, _ = _run(
+            f"passwd -S {shlex.quote(acct.strip())} 2>/dev/null | awk '{{print $2}}'"
+        )
         if out2.strip() not in ("L", "LK"):
             return False
     return True

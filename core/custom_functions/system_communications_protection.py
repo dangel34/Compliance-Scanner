@@ -16,9 +16,12 @@ import re
 from pathlib import Path
 
 
-def _run(cmd: str, shell: bool = True) -> tuple[int, str, str]:
-    result = subprocess.run(cmd, shell=shell, capture_output=True, text=True)
-    return result.returncode, result.stdout.strip(), result.stderr.strip()
+def _run(cmd: str, shell: bool = True, timeout: int = 30) -> tuple[int, str, str]:
+    try:
+        result = subprocess.run(cmd, shell=shell, capture_output=True, text=True, timeout=timeout)
+        return result.returncode, result.stdout.strip(), result.stderr.strip()
+    except subprocess.TimeoutExpired:
+        return -1, "", "command timed out"
 
 
 def _ps(cmd: str) -> tuple[int, str, str]:

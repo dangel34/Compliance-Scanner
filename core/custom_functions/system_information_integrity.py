@@ -22,15 +22,19 @@ from datetime import datetime, timedelta
 # Helpers
 # ---------------------------------------------------------------------------
 
-def _run(cmd: str, shell: bool = True) -> tuple[int, str, str]:
+def _run(cmd: str, shell: bool = True, timeout: int = 30) -> tuple[int, str, str]:
     """Run a shell command and return (returncode, stdout, stderr)."""
-    result = subprocess.run(
-        cmd,
-        shell=shell,
-        capture_output=True,
-        text=True
-    )
-    return result.returncode, result.stdout.strip(), result.stderr.strip()
+    try:
+        result = subprocess.run(
+            cmd,
+            shell=shell,
+            capture_output=True,
+            text=True,
+            timeout=timeout
+        )
+        return result.returncode, result.stdout.strip(), result.stderr.strip()
+    except subprocess.TimeoutExpired:
+        return -1, "", "command timed out"
 
 
 def _ps(cmd: str) -> tuple[int, str, str]:
@@ -176,10 +180,10 @@ def security_repos_configured_lx() -> bool:
 
 def missing_patches_lx() -> bool:
     """Confirm no outstanding security updates are available on Linux/Debian."""
-    # Try apt
+    # Try apt (use -s / --simulate; --just-print is a deprecated alias)
     rc, out, _ = _run(
-        "apt-get --dry-run --just-print upgrade 2>/dev/null "
-        "| grep -c '^Inst'"
+        "apt-get -s upgrade 2>/dev/null | grep -c '^Inst'",
+        timeout=60
     )
     if rc == 0:
         try:
@@ -221,19 +225,16 @@ def kernel_current_lx() -> bool:
     rc, running, _ = _run("uname -r")
     if rc != 0:
         return False
-    # Check if a newer kernel is available
+    # Check for pending kernel security updates via apt
+    # Use the meta-package (linux-image-generic) rather than the versioned name,
+    # which is not reliably derivable from uname -r across all distros.
     rc2, out2, _ = _run(
-        "apt-cache policy linux-image-$(uname -r | sed 's/-[^-]*$//') 2>/dev/null "
-        "| grep 'Installed\\|Candidate'"
+        "apt-get -s upgrade 2>/dev/null | grep '^Inst' | grep -i 'linux-image'",
+        timeout=60
     )
-    if rc2 == 0 and out2.strip():
-        lines = out2.strip().splitlines()
-        installed = next((l for l in lines if "Installed" in l), "")
-        candidate = next((l for l in lines if "Candidate" in l), "")
-        inst_ver = re.search(r':\s+(\S+)', installed)
-        cand_ver = re.search(r':\s+(\S+)', candidate)
-        if inst_ver and cand_ver:
-            return inst_ver.group(1) == cand_ver.group(1)
+    if rc2 == 0:
+        # If apt reports pending linux-image upgrades, kernel is out of date
+        return not bool(out2.strip())
     return True  # Cannot determine — assume passing
 
 

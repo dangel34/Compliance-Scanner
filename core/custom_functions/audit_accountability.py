@@ -10,15 +10,19 @@ from pathlib import Path
 # Helpers
 # ---------------------------------------------------------------------------
 
-def _run(cmd: str, shell: bool = True) -> tuple[int, str, str]:
+def _run(cmd: str, shell: bool = True, timeout: int = 30) -> tuple[int, str, str]:
     """Run a shell command and return (returncode, stdout, stderr)."""
-    result = subprocess.run(
-        cmd,
-        shell=shell,
-        capture_output=True,
-        text=True
-    )
-    return result.returncode, result.stdout.strip(), result.stderr.strip()
+    try:
+        result = subprocess.run(
+            cmd,
+            shell=shell,
+            capture_output=True,
+            text=True,
+            timeout=timeout
+        )
+        return result.returncode, result.stdout.strip(), result.stderr.strip()
+    except subprocess.TimeoutExpired:
+        return -1, "", "command timed out"
 
 
 def _ps(cmd: str) -> tuple[int, str, str]:
@@ -699,12 +703,15 @@ def audit_conf_permissions_lx() -> bool:
 
 def audit_binary_integrity_lx() -> bool:
     """Verify integrity of audit binaries using package manager on Linux/Debian."""
-    # Try rpm first (RHEL/CentOS), then dpkg (Debian/Ubuntu)
+    # Try dpkg first (Debian/Ubuntu)
+    rc_dpkg, out_dpkg, _ = _run("dpkg --verify auditd 2>/dev/null")
+    if rc_dpkg == 0 and not out_dpkg.strip():
+        return True  # dpkg verify passed with no issues
+    # Fall back to rpm (RHEL/CentOS/Rocky)
     rc_rpm, out_rpm, _ = _run("rpm -V audit 2>/dev/null | grep -E '^S|^M|^5'")
     if rc_rpm == 0 and not out_rpm.strip():
         return True  # rpm verify passed with no issues
-    rc_dpkg, out_dpkg, _ = _run("dpkg --verify auditd 2>/dev/null")
-    return rc_dpkg == 0 and not out_dpkg.strip()
+    return False
 
 
 def audit_self_protect_rules_lx() -> bool:
