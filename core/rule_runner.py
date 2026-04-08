@@ -44,13 +44,16 @@ class RuleRunner:
                 cmd,
                 capture_output=True,
                 text=True,
-                shell=True
+                shell=True,
+                timeout=60
             )
             return {
                 "stdout": result.stdout.strip(),
                 "stderr": result.stderr.strip(),
                 "returncode": result.returncode
             }
+        except subprocess.TimeoutExpired:
+            return {"stdout": "", "stderr": "command timed out", "returncode": -1}
         except Exception as e:
             return {
                 "stdout": "",
@@ -130,13 +133,13 @@ class RuleRunner:
 
     def run_checks(self) -> Dict[str, Any]:
         results = []
-        check_type = self.rule.get("check_type", "command")
         scanner = self._get_scanner()
         checks_skipped = 0
 
         for check in self.get_checks():
             name = check.get("name", "Unnamed Check")
             sub_control = check.get("sub_control", "Unnamed Subcontrol")
+            check_type = check.get("check_type", "command")
 
             # Skip NA subcontrols for speed (no executable command)
             if self._is_na_check(check):
