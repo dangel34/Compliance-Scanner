@@ -1,88 +1,51 @@
 """
-Threading GUI for the Compliance Scanner.
+Compliance Scanner — main GUI entry point.
 
-Uses background threads for rule execution so the UI stays responsive.
-Similar structure to main_gui.py but with async run behavior.
+Handles layout, threading, accordion rule list, and scan orchestration.
+Rendering and export logic live in the ui sub-modules:
+  ui/rule_display.py  — tk.Text widget rendering
+  ui/report_pdf.py    — PDF generation
+  ui/report_csv.py    — CSV generation
+  ui/utils.py         — shared helpers and PROJECT_ROOT setup
 """
 from __future__ import annotations
 
 import datetime
-import html as _html
 import json
 import os
+import re
 import sys
 import threading
 import time
-import re
 import tkinter as tk
-import tkinter.font as tkfont
 from tkinter import filedialog, messagebox
 from typing import Any, Dict, List, Optional
 
 import customtkinter as ctk
 
-from reportlab.lib import colors
-from reportlab.lib.enums import TA_CENTER
-from reportlab.lib.pagesizes import A4
-from reportlab.lib.styles import ParagraphStyle, getSampleStyleSheet
-from reportlab.lib.units import mm
-from reportlab.platypus import (
-    HRFlowable,
-    Paragraph,
-    SimpleDocTemplate,
-    Spacer,
-    Table,
-    TableStyle,
-)
-from reportlab.platypus.flowables import KeepTogether
+# Ensure PROJECT_ROOT is on sys.path before any ui.* or core.* imports.
+# This is needed when final_gui.py is run directly as a script.
+def _bootstrap_path() -> None:
+    root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    if root not in sys.path:
+        sys.path.insert(0, root)
+_bootstrap_path()
+del _bootstrap_path
 
-PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-if PROJECT_ROOT not in sys.path:
-    sys.path.append(PROJECT_ROOT)  # append, not insert(0) — avoids shadowing stdlib
+from ui.utils import PROJECT_ROOT, RunResult, _safe_str, format_os_name, get_rule_status
+from ui.rule_display import _configure_tags, render_placeholder, render_rule_details, render_rule_info
+from ui.report_pdf import generate_report_pdf
+from ui.report_csv import generate_report_csv
 
 from core import os_scan
 from core.rule_runner import RuleRunner
 
-RunResult = Dict[str, Any]
 
-# Module-level font cache — created once, reused everywhere
-
-_FONT_NORMAL: Optional[tkfont.Font] = None
-_FONT_BOLD:   Optional[tkfont.Font] = None
-
-
-def _get_fonts() -> tuple:
-    """Return (normal_font, bold_font), creating them once per process."""
-    global _FONT_NORMAL, _FONT_BOLD
-    if _FONT_NORMAL is None:
-        _FONT_NORMAL = tkfont.Font(family="Consolas", size=10)
-        _FONT_BOLD   = tkfont.Font(family="Consolas", size=10, weight="bold")
-    return _FONT_NORMAL, _FONT_BOLD
-
-
-def format_os_name(os_name: str) -> str:
-    return os_name.replace("_", " ").title()
-
-
-def _safe_str(value: Any, max_len: int = 512) -> str:
-    """
-    Coerce *value* to a plain string, strip control characters, and cap length.
-    Used everywhere user-supplied JSON data is read so that malformed or
-    adversarial content cannot propagate into the UI or PDF renderer.
-    """
-    s = str(value) if value is not None else ""
-    # Strip ASCII control characters (except tab/newline which are harmless in text)
-    s = re.sub(r"[\x00-\x08\x0b\x0c\x0e-\x1f\x7f]", "", s)
-    return s[:max_len]
-
-
-def _escape_xml(value: str) -> str:
-    """HTML/XML-escape a string for safe embedding in ReportLab Paragraph markup."""
-    return _html.escape(str(value))
-
+# ---------------------------------------------------------------------------
+# Misc helpers
+# ---------------------------------------------------------------------------
 
 def _fmt_duration(seconds: float) -> str:
-    """Format a duration in seconds as a compact human-readable string."""
     s = max(0, int(seconds))
     if s < 60:
         return f"{s}s"
@@ -93,14 +56,32 @@ def _fmt_duration(seconds: float) -> str:
     return f"{h}h {m:02d}m"
 
 
-# --- JSON Schema validation (optional; skipped gracefully if jsonschema missing) ---
+# ---------------------------------------------------------------------------
+# Rule discovery helpers — defined at module level so they are not
+# recreated on every call to discover_rule_files()
+# ---------------------------------------------------------------------------
+
+def _cat_sort_key(cat: str) -> tuple:
+    return (cat.lower() == "uncategorised", cat.lower())
+
+
+def _natural_key(meta: Dict[str, str]) -> list:
+    fname = os.path.basename(meta["path"])
+    return [
+        int(chunk) if chunk.isdigit() else chunk.lower()
+        for chunk in re.split(r"(\d+)", fname)
+    ]
+
+
+# ---------------------------------------------------------------------------
+# Rule discovery
+# ---------------------------------------------------------------------------
 
 _RULE_SCHEMA: Optional[Dict[str, Any]] = None
 _RULE_SCHEMA_LOADED: bool = False
 
 
 def _load_rule_schema() -> Optional[Dict[str, Any]]:
-    """Load rule_schema.json once and cache it. Returns None on any failure."""
     global _RULE_SCHEMA, _RULE_SCHEMA_LOADED
     if _RULE_SCHEMA_LOADED:
         return _RULE_SCHEMA
@@ -115,13 +96,8 @@ def _load_rule_schema() -> Optional[Dict[str, Any]]:
 
 
 def _validate_rule(data: Dict[str, Any]) -> List[str]:
-    """
-    Validate a parsed rule dict against rule_schema.json.
-    Returns a list of human-readable error strings (empty = valid).
-    Silently returns [] if jsonschema is not installed or schema is missing.
-    """
     try:
-        import jsonschema  # optional dependency
+        import jsonschema
     except ImportError:
         return []
     schema = _load_rule_schema()
@@ -149,7 +125,6 @@ def discover_rule_files(rules_dir: str) -> Dict[str, List[Dict[str, str]]]:
     if not os.path.isdir(rules_dir):
         return categories
 
-    # Resolve once so all comparisons use the canonical absolute path
     rules_dir_real = os.path.realpath(rules_dir)
 
     for root, _, files in os.walk(rules_dir):
@@ -160,14 +135,12 @@ def discover_rule_files(rules_dir: str) -> Dict[str, List[Dict[str, str]]]:
                 continue
 
             full_path = os.path.join(root, name)
-
-            # Path-traversal guard: resolved path must stay inside rules_dir
             try:
                 real_path = os.path.realpath(full_path)
             except OSError:
                 continue
             if not real_path.startswith(rules_dir_real + os.sep) and real_path != rules_dir_real:
-                continue  # symlink escape or other traversal attempt — skip silently
+                continue
 
             try:
                 with open(real_path, "r", encoding="utf-8") as f:
@@ -178,7 +151,6 @@ def discover_rule_files(rules_dir: str) -> Dict[str, List[Dict[str, str]]]:
                 rule_id  = _safe_str(data.get("id") or data.get("rule_id") or name)
                 title    = _safe_str(data.get("title") or data.get("control_number") or name)
             except json.JSONDecodeError:
-                # Malformed JSON — log to stderr and skip, don't silently hide it
                 print(f"[WARN] Skipping malformed JSON: {real_path}", file=sys.stderr)
                 continue
             except OSError as exc:
@@ -189,175 +161,15 @@ def discover_rule_files(rules_dir: str) -> Dict[str, List[Dict[str, str]]]:
                 {"path": real_path, "rule_id": rule_id, "title": title}
             )
 
-    def _cat_sort_key(cat: str) -> tuple:
-        return (cat.lower() == "uncategorised", cat.lower())
-
-    def _natural_key(meta: Dict[str, str]) -> list:
-        fname = os.path.basename(meta["path"])
-        return [
-            int(chunk) if chunk.isdigit() else chunk.lower()
-            for chunk in re.split(r"(\d+)", fname)
-        ]
-
     return {
         cat: sorted(metas, key=_natural_key)
         for cat, metas in sorted(categories.items(), key=lambda kv: _cat_sort_key(kv[0]))
     }
 
 
-def get_rule_status(result: RunResult) -> str:
-    if result is None:
-        return "NOT_RUN"
-    if "error" in result:
-        return "ERROR"
-    checks = result.get("checks", [])
-    if not checks:
-        return "SKIP"
-    statuses = [c.get("status") for c in checks]
-    if all(s == "PASS" for s in statuses):
-        return "PASS"
-    if all(s == "FAIL" for s in statuses):
-        return "FAIL"
-    return "PARTIAL"
-
-
-# Coloured details renderer
-
-# tag -> (fg_dark, bg_dark, fg_light, bg_light, bold)
-_TAG_DEFS: Dict[str, tuple] = {
-    "rule_id":        ("#5dade2", None,      "#1a6fa8", None,       True),
-    "title":          ("#aab7b8", None,      "#555e65", None,       False),
-    "label":          ("#7f8c8d", None,      "#666e75", None,       False),
-    "value":          ("#e8e8e8", None,      "#1a1a1a", None,       False),
-    "status_pass":    ("#2ecc71", None,      "#1a7a3a", None,       True),
-    "status_fail":    ("#e74c3c", None,      "#a01010", None,       True),
-    "status_partial": ("#f0c040", None,      "#7a5c00", None,       True),
-    "status_skip":    ("#95a5a6", None,      "#555e65", None,       True),
-    "status_error":   ("#e74c3c", None,      "#a01010", None,       True),
-    "check_header":   ("#ffffff", "#1e3a5f", "#ffffff", "#1e3a5f",  True),
-    "divider":        ("#3d5166", None,      "#9baab8", None,       False),
-    "stdout_label":   ("#27ae60", None,      "#1a7a3a", None,       True),
-    "stderr_label":   ("#e67e22", None,      "#b05010", None,       True),
-    "stdout_text":    ("#abebc6", None,      "#1a5c30", None,       False),
-    "stderr_text":    ("#f0b27a", None,      "#7a3800", None,       False),
-    "error_banner":   ("#e74c3c", "#2c1515", "#cc0000", "#ffe0e0",  True),
-    "meta":           ("#85929e", None,      "#666e75", None,       False),
-}
-
-
-def _configure_tags(widget: tk.Text, mode: str = "dark") -> None:
-    """
-    Apply all named color/font tags to a tk.Text widget.
-    Reuses cached Font objects — safe to call on every theme toggle.
-    """
-    normal_font, bold_font = _get_fonts()
-    dark      = mode == "dark"
-    widget_bg = widget.cget("bg")
-
-    for tag, (fg_dark, bg_dark, fg_light, bg_light, bold) in _TAG_DEFS.items():
-        fg = fg_dark if dark else fg_light
-        bg = bg_dark if dark else bg_light
-        widget.tag_configure(
-            tag,
-            foreground=fg,
-            background=bg if bg else widget_bg,
-            font=bold_font if bold else normal_font,
-        )
-
-    widget.tag_configure("check_header", spacing1=8, spacing3=6, lmargin1=4, lmargin2=4)
-    widget.tag_configure("divider",      spacing1=2, spacing3=2)
-
-
-def _status_tag(status: str) -> str:
-    return {
-        "PASS":    "status_pass",
-        "FAIL":    "status_fail",
-        "PARTIAL": "status_partial",
-        "SKIP":    "status_skip",
-        "ERROR":   "status_error",
-    }.get(status, "value")
-
-
-def render_rule_details(widget: tk.Text, result: RunResult) -> None:
-    """
-    Clear *widget* and write a color-formatted rule result.
-    Batches all text into a single list and inserts in one pass per tag
-    segment to minimise Tcl round-trips.
-    """
-    widget.configure(state="normal")
-    widget.delete("1.0", "end")
-
-    segments: List[tuple] = []
-
-    def w(text: str, tag: str = "value") -> None:
-        segments.append((text, tag))
-
-    if "error" in result:
-        w("\n  ERROR\n",                                  "error_banner")
-        w(f"\n  {result.get('error', '')}\n",             "stderr_text")
-        w(f"\n  Rule ID : {result.get('rule_id', '')}\n", "meta")
-        w(f"  Title   : {result.get('title',   '')}\n",   "meta")
-    else:
-        status     = get_rule_status(result)
-        status_tag = _status_tag(status)
-
-        w("\n")
-        w(f"  {result.get('rule_id', '')}", "rule_id")
-        w("  —  ", "divider")
-        w(f"{result.get('title', '')}\n",   "title")
-        w("\n")
-        w("  Overall status   : ", "label"); w(f"{status}\n",                                           status_tag)
-        w("  OS               : ", "label"); w(f"{result.get('os', '')}\n",                             "value")
-        w("  Checks run       : ", "label"); w(f"{result.get('checks_run', 0)}\n",                      "value")
-        w("  Checks skipped   : ", "label"); w(f"{result.get('checks_skipped', 0)} (NA subcontrols)\n", "value")
-        w("\n")
-
-        for i, check in enumerate(result.get("checks", []), start=1):
-            chk_status = check.get("status", "")
-            chk_tag    = _status_tag(chk_status)
-
-            w(f"  CHECK #{i}  |  {check.get('check_name', '')}\n", "check_header")
-            w("  Subcontrol       : ", "label"); w(f"{check.get('sub_control',     '')}\n", "value")
-            w("  Status           : ", "label"); w(f"{chk_status}\n",                        chk_tag)
-            w("  Command          : ", "label"); w(f"{check.get('command',         '')}\n", "value")
-            w("  Expected result  : ", "label"); w(f"{check.get('expected_result', '')}\n", "value")
-            w("  Return code      : ", "label"); w(f"{check.get('returncode',      '')}\n", "value")
-
-            stdout = check.get("stdout", "").strip()
-            stderr = check.get("stderr", "").strip()
-            if stdout:
-                w("\n  stdout:\n", "stdout_label")
-                for line in stdout.splitlines():
-                    w(f"    {line}\n", "stdout_text")
-            if stderr:
-                w("\n  stderr:\n", "stderr_label")
-                for line in stderr.splitlines():
-                    w(f"    {line}\n", "stderr_text")
-
-            w("\n")
-            w("  " + "─" * 62 + "\n", "divider")
-            w("\n")
-
-    # Single-pass insert: merge consecutive same-tag segments to reduce Tcl calls
-    if segments:
-        merged: List[tuple] = [segments[0]]
-        for text, tag in segments[1:]:
-            if tag == merged[-1][1]:
-                merged[-1] = (merged[-1][0] + text, tag)
-            else:
-                merged.append((text, tag))
-        for text, tag in merged:
-            widget.insert("end", text, tag)
-
-    widget.configure(state="disabled")
-
-
-def render_placeholder(widget: tk.Text, message: str) -> None:
-    widget.configure(state="normal")
-    widget.delete("1.0", "end")
-    widget.insert("1.0", f"\n  {message}\n", "meta")
-    widget.configure(state="disabled")
-
+# ---------------------------------------------------------------------------
+# Blocking rule runner (called from background thread)
+# ---------------------------------------------------------------------------
 
 def run_rules_blocking(
     rule_paths: List[str],
@@ -372,8 +184,6 @@ def run_rules_blocking(
             r = RuleRunner(rule_path=path, os_type=None).run_checks()
             results[path] = r
         except Exception as e:
-            # Sanitize the error message — raw exception strings can contain
-            # full file paths or system details we don't want in the UI/PDF.
             error_msg = _safe_str(type(e).__name__ + ": " + str(e), max_len=256)
             results[path] = {
                 "rule_id":        os.path.basename(path),
@@ -387,303 +197,11 @@ def run_rules_blocking(
     return results
 
 
-# PDF report generation
-
-_COL_PASS    = colors.HexColor("#1a7a3a")
-_COL_FAIL    = colors.HexColor("#7a1a1a")
-_COL_PARTIAL = colors.HexColor("#8a6d1d")
-_COL_ERROR   = colors.HexColor("#7a1a1a")
-_COL_SKIP    = colors.HexColor("#555555")
-_COL_HEADER  = colors.HexColor("#34495e")
-_COL_ACCENT  = colors.HexColor("#3b8ed0")
-_COL_ROW_ALT = colors.HexColor("#eef2f5")
-_COL_WHITE   = colors.white
-_COL_LIGHT   = colors.HexColor("#dee2e6")
-
-_STATUS_COLOR: Dict[str, Any] = {
-    "PASS":    _COL_PASS,    "FAIL":    _COL_FAIL,
-    "PARTIAL": _COL_PARTIAL, "ERROR":   _COL_ERROR,
-    "SKIP":    _COL_SKIP,    "NOT_RUN": _COL_SKIP,
-}
-_STATUS_BG: Dict[str, Any] = {
-    "PASS":    colors.HexColor("#d4edda"), "FAIL":    colors.HexColor("#f8d7da"),
-    "PARTIAL": colors.HexColor("#fff3cd"), "ERROR":   colors.HexColor("#f8d7da"),
-    "SKIP":    colors.HexColor("#e2e3e5"), "NOT_RUN": colors.HexColor("#e2e3e5"),
-}
-
-
-def _make_styles() -> Dict[str, ParagraphStyle]:
-    base = getSampleStyleSheet()
-    return {
-        "title":       ParagraphStyle("ReportTitle",    parent=base["Title"],    fontSize=22, textColor=_COL_WHITE, spaceAfter=4),
-        "subtitle":    ParagraphStyle("ReportSubtitle", parent=base["Normal"],   fontSize=9,  textColor=colors.HexColor("#cccccc"), spaceAfter=2),
-        "category":    ParagraphStyle("Category",       parent=base["Heading1"], fontSize=13, textColor=_COL_HEADER, spaceBefore=14, spaceAfter=6, borderPad=4),
-        "rule_id":     ParagraphStyle("RuleID",         parent=base["Normal"],   fontSize=10, textColor=_COL_HEADER, fontName="Helvetica-Bold"),
-        "rule_title":  ParagraphStyle("RuleTitle",      parent=base["Normal"],   fontSize=9,  textColor=colors.HexColor("#444444")),
-        "cell":        ParagraphStyle("Cell",           parent=base["Normal"],   fontSize=8,  leading=11),
-        "cell_mono":   ParagraphStyle("CellMono",       parent=base["Normal"],   fontSize=7.5, fontName="Courier", leading=10),
-        "cell_label":  ParagraphStyle("CellLabel",      parent=base["Normal"],   fontSize=8,  textColor=colors.HexColor("#555555"), leading=11),
-        "status_text": ParagraphStyle("StatusText",     parent=base["Normal"],   fontSize=8,  fontName="Helvetica-Bold", alignment=TA_CENTER),
-        "error_text":  ParagraphStyle("ErrorText",      parent=base["Normal"],   fontSize=8,  textColor=_COL_FAIL, leading=11),
-        "no_checks":   ParagraphStyle("NoChecks",       parent=base["Normal"],   fontSize=8,  textColor=colors.HexColor("#888888"), leftIndent=8),
-    }
-
-
-def generate_report_pdf(
-    save_path: str,
-    results_by_path: Dict[str, RunResult],
-    rules_by_category: Dict[str, List[Dict[str, str]]],
-) -> None:
-    now           = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-    detected_os   = _escape_xml(format_os_name(os_scan()))  # escape for PDF XML safety
-    total         = len(results_by_path)
-    pass_count    = sum(1 for r in results_by_path.values() if get_rule_status(r) == "PASS")
-    fail_count    = sum(1 for r in results_by_path.values() if get_rule_status(r) == "FAIL")
-    partial_count = sum(1 for r in results_by_path.values() if get_rule_status(r) == "PARTIAL")
-    error_count   = sum(1 for r in results_by_path.values() if get_rule_status(r) == "ERROR")
-    skip_count    = sum(1 for r in results_by_path.values() if get_rule_status(r) == "SKIP")
-
-    S         = _make_styles()
-    page_w, page_h = A4
-    margin    = 18 * mm
-    content_w = page_w - 2 * margin
-    story: List[Any] = []
-
-    def _draw_header(canvas, doc):
-        canvas.saveState()
-        canvas.setFillColor(_COL_HEADER)
-        canvas.rect(0, page_h - 52 * mm, page_w, 52 * mm, fill=True, stroke=False)
-        canvas.restoreState()
-
-    def _draw_later(canvas, doc):
-        canvas.saveState()
-        canvas.setFillColor(_COL_ACCENT)
-        canvas.rect(0, page_h - 4 * mm, page_w, 4 * mm, fill=True, stroke=False)
-        canvas.restoreState()
-
-    header_data = [[Paragraph("Compliance Scan Report", S["title"])]]
-    for p in [
-        Paragraph(f"Generated : {now}", S["subtitle"]),
-        Paragraph(f"OS Detected: {detected_os}", S["subtitle"]),
-        Paragraph(f"Categories: {len(rules_by_category)}   &nbsp;&nbsp;  Rules evaluated: {total}", S["subtitle"]),
-    ]:
-        header_data.append([p])
-
-    header_table = Table(header_data, colWidths=[content_w])
-    header_table.setStyle(TableStyle([
-        ("BACKGROUND",    (0, 0), (-1, -1), _COL_HEADER),
-        ("TOPPADDING",    (0, 0), (-1, -1), 3),
-        ("BOTTOMPADDING", (0, 0), (-1, -1), 3),
-        ("LEFTPADDING",   (0, 0), (-1, -1), 0),
-    ]))
-    story.append(header_table)
-    story.append(Spacer(1, 8 * mm))
-
-    stat_labels  = ["Total",      "Pass",     "Fail",     "Partial",      "Skip",     "Error"    ]
-    stat_values  = [total,        pass_count, fail_count, partial_count,  skip_count, error_count]
-    stat_colours = [_COL_ACCENT,  _COL_PASS,  _COL_FAIL,  _COL_PARTIAL,  _COL_SKIP,  _COL_ERROR ]
-
-    def _hex(col: Any) -> str:
-        if hasattr(col, "hexval"):
-            return col.hexval().lstrip("#").lower()
-        return (
-            f"{int(round(col.red * 255)):02x}"
-            f"{int(round(col.green * 255)):02x}"
-            f"{int(round(col.blue * 255)):02x}"
-        )
-
-    def _stat_cell(label: str, value: int, col: Any) -> List:
-        return [
-            Paragraph(
-                f'<font color="#{_hex(col)}"><b>{value}</b></font>',
-                ParagraphStyle("sv", fontSize=18, alignment=TA_CENTER, leading=22),
-            ),
-            Paragraph(
-                label,
-                ParagraphStyle("sl", fontSize=7.5, alignment=TA_CENTER,
-                               textColor=colors.HexColor("#666666")),
-            ),
-        ]
-
-    card_col_w   = content_w / len(stat_labels)
-    stat_row_top = [_stat_cell(l, v, c)[0] for l, v, c in zip(stat_labels, stat_values, stat_colours)]
-    stat_row_bot = [_stat_cell(l, v, c)[1] for l, v, c in zip(stat_labels, stat_values, stat_colours)]
-
-    stat_table = Table(
-        [stat_row_top, stat_row_bot],
-        colWidths=[card_col_w] * len(stat_labels),
-        rowHeights=[22, 14],
-    )
-    stat_table.setStyle(TableStyle([
-        ("BACKGROUND",    (0, 0), (-1, -1), _COL_WHITE),
-        ("BOX",           (0, 0), (-1, -1), 0.5, _COL_LIGHT),
-        ("INNERGRID",     (0, 0), (-1, -1), 0.3, _COL_LIGHT),
-        ("TOPPADDING",    (0, 0), (-1, -1), 6),
-        ("BOTTOMPADDING", (0, 1), (-1, -1), 8),
-        ("ALIGN",         (0, 0), (-1, -1), "CENTER"),
-        ("VALIGN",        (0, 0), (-1, -1), "MIDDLE"),
-        *[("LINEABOVE", (i, 0), (i, 0), 3, stat_colours[i]) for i in range(len(stat_labels))],
-    ]))
-    story.append(stat_table)
-    story.append(Spacer(1, 6 * mm))
-
-    for category, metas in rules_by_category.items():
-        cat_block: List[Any] = [
-            HRFlowable(width="100%", thickness=1.5, color=_COL_ACCENT, spaceAfter=4),
-            Paragraph(_escape_xml(category), S["category"]),
-        ]
-
-        for meta in metas:
-            path   = meta["path"]
-            result = results_by_path.get(path)
-            if result is None:
-                continue
-
-            status    = get_rule_status(result)
-            status_bg = _STATUS_BG.get(status, colors.HexColor("#eeeeee"))
-            status_fg = _STATUS_COLOR.get(status, colors.black)
-            rule_id   = _escape_xml(result.get("rule_id", meta["rule_id"]))
-            title     = _escape_xml(result.get("title",   meta["title"]))
-            chk_run   = result.get("checks_run",     0)
-            chk_skip  = result.get("checks_skipped", 0)
-
-            rule_header = Table(
-                [[
-                    Paragraph(rule_id, S["rule_id"]),
-                    Paragraph(title,   S["rule_title"]),
-                    Paragraph(
-                        f'<b>{_escape_xml(status)}</b>',
-                        ParagraphStyle(
-                            "RHStatus", fontSize=8, fontName="Helvetica-Bold",
-                            alignment=TA_CENTER, textColor=status_fg,
-                        ),
-                    ),
-                ]],
-                colWidths=[38 * mm, content_w - 38 * mm - 24 * mm, 24 * mm],
-            )
-            rule_header.setStyle(TableStyle([
-                ("BACKGROUND",    (0, 0), (-1, -1), status_bg),
-                ("TOPPADDING",    (0, 0), (-1, -1), 5),
-                ("BOTTOMPADDING", (0, 0), (-1, -1), 5),
-                ("LEFTPADDING",   (0, 0), (-1, -1), 6),
-                ("RIGHTPADDING",  (0, 0), (-1, -1), 6),
-                ("VALIGN",        (0, 0), (-1, -1), "MIDDLE"),
-                ("BOX",           (0, 0), (-1, -1), 0.5, _COL_LIGHT),
-            ]))
-
-            meta_row = Table(
-                [[
-                    Paragraph(
-                        f"Checks run: <b>{chk_run}</b> &nbsp;&nbsp; Skipped: <b>{chk_skip}</b>",
-                        ParagraphStyle("MetaRow", fontSize=7.5,
-                                       textColor=colors.HexColor("#666666")),
-                    ),
-                ]],
-                colWidths=[content_w],
-            )
-            meta_row.setStyle(TableStyle([
-                ("BACKGROUND",    (0, 0), (-1, -1), _COL_ROW_ALT),
-                ("TOPPADDING",    (0, 0), (-1, -1), 3),
-                ("BOTTOMPADDING", (0, 0), (-1, -1), 3),
-                ("LEFTPADDING",   (0, 0), (-1, -1), 6),
-                ("BOX",           (0, 0), (-1, -1), 0.5, _COL_LIGHT),
-            ]))
-
-            rule_elements: List[Any] = [rule_header, meta_row]
-
-            if "error" in result:
-                err_table = Table(
-                    [[Paragraph(f"Error: {_escape_xml(result['error'])}", S["error_text"])]],
-                    colWidths=[content_w],
-                )
-                err_table.setStyle(TableStyle([
-                    ("BACKGROUND",    (0, 0), (-1, -1), colors.HexColor("#f8d7da")),
-                    ("TOPPADDING",    (0, 0), (-1, -1), 4),
-                    ("BOTTOMPADDING", (0, 0), (-1, -1), 4),
-                    ("LEFTPADDING",   (0, 0), (-1, -1), 6),
-                    ("BOX",           (0, 0), (-1, -1), 0.5, _COL_FAIL),
-                ]))
-                rule_elements.append(err_table)
-
-            checks = result.get("checks", [])
-            if not checks:
-                rule_elements.append(Paragraph("No checks recorded.", S["no_checks"]))
-            else:
-                check_col_ws = [
-                    8 * mm, 38 * mm,
-                    content_w - 8*mm - 38*mm - 44*mm - 18*mm - 22*mm,
-                    44 * mm, 18 * mm, 22 * mm,
-                ]
-                check_rows_data = [[
-                    Paragraph("<b>#</b>",               S["cell"]),
-                    Paragraph("<b>Check Name</b>",      S["cell"]),
-                    Paragraph("<b>Subcontrol</b>",      S["cell"]),
-                    Paragraph("<b>Expected Result</b>", S["cell"]),
-                    Paragraph("<b>Return Code</b>",     S["cell"]),
-                    Paragraph("<b>Status</b>",          S["cell"]),
-                ]]
-                check_style_cmds = [
-                    ("BACKGROUND",    (0, 0), (-1, 0),  _COL_HEADER),
-                    ("TEXTCOLOR",     (0, 0), (-1, 0),  _COL_WHITE),
-                    ("FONTNAME",      (0, 0), (-1, 0),  "Helvetica-Bold"),
-                    ("FONTSIZE",      (0, 0), (-1, 0),  8.5),
-                    ("TOPPADDING",    (0, 0), (-1, -1), 4),
-                    ("BOTTOMPADDING", (0, 0), (-1, -1), 4),
-                    ("LEFTPADDING",   (0, 0), (-1, -1), 4),
-                    ("RIGHTPADDING",  (0, 0), (-1, -1), 4),
-                    ("VALIGN",        (0, 0), (-1, -1), "TOP"),
-                    ("INNERGRID",     (0, 0), (-1, -1), 0.25, _COL_LIGHT),
-                    ("BOX",           (0, 0), (-1, -1), 0.5,  _COL_LIGHT),
-                ]
-
-                for idx, check in enumerate(checks, start=1):
-                    row_num  = len(check_rows_data)
-                    chk_stat = check.get("status", "")
-                    chk_bg   = _STATUS_BG.get(chk_stat, _COL_WHITE)
-                    chk_fg   = _STATUS_COLOR.get(chk_stat, colors.black)
-
-                    check_rows_data.append([
-                        Paragraph(str(idx),                                       S["cell"]),
-                        Paragraph(_escape_xml(check.get("check_name",      "")), S["cell"]),
-                        Paragraph(_escape_xml(check.get("sub_control",     "")), S["cell"]),
-                        Paragraph(_escape_xml(check.get("expected_result", "")), S["cell"]),
-                        Paragraph(_escape_xml(str(check.get("returncode",  ""))),S["cell"]),
-                        Paragraph(
-                            f'<font color="#{_hex(chk_fg)}"><b>{_escape_xml(chk_stat)}</b></font>',
-                            S["status_text"],
-                        ),
-                    ])
-                    if idx % 2 == 0:
-                        check_style_cmds.append(
-                            ("BACKGROUND", (0, row_num), (-2, row_num), _COL_ROW_ALT))
-                    check_style_cmds.append(
-                        ("BACKGROUND", (5, row_num), (5, row_num), chk_bg))
-
-                checks_tbl = Table(check_rows_data, colWidths=check_col_ws, repeatRows=1)
-                checks_tbl.setStyle(TableStyle(check_style_cmds))
-                rule_elements.append(checks_tbl)
-
-            rule_elements.append(Spacer(1, 4 * mm))
-            cat_block.append(KeepTogether(rule_elements[:3]))
-            cat_block.extend(rule_elements[3:])
-
-        story.extend(cat_block)
-
-    doc = SimpleDocTemplate(
-        save_path, pagesize=A4,
-        leftMargin=margin, rightMargin=margin,
-        topMargin=margin, bottomMargin=margin,
-        title="Compliance Scan Report",
-        author="Compliance Scanner",
-        subject=f"Scan performed {now} on {detected_os}",
-    )
-    doc.build(story, onFirstPage=_draw_header, onLaterPages=_draw_later)
-
-
+# ---------------------------------------------------------------------------
 # Accordion widget
+# ---------------------------------------------------------------------------
 
 class AccordionSection:
-    # Class-level colour/icon maps — defined once, not per-instance
     _COLOR_MAP = {
         "PASS":    ("#1f6f43", "#1f6f43"),
         "PARTIAL": ("#d1a800", "#d1a800"),
@@ -720,7 +238,6 @@ class AccordionSection:
         self.header_btn.pack(fill="x")
 
         self.body_frame = ctk.CTkFrame(self.wrapper, fg_color="transparent")
-        # body_frame not packed — starts collapsed
 
         for meta in rule_metas:
             btn = ctk.CTkButton(
@@ -751,8 +268,8 @@ class AccordionSection:
         btn = self.rule_buttons.get(path)
         if btn is None:
             return
-        icon = self._ICON_MAP.get(status, "")
-        color = self._COLOR_MAP.get(status)
+        icon     = self._ICON_MAP.get(status, "")
+        color    = self._COLOR_MAP.get(status)
         fg_color = color if color is not None else "transparent"
         text_col = ("white", "white") if color is not None else ("#1a1a1a", "#e0e0e0")
         btn.configure(text=f"{rule_id}{icon}", fg_color=fg_color, text_color=text_col)
@@ -771,7 +288,9 @@ class AccordionSection:
                 btn.configure(fg_color="transparent", text_color=("#1a1a1a", "#e0e0e0"))
 
 
+# ---------------------------------------------------------------------------
 # Main application
+# ---------------------------------------------------------------------------
 
 class ComplianceDebugApp(ctk.CTk):
 
@@ -790,17 +309,16 @@ class ComplianceDebugApp(ctk.CTk):
         self.results_by_path:    Dict[str, RunResult]             = {}
         self.selected_rule_path: Optional[str]                    = None
         self.accordion_sections: Dict[str, AccordionSection]      = {}
-
-        # Fast reverse-lookup: rule path -> AccordionSection
-        self._path_to_section: Dict[str, AccordionSection] = {}
+        self._path_to_section:   Dict[str, AccordionSection]      = {}
 
         self.theme:         str  = "dark"
         self.running:       bool = False
         self.all_rules_run: bool = False
 
-        self.refresh_btn: Optional[ctk.CTkButton] = None
-        self.run_all_btn: Optional[ctk.CTkButton] = None
-        self.export_btn:  Optional[ctk.CTkButton] = None
+        self.refresh_btn:    Optional[ctk.CTkButton] = None
+        self.run_all_btn:    Optional[ctk.CTkButton] = None
+        self.export_btn:     Optional[ctk.CTkButton] = None
+        self.export_csv_btn: Optional[ctk.CTkButton] = None
 
         self._build_layout()
         self.refresh_rules()
@@ -878,31 +396,44 @@ class ComplianceDebugApp(ctk.CTk):
         bottom = ctk.CTkFrame(self)
         bottom.pack(fill="x", padx=10, pady=(6, 10))
 
-        status_row = ctk.CTkFrame(bottom, fg_color="transparent")
-        status_row.pack(fill="x", padx=10, pady=(6, 0))
-
-        self.status_label = ctk.CTkLabel(status_row, text="Status: Idle", anchor="w")
-        self.status_label.pack(side="left", fill="x", expand=True)
-
+        # Row 1: run buttons (left) — status label (centre, expands) — export buttons (right)
         btn_row = ctk.CTkFrame(bottom, fg_color="transparent")
-        btn_row.pack(fill="x", padx=10, pady=(4, 6))
+        btn_row.pack(fill="x", padx=10, pady=(8, 4))
 
-        self.run_all_btn = ctk.CTkButton(btn_row, text="Run All Rules", command=self.run_all_rules)
-        self.run_all_btn.pack(side="left", padx=(0, 5))
+        self.run_all_btn = ctk.CTkButton(btn_row, text="Run All Rules", command=self.run_all_rules, width=140)
+        self.run_all_btn.pack(side="left", padx=(0, 6))
 
         self.run_selected_btn = ctk.CTkButton(
-            btn_row, text="Run Selected Rule", command=self.run_selected_rule, state="disabled"
+            btn_row, text="Run Selected Rule", command=self.run_selected_rule, state="disabled", width=140
         )
-        self.run_selected_btn.pack(side="left", padx=(0, 5))
+        self.run_selected_btn.pack(side="left", padx=(0, 6))
+
+        self.export_csv_btn = ctk.CTkButton(
+            btn_row, text="Export CSV", command=self.export_csv, state="disabled", width=120,
+            fg_color=("#1a4a6b", "#0f2d45"), hover_color=("#2167a0", "#1a4a6b"),
+        )
+        self.export_csv_btn.pack(side="right", padx=(6, 0))
 
         self.export_btn = ctk.CTkButton(
-            btn_row, text="Export Report", command=self.export_report, state="disabled",
+            btn_row, text="Export PDF", command=self.export_report, state="disabled", width=120,
             fg_color=("#2d6a4f", "#1b4332"), hover_color=("#40916c", "#2d6a4f"),
         )
-        self.export_btn.pack(side="left", padx=(0, 10))
+        self.export_btn.pack(side="right", padx=(0, 6))
 
-        self.progress_bar = ctk.CTkProgressBar(btn_row)
-        self.progress_bar.pack(side="left", fill="x", expand=True)
+        self.status_label = ctk.CTkLabel(btn_row, text="Status: Idle", anchor="center",
+                                         font=ctk.CTkFont(size=12))
+        self.status_label.pack(side="left", fill="x", expand=True)
+
+        # Row 2: progress bar (full width) — percentage (right)
+        progress_row = ctk.CTkFrame(bottom, fg_color="transparent")
+        progress_row.pack(fill="x", padx=10, pady=(0, 8))
+
+        self.progress_label = ctk.CTkLabel(progress_row, text="0%", width=36, anchor="e",
+                                           font=ctk.CTkFont(size=11))
+        self.progress_label.pack(side="right")
+
+        self.progress_bar = ctk.CTkProgressBar(progress_row, height=14)
+        self.progress_bar.pack(side="left", fill="x", expand=True, padx=(0, 6))
         self.progress_bar.set(0.0)
 
     # ------------------------------------------------------------------
@@ -926,12 +457,12 @@ class ComplianceDebugApp(ctk.CTk):
     def _update_progress(self, value: float):
         if self.progress_bar is not None:
             self.progress_bar.set(value)
+            self.progress_label.configure(text=f"{int(value * 100)}%")
 
     def _all_rule_paths(self) -> List[str]:
         return [m["path"] for m in self.rules]
 
     def _section_for_path(self, path: str) -> Optional[AccordionSection]:
-        """O(1) lookup via reverse-index dict."""
         return self._path_to_section.get(path)
 
     # ------------------------------------------------------------------
@@ -978,17 +509,17 @@ class ComplianceDebugApp(ctk.CTk):
         for section in self.accordion_sections.values():
             section.highlight_selected(rule_path, self.results_by_path)
 
-        self.run_selected_btn.configure(state="normal")
+        if not self.running:
+            self.run_selected_btn.configure(state="normal")
 
         result = self.results_by_path.get(rule_path)
         if result:
             render_rule_details(self.details_text, result)
         else:
-            render_placeholder(
-                self.details_text,
-                "Select a rule and click 'Run Selected Rule' to view results.",
-            )
-        self.set_status(f"Selected: {os.path.basename(rule_path)}")
+            render_rule_info(self.details_text, rule_path)
+
+        if not self.running:
+            self.set_status(f"Selected: {os.path.basename(rule_path)}")
 
     # ------------------------------------------------------------------
     def run_selected_rule(self):
@@ -1009,7 +540,6 @@ class ComplianceDebugApp(ctk.CTk):
             try:
                 result = RuleRunner(rule_path=meta["path"], os_type=None).run_checks()
             except Exception as e:
-                # Sanitize error message — same treatment as run_rules_blocking
                 error_msg = _safe_str(type(e).__name__ + ": " + str(e), max_len=256)
                 result = {
                     "rule_id":        meta["rule_id"],
@@ -1050,8 +580,6 @@ class ComplianceDebugApp(ctk.CTk):
         self._update_progress(0.0)
         rule_paths = self._all_rule_paths()
 
-        # Throttle UI updates: only post to main thread when ≥100 ms have
-        # elapsed or this is the final rule — avoids flooding the event queue.
         _last_update: List[float] = [0.0]
         _scan_start:  List[float] = [time.monotonic()]
 
@@ -1060,12 +588,11 @@ class ComplianceDebugApp(ctk.CTk):
             if i == total or (now - _last_update[0]) >= 0.1:
                 _last_update[0] = now
                 progress  = i / total if total else 0
-                # callback fires *before* rule i runs, so i-1 rules are done
                 completed = i - 1
                 elapsed   = now - _scan_start[0]
                 if completed > 0 and i < total:
-                    rate      = elapsed / completed
-                    remaining = (total - completed) * rate
+                    rate        = elapsed / completed
+                    remaining   = (total - completed) * rate
                     status_text = f"Running… ({i}/{total}) — ~{_fmt_duration(remaining)} remaining"
                 else:
                     status_text = f"Running… ({i}/{total})"
@@ -1084,14 +611,12 @@ class ComplianceDebugApp(ctk.CTk):
         self.results_by_path = results
         pass_count = fail_count = skip_count = 0
 
+        # Single pass: update button colours and tally counts together
         for path, result in results.items():
             status  = get_rule_status(result)
             section = self._section_for_path(path)
             if section:
-                section.set_button_color(
-                    path, status,
-                    result.get("rule_id", os.path.basename(path)),
-                )
+                section.set_button_color(path, status, result.get("rule_id", os.path.basename(path)))
             if status == "PASS":
                 pass_count += 1
             elif status in ("FAIL", "PARTIAL", "ERROR"):
@@ -1101,7 +626,7 @@ class ComplianceDebugApp(ctk.CTk):
 
         if self.selected_rule_path:
             for section in self.accordion_sections.values():
-                section.highlight_selected(self.selected_rule_path, self.results_by_path)
+                section.highlight_selected(self.selected_rule_path, results)
 
         self.summary_label.configure(text=(
             "Summary\n"
@@ -1126,48 +651,51 @@ class ComplianceDebugApp(ctk.CTk):
         self._set_controls_enabled(True)
 
     # ------------------------------------------------------------------
-    def export_report(self):
+    def _run_export(
+        self,
+        ext: str,
+        filetypes: list,
+        dialog_title: str,
+        busy_status: str,
+        success_prefix: str,
+        worker_fn: callable,
+    ) -> None:
+        """
+        Common save-dialog → path-validation → background-thread pattern
+        shared by all export actions.
+        """
         if not self.all_rules_run or not self.results_by_path:
-            self.set_status("Run All Rules first before exporting."); return
+            self.set_status("Run All Rules first before exporting.")
+            return
 
-        default_name = (
-            f"compliance_report_{datetime.datetime.now().strftime('%Y%m%d_%H%M%S')}.pdf"
-        )
+        default_name = f"compliance_report_{datetime.datetime.now().strftime('%Y%m%d_%H%M%S')}{ext}"
         save_path = filedialog.asksaveasfilename(
-            defaultextension=".pdf",
-            filetypes=[("PDF Report", "*.pdf"), ("All Files", "*.*")],
+            defaultextension=ext,
+            filetypes=filetypes,
             initialfile=default_name,
-            title="Save Compliance Report",
+            title=dialog_title,
         )
         if not save_path:
             return
 
-        # Validate the chosen path: enforce .pdf extension and confirm the
-        # target directory is writable before starting the background thread.
-        if not save_path.lower().endswith(".pdf"):
-            save_path += ".pdf"
+        if not save_path.lower().endswith(ext):
+            save_path += ext
         save_dir = os.path.dirname(os.path.abspath(save_path)) or "."
         if not os.path.isdir(save_dir) or not os.access(save_dir, os.W_OK):
-            messagebox.showerror(
-                "Export Error",
-                f"Cannot write to directory:\n{save_dir}",
-            )
+            messagebox.showerror("Export Error", f"Cannot write to directory:\n{save_dir}")
             return
 
-        self.set_status("Generating PDF…")
+        self.set_status(busy_status)
         self._set_controls_enabled(False)
         self._update_progress(0.0)
         self.update_idletasks()
 
-        results_snapshot  = dict(self.results_by_path)
-        category_snapshot = dict(self.rules_by_category)
-
         def worker():
             try:
-                generate_report_pdf(save_path, results_snapshot, category_snapshot)
+                worker_fn(save_path)
                 self.after(0, lambda: (
                     self._update_progress(1.0),
-                    self.set_status(f"Report saved: {os.path.basename(save_path)}"),
+                    self.set_status(f"{success_prefix}: {os.path.basename(save_path)}"),
                     self._set_controls_enabled(True),
                 ))
             except Exception as exc:
@@ -1179,6 +707,31 @@ class ComplianceDebugApp(ctk.CTk):
                 ))
 
         threading.Thread(target=worker, daemon=True).start()
+
+    # ------------------------------------------------------------------
+    def export_report(self):
+        results_snapshot  = dict(self.results_by_path)
+        category_snapshot = dict(self.rules_by_category)
+        self._run_export(
+            ext=".pdf",
+            filetypes=[("PDF Report", "*.pdf"), ("All Files", "*.*")],
+            dialog_title="Save Compliance Report",
+            busy_status="Generating PDF…",
+            success_prefix="Report saved",
+            worker_fn=lambda p: generate_report_pdf(p, results_snapshot, category_snapshot),
+        )
+
+    # ------------------------------------------------------------------
+    def export_csv(self):
+        results_snapshot = dict(self.results_by_path)
+        self._run_export(
+            ext=".csv",
+            filetypes=[("CSV File", "*.csv"), ("All Files", "*.*")],
+            dialog_title="Save CSV Report",
+            busy_status="Generating CSV…",
+            success_prefix="CSV saved",
+            worker_fn=lambda p: generate_report_csv(p, results_snapshot),
+        )
 
     # ------------------------------------------------------------------
     def _set_controls_enabled(self, enabled: bool):
@@ -1194,9 +747,11 @@ class ComplianceDebugApp(ctk.CTk):
                 state="normal" if self.selected_rule_path else "disabled")
         else:
             self.run_selected_btn.configure(state="disabled")
+        export_state = "normal" if (enabled and self.all_rules_run) else "disabled"
         if hasattr(self, "export_btn") and self.export_btn:
-            self.export_btn.configure(
-                state="normal" if (enabled and self.all_rules_run) else "disabled")
+            self.export_btn.configure(state=export_state)
+        if hasattr(self, "export_csv_btn") and self.export_csv_btn:
+            self.export_csv_btn.configure(state=export_state)
 
 
 def main():
