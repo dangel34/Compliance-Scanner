@@ -93,7 +93,7 @@
     }
   },
   "severity": "High",
-  "remediation": "Instructions to remediate non-compliance",
+  "remediation": "On Windows, disable TLS 1.0 and TLS 1.1 and enforce TLS 1.2 or higher for all remote access services including RDP. Use the IISCrypto tool or Group Policy registry settings under HKLM\\SYSTEM\\CurrentControlSet\\Control\\SecurityProviders\\SCHANNEL to disable weak protocols and cipher suites. Enforce RDP with Network Level Authentication and set the encryption level to High via Group Policy. On Linux, configure SSH to use only strong ciphers, MACs, and key exchange algorithms by setting explicit Ciphers, MACs, and KexAlgorithms directives in /etc/ssh/sshd_config. Remove any entry permitting ssh-dss, arcfour, or other weak algorithms.",
   "tags": [
     "AC",
     "AC.L2-3.1.13"

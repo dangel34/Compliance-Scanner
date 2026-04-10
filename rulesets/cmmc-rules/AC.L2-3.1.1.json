@@ -221,7 +221,7 @@
     }
   },
   "severity": "High",
-  "remediation": "Instructions to remediate non-compliance",
+  "remediation": "Review all local and domain user accounts and disable or remove any not associated with a named, authorized individual. Ensure all services and scheduled tasks run under named service accounts rather than LocalSystem or anonymous identities. Join the system to a domain to enable centralized account management. Configure Windows Defender Firewall rules to restrict inbound access to approved subnets and domain-joined devices only. On Linux, audit /etc/passwd for generic or unauthorized accounts and remove or lock them.",
   "tags": [
     "AC",
     "AC.L2-3.1.1"

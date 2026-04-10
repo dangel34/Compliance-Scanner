@@ -157,7 +157,7 @@
     }
   },
   "severity": "High",
-  "remediation": "Instructions to remediate non-compliance",
+  "remediation": "Configure User Account Control on Windows to require administrator credentials for all privileged operations and set it to always notify. Use Group Policy to restrict elevation rights and user rights assignments to designated administrative accounts only. On Linux, configure sudoers to restrict which users can run privileged commands and enable auditd with rules that capture sudo usage and privilege escalation attempts. Enable Windows audit policy for Privilege Use, Account Management, and Policy Change categories so that all privileged function execution is recorded in the Security event log.",
   "tags": [
     "AC",
     "AC.L2-3.1.7"

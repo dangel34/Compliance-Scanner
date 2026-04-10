@@ -157,7 +157,7 @@
     }
   },
   "severity": "High",
-  "remediation": "Instructions to remediate non-compliance",
+  "remediation": "Audit all user and service account privileges and remove rights not required for each account's specific function. On Windows, replace broad local Administrators or Domain Admins group membership with granular, role-specific groups, and use Group Policy user rights assignments to restrict which accounts can perform security functions. On Linux, replace unrestricted ALL=(ALL) ALL sudoers entries with command-specific grants, ensure only required accounts are in the sudo or wheel group, and confirm no unauthorized UID 0 accounts exist. Review and recertify account privileges at least quarterly.",
   "tags": [
     "AC",
     "AC.L2-3.1.5"

@@ -125,7 +125,7 @@
     }
   },
   "severity": "High",
-  "remediation": "Instructions to remediate non-compliance",
+  "remediation": "Identify all privileged functions and sensitive operations and document which roles are responsible for each. Ensure no single user account holds conflicting privileges that would allow them to complete a sensitive transaction without a second party. On Windows, verify that no account is simultaneously a member of administrative and standard user groups in a way that undermines role separation. On Linux, ensure no user is a member of both the sudo or wheel group and other sensitive groups simultaneously. Review and recertify role assignments at least annually.",
   "tags": [
     "AC",
     "AC.L2-3.1.4"

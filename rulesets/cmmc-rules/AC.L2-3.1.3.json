@@ -157,7 +157,7 @@
     }
   },
   "severity": "High",
-  "remediation": "Instructions to remediate non-compliance",
+  "remediation": "Implement network segmentation to isolate systems that process or store CUI from general-purpose networks. Configure Windows Defender Firewall or iptables/nftables rules to restrict both inbound and outbound traffic to approved sources and destinations only. Deploy data loss prevention controls to detect and block unauthorized CUI transfers via email, removable media, or cloud storage. On Windows, configure DLP policies and removable media write restrictions via Group Policy. Document all approved CUI data flows and enforce them through technical controls.",
   "tags": [
     "AC",
     "AC.L2-3.1.3"

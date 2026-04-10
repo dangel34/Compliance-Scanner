@@ -93,7 +93,7 @@
     }
   },
   "severity": "High",
-  "remediation": "Instructions to remediate non-compliance",
+  "remediation": "Configure Group Policy or local security policy to restrict users to only the applications, functions, and data required for their role. On Windows, use AppLocker or Software Restriction Policies to whitelist approved executables and scripts, and apply NTFS permissions to enforce access boundaries per user role. On Linux, scope sudoers entries to specific commands per user rather than granting unrestricted ALL=(ALL) ALL access, and enforce file permissions and PAM controls to limit function-level access.",
   "tags": [
     "AC",
     "AC.L2-3.1.2"

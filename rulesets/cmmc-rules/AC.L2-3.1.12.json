@@ -157,7 +157,7 @@
     }
   },
   "severity": "High",
-  "remediation": "Instructions to remediate non-compliance",
+  "remediation": "Require all remote access to use a VPN with multi-factor authentication rather than exposing RDP or SSH directly to the internet. On Windows, restrict RDP access to named Active Directory groups and enforce Network Level Authentication via Group Policy under Computer Configuration > Administrative Templates > Windows Components > Remote Desktop Services. Configure Windows Defender Firewall to block inbound RDP from non-approved source addresses. Enable audit logging for logon and logoff events so all remote sessions are recorded. On Linux, restrict SSH access via AllowUsers or AllowGroups in /etc/ssh/sshd_config, disable root login, and review auth log regularly.",
   "tags": [
     "AC",
     "AC.L2-3.1.12"

@@ -93,7 +93,7 @@
     }
   },
   "severity": "Medium",
-  "remediation": "Instructions to remediate non-compliance",
+  "remediation": "On Windows, configure automatic session termination via Group Policy under Computer Configuration > Administrative Templates > Windows Components > Remote Desktop Services > RDP Session Host > Session Time Limits. Set the idle session time limit and disconnected session time limit to 15 minutes. Also configure the Interactive Logon machine inactivity limit under Security Options. On Linux, set TMOUT as a readonly export in /etc/profile to terminate idle shell sessions and configure SSH ClientAliveInterval and ClientAliveCountMax in /etc/ssh/sshd_config. Document the defined conditions that trigger automatic session termination in organizational policy.",
   "tags": [
     "AC",
     "AC.L2-3.1.11"

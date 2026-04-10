@@ -72,8 +72,10 @@ _TAG_DEFS: Dict[str, tuple] = {
     "stderr_label":   ("#e67e22", None,      "#b05010", None,       True),
     "stdout_text":    ("#abebc6", None,      "#1a5c30", None,       False),
     "stderr_text":    ("#f0b27a", None,      "#7a3800", None,       False),
-    "error_banner":   ("#e74c3c", "#2c1515", "#cc0000", "#ffe0e0",  True),
-    "meta":           ("#85929e", None,      "#666e75", None,       False),
+    "error_banner":      ("#e74c3c", "#2c1515", "#cc0000", "#ffe0e0",  True),
+    "meta":              ("#85929e", None,      "#666e75", None,       False),
+    "remediation_label": ("#f39c12", None,      "#9a5c00", None,       True),
+    "remediation_text":  ("#f8c471", None,      "#7a4500", None,       False),
 }
 
 
@@ -161,9 +163,19 @@ def render_rule_details(widget: tk.Text, result: RunResult) -> None:
         w(f"{result.get('title', '')}\n",   "title")
         w("\n")
         w("  Overall status   : ", "label"); w(f"{status}\n",                                           status_tag)
+        w("  Severity         : ", "label"); w(f"{result.get('severity', '') or '—'}\n",               "value")
         w("  OS               : ", "label"); w(f"{result.get('os', '')}\n",                             "value")
         w("  Checks run       : ", "label"); w(f"{result.get('checks_run', 0)}\n",                      "value")
         w("  Checks skipped   : ", "label"); w(f"{result.get('checks_skipped', 0)} (NA subcontrols)\n", "value")
+
+        remediation = _safe_str(result.get("remediation", ""), max_len=2048).strip()
+        if remediation and status in ("FAIL", "PARTIAL", "ERROR"):
+            w("\n")
+            w(_DIVIDER, "divider")
+            w("  Remediation\n", "remediation_label")
+            for line in remediation.splitlines():
+                w(f"  {line}\n", "remediation_text")
+
         w("\n")
 
         for i, check in enumerate(result.get("checks", []), start=1):
@@ -220,6 +232,7 @@ def render_rule_info(widget: tk.Text, rule_path: str) -> None:
     title       = _safe_str(data.get("title", ""))
     description = _safe_str(data.get("description", ""), max_len=1024)
     severity    = _safe_str(data.get("severity", ""))
+    remediation = _safe_str(data.get("remediation", ""), max_len=2048).strip()
 
     w("\n")
     w(f"  {rule_id}", "rule_id")
@@ -229,6 +242,14 @@ def render_rule_info(widget: tk.Text, rule_path: str) -> None:
     w("  Description      : ", "label"); w(f"{description}\n" if description else "—\n", "value")
     w("  Severity         : ", "label"); w(f"{severity}\n"    if severity    else "—\n", "value")
     w("  OS               : ", "label"); w(f"{format_os_name(_DETECTED_OS)}\n",          "value")
+
+    if remediation:
+        w("\n")
+        w(_DIVIDER, "divider")
+        w("  Remediation\n", "remediation_label")
+        for line in remediation.splitlines():
+            w(f"  {line}\n", "remediation_text")
+
     w("\n")
 
     check_details: Dict[str, Any] = data.get("check_details", {})

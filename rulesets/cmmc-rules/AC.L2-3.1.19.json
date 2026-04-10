@@ -93,7 +93,7 @@
     }
   },
   "severity": "High",
-  "remediation": "Instructions to remediate non-compliance",
+  "remediation": "On Windows, enable BitLocker full disk encryption on all fixed and removable drives used to store CUI. Configure BitLocker via Group Policy under Computer Configuration > Administrative Templates > Windows Components > BitLocker Drive Encryption to enforce AES-256 encryption and require TPM plus a PIN for system drives. Require BitLocker To Go for removable drives before write access is granted. On Linux, verify that LUKS encryption is configured on system and data volumes containing CUI by checking cryptsetup status. Ensure home directories storing CUI are encrypted using LUKS or eCryptfs. Verify encryption status through MDM compliance policies for managed mobile devices.",
   "tags": [
     "AC",
     "AC.L2-3.1.19"

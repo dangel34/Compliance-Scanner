@@ -93,7 +93,7 @@
     }
   },
   "severity": "High",
-  "remediation": "Instructions to remediate non-compliance",
+  "remediation": "Maintain a documented inventory of all authorized wireless access points and approved wireless networks. On Windows, use Group Policy to restrict wireless profiles to approved SSIDs and require WPA2 or WPA3 enterprise authentication for any wireless connections. Disable wireless adapters on systems that do not require wireless connectivity via Device Manager or Group Policy device installation restrictions. On Linux, disable wireless interfaces that are not required using ip link set wlan0 down and rfkill, and ensure wpa_supplicant is configured only for authorized networks. Conduct periodic wireless scans to detect unauthorized access points.",
   "tags": [
     "AC",
     "AC.L2-3.1.16"

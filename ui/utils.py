@@ -7,6 +7,8 @@ import from core without repeating the path-setup boilerplate.
 from __future__ import annotations
 
 import html as _html
+import logging
+import logging.handlers
 import os
 import re
 import sys
@@ -18,6 +20,47 @@ from typing import Any, Dict
 PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 if PROJECT_ROOT not in sys.path:
     sys.path.append(PROJECT_ROOT)
+
+# ---------------------------------------------------------------------------
+# Logging setup — call once from main() before creating the application
+# ---------------------------------------------------------------------------
+
+def setup_logging() -> None:
+    """
+    Configure the root logger to write to logs/scanner.log in the project
+    root directory.  Uses a RotatingFileHandler capped at 1 MB with three
+    backup files so the log directory never grows unbounded.
+
+    If the log directory cannot be created (e.g. a permissions error) the
+    function falls back silently so a logging failure never prevents the
+    application from starting.
+    """
+    logs_dir = os.path.join(PROJECT_ROOT, "logs")
+    try:
+        os.makedirs(logs_dir, exist_ok=True)
+    except OSError:
+        return
+
+    log_path = os.path.join(logs_dir, "scanner.log")
+    try:
+        handler = logging.handlers.RotatingFileHandler(
+            log_path,
+            maxBytes=1_048_576,
+            backupCount=3,
+            encoding="utf-8",
+        )
+    except OSError:
+        return
+
+    handler.setFormatter(logging.Formatter(
+        fmt="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
+        datefmt="%Y-%m-%d %H:%M:%S",
+    ))
+
+    root = logging.getLogger()
+    root.setLevel(logging.DEBUG)
+    root.addHandler(handler)
+
 
 # ---------------------------------------------------------------------------
 # Type alias used across all ui modules

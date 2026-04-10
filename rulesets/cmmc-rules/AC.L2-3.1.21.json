@@ -93,7 +93,7 @@
     }
   },
   "severity": "High",
-  "remediation": "Instructions to remediate non-compliance",
+  "remediation": "On Windows, restrict removable storage device usage via Group Policy under Computer Configuration > Administrative Templates > System > Removable Storage Access. Set All Removable Storage Classes: Deny all access to prevent unauthorized use. Require BitLocker To Go encryption on any organization-issued removable drives before write access is permitted, and disable AutoPlay and AutoRun via Group Policy. On Linux, install and configure USBGuard to whitelist only approved USB storage devices by vendor and product ID. Disable automount of removable media and configure udev rules to block unauthorized removable storage. Maintain an inventory of approved portable storage devices.",
   "tags": [
     "AC",
     "AC.L2-3.1.21"
