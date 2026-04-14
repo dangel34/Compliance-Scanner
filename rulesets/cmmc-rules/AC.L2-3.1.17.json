@@ -93,7 +93,7 @@
     }
   },
   "severity": "High",
-  "remediation": "Instructions to remediate non-compliance",
+  "remediation": "Configure all wireless access points and client connections to use WPA3 or WPA2-Enterprise with 802.1X EAP authentication backed by a RADIUS server. Disable WEP and TKIP cipher suites on all access points and client configurations. Enforce AES-CCMP or GCMP as the only permitted pairwise and group cipher. On Windows, manage wireless profiles via Group Policy under Computer Configuration > Windows Settings > Security Settings > Wireless Network (IEEE 802.11) Policies and remove any profiles using PSK or open authentication. On Linux, update wpa_supplicant.conf to specify only enterprise authentication and strong cipher suites and remove any open or PSK network entries.",
   "tags": [
     "AC",
     "AC.L2-3.1.17"

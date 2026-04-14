@@ -93,7 +93,7 @@
     }
   },
   "severity": "Medium",
-  "remediation": "Instructions to remediate non-compliance",
+  "remediation": "On Windows, configure account lockout policy via Group Policy under Computer Configuration > Windows Settings > Security Settings > Account Policies > Account Lockout Policy. Set the lockout threshold to 5 or fewer invalid attempts, lockout duration to at least 15 minutes, and the reset counter after to 15 minutes. Apply this policy at the domain level for domain-joined systems. On Linux, configure pam_faillock in /etc/security/faillock.conf and ensure it is active in /etc/pam.d/common-auth with a deny threshold of 5 or fewer and an unlock time of 900 seconds or more. Also set MaxAuthTries to 4 or fewer in /etc/ssh/sshd_config.",
   "tags": [
     "AC",
     "AC.L2-3.1.8"

@@ -93,7 +93,7 @@
     }
   },
   "severity": "High",
-  "remediation": "Instructions to remediate non-compliance",
+  "remediation": "Require all remote access to route through a managed VPN gateway or jump server rather than permitting direct connections from the internet. On Windows, configure Windows Defender Firewall to block inbound RDP and WinRM connections from non-internal source addresses and require a VPN connection before management traffic is allowed. On Linux, configure firewall rules to permit SSH only from internal or VPN-assigned subnets and block all other inbound SSH from public addresses. Document all approved remote access paths in the System Security Plan and review them annually.",
   "tags": [
     "AC",
     "AC.L2-3.1.14"

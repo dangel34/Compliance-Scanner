@@ -125,7 +125,7 @@
     }
   },
   "severity": "Medium",
-  "remediation": "Instructions to remediate non-compliance",
+  "remediation": "On Windows, configure session lock via Group Policy under Computer Configuration > Administrative Templates > Control Panel > Personalization. Enable the screen saver, set the timeout to 15 minutes or less, and require a password to unlock. Set the screen saver to a blank display to hide previously visible content. On Windows Server, also configure the Interactive Logon machine inactivity limit under Local Policies > Security Options. On Linux, set TMOUT as a readonly export in /etc/profile or /etc/bashrc to terminate idle shell sessions. Configure SSH ClientAliveInterval and ClientAliveCountMax in /etc/ssh/sshd_config to disconnect idle SSH sessions.",
   "tags": [
     "AC",
     "AC.L2-3.1.10"

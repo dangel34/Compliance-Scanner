@@ -189,7 +189,7 @@
     }
   },
   "severity": "Medium",
-  "remediation": "Instructions to remediate non-compliance",
+  "remediation": "Establish and document a content review and approval process that must be completed before any information is posted to publicly accessible systems. Identify and train all individuals authorized to post content on public-facing systems. Implement file integrity monitoring on web content directories using a tool such as auditd on Linux or Windows file auditing to detect unauthorized changes. Restrict write access to public content directories to only authorized publishing accounts via NTFS permissions on Windows or file permissions and ACLs on Linux. Deploy DLP controls to scan content for CUI markers before publication. Establish a removal process so that any CUI identified on a public system can be taken down promptly.",
   "tags": [
     "AC",
     "AC.L2-3.1.22"

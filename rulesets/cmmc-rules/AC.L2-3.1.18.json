@@ -125,7 +125,7 @@
     }
   },
   "severity": "Medium",
-  "remediation": "Instructions to remediate non-compliance",
+  "remediation": "Implement a Mobile Device Management solution such as Microsoft Intune to enforce security policies on all mobile devices that connect to organizational systems or access CUI. Require device enrollment and compliance verification before network access is granted. Disable Bluetooth on workstations and servers that do not require it via Group Policy under Computer Configuration > Administrative Templates > System > Device Installation. On Linux, disable Bluetooth via rfkill or systemctl and configure auditd or udev rules to log USB device connection events. Maintain an inventory of authorized mobile devices and review it regularly.",
   "tags": [
     "AC",
     "AC.L2-3.1.18"

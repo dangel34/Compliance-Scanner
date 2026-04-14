@@ -221,7 +221,7 @@
     }
   },
   "severity": "High",
-  "remediation": "Instructions to remediate non-compliance",
+  "remediation": "Document all approved connections to external systems in the System Security Plan and maintain a current inventory. On Windows, configure Windows Defender Firewall outbound rules to block connections to external systems not explicitly authorized and set the default outbound policy to block for sensitive network profiles. Require VPN or proxy authentication for any approved external connections involving CUI. On Linux, configure iptables or nftables OUTPUT chain rules to permit only approved external destinations and block all others by default. Review and recertify all external connections at least annually and execute Interconnection Security Agreements for any connections involving CUI sharing.",
   "tags": [
     "AC",
     "AC.L2-3.1.20"

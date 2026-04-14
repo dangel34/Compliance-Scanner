@@ -93,7 +93,7 @@
     }
   },
   "severity": "Medium",
-  "remediation": "Instructions to remediate non-compliance",
+  "remediation": "Create standard non-privileged accounts for all personnel who currently only have administrative accounts. Require users to log in with their standard account for routine tasks such as email, web browsing, and document editing. On Windows, enforce User Account Control so that elevation requires a separate privileged credential and train users to use their standard account by default. On Linux, disable direct root login and ensure standard users do not have unrestricted sudo access. Reserve privileged accounts strictly for administrative tasks.",
   "tags": [
     "AC",
     "AC.L2-3.1.6"

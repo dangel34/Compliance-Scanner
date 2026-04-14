@@ -93,7 +93,7 @@
     }
   },
   "severity": "Medium",
-  "remediation": "Instructions to remediate non-compliance",
+  "remediation": "On Windows, configure a logon warning banner via Group Policy under Computer Configuration > Windows Settings > Security Settings > Local Policies > Security Options. Set both the Interactive Logon message title and message text to notify users that the system is for authorized use only and that activity may be monitored. On Linux, populate /etc/issue and /etc/issue.net with the banner text for console and network logins. Configure the SSH Banner directive in /etc/ssh/sshd_config to point to /etc/issue.net and reload sshd. Ensure the banner text references the CUI handling requirements applicable to your organization.",
   "tags": [
     "AC",
     "AC.L2-3.1.9"

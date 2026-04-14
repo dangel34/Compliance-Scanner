@@ -157,7 +157,7 @@
     }
   },
   "severity": "High",
-  "remediation": "Instructions to remediate non-compliance",
+  "remediation": "Document all privileged commands that are authorized for remote execution and obtain written authorization for each. On Windows, restrict PowerShell remoting and WinRM access to named privileged accounts and approved source addresses via WinRM configuration and Windows Defender Firewall rules. Restrict access to security-relevant information such as audit logs and security policy files to named privileged accounts via NTFS permissions. On Linux, scope remote sudo execution to named accounts via sudoers and use SSH forced commands to restrict what remote sessions can execute. Ensure root remote login is disabled in /etc/ssh/sshd_config.",
   "tags": [
     "AC",
     "AC.L2-3.1.15"

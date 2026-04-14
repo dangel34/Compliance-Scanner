@@ -2,12 +2,15 @@
 Loads rules (JSON) and runs checks via core scanners. Uses scanner_init for
 OS detection and, when applicable, scanner methods for service/file_permissions.
 """
+import logging
 import os
 import json
 import subprocess
 import re
 import importlib
 from typing import List, Dict, Any, Optional
+
+_log = logging.getLogger(__name__)
 
 # Project root (parent of core/)
 _core_dir = os.path.dirname(os.path.abspath(__file__))
@@ -53,6 +56,7 @@ class RuleRunner:
                 "returncode": result.returncode
             }
         except subprocess.TimeoutExpired:
+            _log.warning("Command timed out (60s): %.120s", cmd)
             return {"stdout": "", "stderr": "command timed out", "returncode": -1}
         except Exception as e:
             return {
@@ -119,6 +123,7 @@ class RuleRunner:
             }
 
         except Exception as e:
+            _log.error("Custom function failed: %s: %s", func_call, e)
             return {
                 "stdout": "",
                 "stderr": str(e),
@@ -218,12 +223,14 @@ class RuleRunner:
                 })
 
         return {
-            "rule_id": self.rule.get("rule_id") or self.rule.get("id"),
-            "title": self.rule.get("title"),
-            "os": self.os_type,
-            "checks_run": len(results),
+            "rule_id":     self.rule.get("rule_id") or self.rule.get("id"),
+            "title":       self.rule.get("title"),
+            "os":          self.os_type,
+            "severity":    self.rule.get("severity", ""),
+            "remediation": self.rule.get("remediation", ""),
+            "checks_run":     len(results),
             "checks_skipped": checks_skipped,
-            "checks": results
+            "checks":         results,
         }
 
 

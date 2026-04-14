@@ -12,6 +12,7 @@ from __future__ import annotations
 
 import datetime
 import json
+import logging
 import os
 import re
 import sys
@@ -32,7 +33,9 @@ def _bootstrap_path() -> None:
 _bootstrap_path()
 del _bootstrap_path
 
-from ui.utils import PROJECT_ROOT, RunResult, _safe_str, format_os_name, get_rule_status
+from ui.utils import PROJECT_ROOT, RunResult, _safe_str, format_os_name, get_rule_status, setup_logging
+
+_log = logging.getLogger(__name__)
 from ui.rule_display import _configure_tags, render_placeholder, render_rule_details, render_rule_info
 from ui.report_pdf import generate_report_pdf
 from ui.report_csv import generate_report_csv
@@ -91,7 +94,7 @@ def _load_rule_schema() -> Optional[Dict[str, Any]]:
         with open(schema_path, "r", encoding="utf-8") as f:
             _RULE_SCHEMA = json.load(f)
     except (OSError, json.JSONDecodeError) as exc:
-        print(f"[WARN] Could not load rule_schema.json: {exc}", file=sys.stderr)
+        _log.warning("Could not load rule_schema.json: %s", exc)
     return _RULE_SCHEMA
 
 
@@ -109,7 +112,7 @@ def _validate_rule(data: Dict[str, Any]) -> List[str]:
     except jsonschema.ValidationError as exc:
         return [exc.message]
     except jsonschema.SchemaError as exc:
-        print(f"[WARN] rule_schema.json is itself invalid: {exc.message}", file=sys.stderr)
+        _log.warning("rule_schema.json is itself invalid: %s", exc.message)
         return []
 
 
@@ -146,19 +149,21 @@ def discover_rule_files(rules_dir: str) -> Dict[str, List[Dict[str, str]]]:
                 with open(real_path, "r", encoding="utf-8") as f:
                     data = json.load(f)
                 for err in _validate_rule(data):
-                    print(f"[WARN] Schema validation error in {real_path}: {err}", file=sys.stderr)
+                    _log.warning("Schema validation error in %s: %s", real_path, err)
                 category = _safe_str(data.get("category") or "Uncategorised") or "Uncategorised"
                 rule_id  = _safe_str(data.get("id") or data.get("rule_id") or name)
                 title    = _safe_str(data.get("title") or data.get("control_number") or name)
+                severity = _safe_str(data.get("severity", ""))
             except json.JSONDecodeError:
-                print(f"[WARN] Skipping malformed JSON: {real_path}", file=sys.stderr)
+                _log.warning("Skipping malformed JSON: %s", real_path)
                 continue
             except OSError as exc:
-                print(f"[WARN] Could not read rule file {real_path}: {exc}", file=sys.stderr)
+                _log.warning("Could not read rule file %s: %s", real_path, exc)
                 continue
 
             categories.setdefault(category, []).append(
-                {"path": real_path, "rule_id": rule_id, "title": title}
+                {"path": real_path, "rule_id": rule_id, "title": title,
+                 "severity": severity, "category": category}
             )
 
     return {
@@ -185,6 +190,7 @@ def run_rules_blocking(
             results[path] = r
         except Exception as e:
             error_msg = _safe_str(type(e).__name__ + ": " + str(e), max_len=256)
+            _log.error("Rule execution error: %s: %s", os.path.basename(path), error_msg)
             results[path] = {
                 "rule_id":        os.path.basename(path),
                 "title":          os.path.basename(path),
@@ -238,8 +244,9 @@ class AccordionSection:
         self.header_btn.pack(fill="x")
 
         self.body_frame = ctk.CTkFrame(self.wrapper, fg_color="transparent")
+        self.body_frame.columnconfigure(0, weight=1)
 
-        for meta in rule_metas:
+        for row, meta in enumerate(rule_metas):
             btn = ctk.CTkButton(
                 self.body_frame,
                 text=meta["rule_id"],
@@ -249,7 +256,7 @@ class AccordionSection:
                 hover_color=("#4a90d9", "#3a7abf"),
                 command=lambda p=meta["path"]: on_rule_select(p),
             )
-            btn.pack(fill="x", pady=2)
+            btn.grid(row=row, column=0, sticky="ew", pady=2)
             self.rule_buttons[meta["path"]] = btn
 
     def _header_text(self) -> str:
@@ -273,6 +280,21 @@ class AccordionSection:
         fg_color = color if color is not None else "transparent"
         text_col = ("white", "white") if color is not None else ("#1a1a1a", "#e0e0e0")
         btn.configure(text=f"{rule_id}{icon}", fg_color=fg_color, text_color=text_col)
+
+    def apply_filter(self, visible_paths: set) -> bool:
+        """
+        Show only the rule buttons whose path is in visible_paths.
+        Uses grid_remove/grid so positions are preserved when rules reappear.
+        Returns True if at least one button is visible.
+        """
+        any_visible = False
+        for path, btn in self.rule_buttons.items():
+            if path in visible_paths:
+                btn.grid()
+                any_visible = True
+            else:
+                btn.grid_remove()
+        return any_visible
 
     def highlight_selected(self, selected_path: str, results_by_path: Dict[str, RunResult]):
         for path, btn in self.rule_buttons.items():
@@ -315,13 +337,30 @@ class ComplianceDebugApp(ctk.CTk):
         self.running:       bool = False
         self.all_rules_run: bool = False
 
+        self._filter_category: str = "All"
+        self._filter_severity: str = "All"
+        self._filter_category_menu: Optional[ctk.CTkOptionMenu] = None
+        self._filter_severity_menu: Optional[ctk.CTkOptionMenu] = None
+
         self.refresh_btn:    Optional[ctk.CTkButton] = None
         self.run_all_btn:    Optional[ctk.CTkButton] = None
         self.export_btn:     Optional[ctk.CTkButton] = None
         self.export_csv_btn: Optional[ctk.CTkButton] = None
 
+        # Summary dashboard widgets — populated in _build_summary_panel()
+        self._stat_count_labels: Dict[str, ctk.CTkLabel] = {}
+        self._score_bar:         Optional[ctk.CTkProgressBar] = None
+        self._score_label:       Optional[ctk.CTkLabel]       = None
+        self._summary_meta:      Optional[ctk.CTkLabel]       = None
+
         self._build_layout()
         self.refresh_rules()
+        self.protocol("WM_DELETE_WINDOW", self._on_closing)
+
+        # Keyboard shortcuts
+        self.bind("<Control-r>", lambda _e: self.run_all_rules())
+        self.bind("<Control-e>", lambda _e: self.export_report())
+        self.bind("<F5>",        lambda _e: self.refresh_rules())
 
     # ------------------------------------------------------------------
     def _build_layout(self):
@@ -341,8 +380,17 @@ class ComplianceDebugApp(ctk.CTk):
         )
         self.theme_button.pack(side="right", padx=10, pady=8)
 
-        self.refresh_btn = ctk.CTkButton(top, text="Refresh Rules", command=self.refresh_rules)
+        self.refresh_btn = ctk.CTkButton(top, text="Refresh Rules (F5)", command=self.refresh_rules)
         self.refresh_btn.pack(side="right", padx=10, pady=8)
+
+        ctk.CTkButton(
+            top, text="About", command=self._show_about,
+            width=70, fg_color="transparent",
+            border_width=1,
+            border_color=("#444444", "#888888"),
+            text_color=("#1a1a1a", "#e0e0e0"),
+            hover_color=("#d0d0d0", "#3a3a3a"),
+        ).pack(side="right", padx=(0, 4), pady=8)
 
         main = ctk.CTkFrame(self)
         main.pack(fill="both", expand=True, padx=10, pady=6)
@@ -354,17 +402,38 @@ class ComplianceDebugApp(ctk.CTk):
         right.pack(side="right", fill="both", expand=True, padx=(6, 10), pady=10)
 
         ctk.CTkLabel(left, text="Rules", font=ctk.CTkFont(size=14, weight="bold")).pack(
-            anchor="w", padx=10, pady=(10, 6)
+            anchor="w", padx=10, pady=(10, 4)
         )
+
+        filter_row = ctk.CTkFrame(left, fg_color="transparent")
+        filter_row.pack(fill="x", padx=10, pady=(0, 4))
+        filter_row.columnconfigure(0, weight=1)
+        filter_row.columnconfigure(1, weight=1)
+
+        self._filter_category_menu = ctk.CTkOptionMenu(
+            filter_row,
+            values=["All"],
+            command=self._on_category_filter,
+            width=130,
+            font=ctk.CTkFont(size=11),
+            dynamic_resizing=False,
+        )
+        self._filter_category_menu.grid(row=0, column=0, sticky="ew", padx=(0, 3))
+
+        self._filter_severity_menu = ctk.CTkOptionMenu(
+            filter_row,
+            values=["All", "Critical", "High", "Medium", "Low"],
+            command=self._on_severity_filter,
+            width=130,
+            font=ctk.CTkFont(size=11),
+            dynamic_resizing=False,
+        )
+        self._filter_severity_menu.grid(row=0, column=1, sticky="ew", padx=(3, 0))
 
         self.rules_scroll = ctk.CTkScrollableFrame(left)
         self.rules_scroll.pack(fill="both", expand=True, padx=10, pady=(0, 10))
 
-        self.summary_label = ctk.CTkLabel(
-            right, text="Summary: (not run yet)",
-            font=ctk.CTkFont(size=14, weight="bold"), justify="left",
-        )
-        self.summary_label.pack(anchor="w", padx=10, pady=(10, 6))
+        self._build_summary_panel(right)
 
         details_frame = ctk.CTkFrame(right, fg_color="transparent")
         details_frame.pack(fill="both", expand=True, padx=10, pady=(0, 10))
@@ -400,7 +469,7 @@ class ComplianceDebugApp(ctk.CTk):
         btn_row = ctk.CTkFrame(bottom, fg_color="transparent")
         btn_row.pack(fill="x", padx=10, pady=(8, 4))
 
-        self.run_all_btn = ctk.CTkButton(btn_row, text="Run All Rules", command=self.run_all_rules, width=140)
+        self.run_all_btn = ctk.CTkButton(btn_row, text="Run All Rules (Ctrl+R)", command=self.run_all_rules, width=175)
         self.run_all_btn.pack(side="left", padx=(0, 6))
 
         self.run_selected_btn = ctk.CTkButton(
@@ -437,6 +506,123 @@ class ComplianceDebugApp(ctk.CTk):
         self.progress_bar.set(0.0)
 
     # ------------------------------------------------------------------
+    def _build_summary_panel(self, parent: ctk.CTkFrame) -> None:
+        """
+        Build the visual compliance summary dashboard that sits above the
+        rule details pane.  The panel contains five stat cards (Total, Pass,
+        Fail, Partial, Skip) and a compliance score bar.  All mutable widgets
+        are stored on self so _update_summary_display() can update them later.
+        """
+        outer = ctk.CTkFrame(parent, fg_color="transparent")
+        outer.pack(fill="x", padx=10, pady=(10, 4))
+
+        # Title row — title on the left, meta (categories / rules) on the right
+        title_row = ctk.CTkFrame(outer, fg_color="transparent")
+        title_row.pack(fill="x")
+
+        ctk.CTkLabel(
+            title_row, text="Compliance Summary",
+            font=ctk.CTkFont(size=14, weight="bold"),
+        ).pack(side="left")
+
+        self._summary_meta = ctk.CTkLabel(
+            title_row, text="",
+            font=ctk.CTkFont(size=11), anchor="e",
+        )
+        self._summary_meta.pack(side="right")
+
+        # Stat cards — each card shows a large count and a status label
+        #   (bg_dark, bg_light)        (fg_dark, fg_light)
+        card_defs = [
+            ("total",   "Total",   ("#3d3d3d", "#d4d4d4"), ("#e0e0e0", "#1a1a1a")),
+            ("pass",    "Pass",    ("#1a4a2a", "#b8eacc"), ("#2ecc71", "#1a7a3a")),
+            ("fail",    "Fail",    ("#4a1a1a", "#f0c8c8"), ("#e74c3c", "#a01010")),
+            ("partial", "Partial", ("#4a3800", "#f0dfaa"), ("#f0c040", "#7a5c00")),
+            ("skip",    "Skip",    ("#2e2e2e", "#d0d0d0"), ("#95a5a6", "#555e65")),
+        ]
+
+        cards_row = ctk.CTkFrame(outer, fg_color="transparent")
+        cards_row.pack(fill="x", pady=(6, 0))
+
+        for key, label_text, bg, fg in card_defs:
+            card = ctk.CTkFrame(cards_row, fg_color=bg, corner_radius=8)
+            card.pack(side="left", expand=True, fill="x", padx=3)
+
+            count_lbl = ctk.CTkLabel(
+                card, text="—",
+                font=ctk.CTkFont(size=20, weight="bold"),
+                text_color=fg,
+            )
+            count_lbl.pack(pady=(8, 0))
+
+            ctk.CTkLabel(
+                card, text=label_text,
+                font=ctk.CTkFont(size=10),
+                text_color=fg,
+            ).pack(pady=(0, 8))
+
+            self._stat_count_labels[key] = count_lbl
+
+        # Score row — label left, percentage right, bar below
+        score_row = ctk.CTkFrame(outer, fg_color="transparent")
+        score_row.pack(fill="x", pady=(10, 0))
+
+        ctk.CTkLabel(
+            score_row, text="Compliance Score",
+            font=ctk.CTkFont(size=12, weight="bold"),
+        ).pack(side="left")
+
+        self._score_label = ctk.CTkLabel(
+            score_row, text="—",
+            font=ctk.CTkFont(size=12, weight="bold"),
+        )
+        self._score_label.pack(side="right")
+
+        self._score_bar = ctk.CTkProgressBar(outer, height=14)
+        self._score_bar.pack(fill="x", pady=(4, 6))
+        self._score_bar.set(0.0)
+
+    def _update_summary_display(
+        self,
+        total: int          = 0,
+        pass_count: int     = 0,
+        fail_count: int     = 0,
+        partial_count: int  = 0,
+        skip_count: int     = 0,
+        error_count: int    = 0,
+        cat_count: int      = 0,
+        checks_passed: int  = 0,
+        checks_total: int   = 0,
+    ) -> None:
+        """Refresh every widget in the summary dashboard with new counts."""
+        if self._summary_meta is not None:
+            self._summary_meta.configure(
+                text=f"{cat_count} {'category' if cat_count == 1 else 'categories'}  |  {total} rules"
+            )
+
+        combined_fail = fail_count + error_count
+        if self._stat_count_labels:
+            self._stat_count_labels["total"].configure(text=str(total))
+            self._stat_count_labels["pass"].configure(text=str(pass_count))
+            self._stat_count_labels["fail"].configure(text=str(combined_fail))
+            self._stat_count_labels["partial"].configure(text=str(partial_count))
+            self._stat_count_labels["skip"].configure(text=str(skip_count))
+
+        # Score is based on individual subcontrols (checks), not rules.
+        # checks_total is the number of checks that actually ran (skipped checks excluded).
+        if checks_total > 0:
+            ratio    = checks_passed / checks_total
+            pct_text = f"{int(ratio * 100)}%"
+        else:
+            ratio    = 0.0
+            pct_text = "—"
+
+        if self._score_label is not None:
+            self._score_label.configure(text=pct_text)
+        if self._score_bar is not None:
+            self._score_bar.set(ratio)
+
+    # ------------------------------------------------------------------
     def toggle_theme(self):
         if self.theme == "dark":
             self.theme = "light"
@@ -460,7 +646,14 @@ class ComplianceDebugApp(ctk.CTk):
             self.progress_label.configure(text=f"{int(value * 100)}%")
 
     def _all_rule_paths(self) -> List[str]:
-        return [m["path"] for m in self.rules]
+        """Return paths for all rules that pass the active category/severity filters."""
+        cat_filter = self._filter_category
+        sev_filter = self._filter_severity
+        return [
+            m["path"] for m in self.rules
+            if (cat_filter == "All" or m.get("category", "") == cat_filter)
+            and (sev_filter == "All" or m.get("severity", "") == sev_filter)
+        ]
 
     def _section_for_path(self, path: str) -> Optional[AccordionSection]:
         return self._path_to_section.get(path)
@@ -491,16 +684,68 @@ class ComplianceDebugApp(ctk.CTk):
             for meta in metas:
                 self._path_to_section[meta["path"]] = section
 
+        # Rebuild category dropdown with current rule set
+        cat_names = ["All"] + sorted(categories.keys())
+        if self._filter_category_menu:
+            self._filter_category_menu.configure(values=cat_names)
+            self._filter_category_menu.set("All")
+        if self._filter_severity_menu:
+            self._filter_severity_menu.set("All")
+        self._filter_category = "All"
+        self._filter_severity = "All"
+
         total     = len(self.rules)
         cat_count = len(self.rules_by_category)
-        self.summary_label.configure(
-            text=f"Summary\n- Categories: {cat_count}\n- Total rules: {total}"
-        )
+        _log.info("Rules loaded: %d rules across %d categories", total, cat_count)
+        self._update_summary_display(total=total, cat_count=cat_count)
         render_placeholder(self.details_text, "Run rules to view results.")
         self.selected_rule_path = None
         self.all_rules_run      = False
         self.run_selected_btn.configure(state="disabled")
         self.set_status("Idle")
+
+    # ------------------------------------------------------------------
+    def _on_category_filter(self, value: str):
+        self._filter_category = value
+        self._apply_filters()
+
+    def _on_severity_filter(self, value: str):
+        self._filter_severity = value
+        self._apply_filters()
+
+    def _apply_filters(self):
+        """
+        Compute the set of rule paths that match the active category and
+        severity filters, then show/hide accordion buttons accordingly.
+        Sections whose every rule is filtered out are hidden entirely.
+        Sections are always re-packed in their original insertion order so
+        the category list never jumbles after a filter change.
+        """
+        cat_filter = self._filter_category
+        sev_filter = self._filter_severity
+
+        visible: set = set()
+        for meta in self.rules:
+            cat_match = (cat_filter == "All" or meta.get("category", "") == cat_filter)
+            sev_match = (sev_filter == "All" or meta.get("severity", "") == sev_filter)
+            if cat_match and sev_match:
+                visible.add(meta["path"])
+
+        # Re-pack all section wrappers in insertion order, hiding empty ones
+        for section in self.accordion_sections.values():
+            section.wrapper.pack_forget()
+
+        for section in self.accordion_sections.values():
+            has_visible = section.apply_filter(visible)
+            if has_visible:
+                section.wrapper.pack(fill="x", pady=(4, 0), padx=2)
+
+        visible_count = len(visible)
+        total_count   = len(self.rules)
+        if visible_count == total_count:
+            self.set_status("Idle")
+        else:
+            self.set_status(f"Filter active: {visible_count} of {total_count} rules shown")
 
     # ------------------------------------------------------------------
     def select_rule(self, rule_path: str):
@@ -579,6 +824,8 @@ class ComplianceDebugApp(ctk.CTk):
         self._set_controls_enabled(False)
         self._update_progress(0.0)
         rule_paths = self._all_rule_paths()
+        _log.info("Scan started: %d rules (category=%s, severity=%s)",
+                  len(rule_paths), self._filter_category, self._filter_severity)
 
         _last_update: List[float] = [0.0]
         _scan_start:  List[float] = [time.monotonic()]
@@ -609,9 +856,10 @@ class ComplianceDebugApp(ctk.CTk):
     def _on_all_rules_done(self, results: Dict[str, RunResult], elapsed: float = 0.0):
         self.running         = False
         self.results_by_path = results
-        pass_count = fail_count = skip_count = 0
+        pass_count = fail_count = partial_count = skip_count = error_count = 0
+        checks_passed = checks_total = 0
 
-        # Single pass: update button colours and tally counts together
+        # Single pass: update button colours and tally rule + subcontrol counts
         for path, result in results.items():
             status  = get_rule_status(result)
             section = self._section_for_path(path)
@@ -619,23 +867,40 @@ class ComplianceDebugApp(ctk.CTk):
                 section.set_button_color(path, status, result.get("rule_id", os.path.basename(path)))
             if status == "PASS":
                 pass_count += 1
-            elif status in ("FAIL", "PARTIAL", "ERROR"):
+            elif status == "FAIL":
                 fail_count += 1
+            elif status == "PARTIAL":
+                partial_count += 1
+            elif status == "ERROR":
+                error_count += 1
             else:
                 skip_count += 1
+
+            # Tally individual subcontrol (check) results for the score
+            for check in result.get("checks", []):
+                checks_total += 1
+                if check.get("status") == "PASS":
+                    checks_passed += 1
 
         if self.selected_rule_path:
             for section in self.accordion_sections.values():
                 section.highlight_selected(self.selected_rule_path, results)
 
-        self.summary_label.configure(text=(
-            "Summary\n"
-            f"- Categories  : {len(self.rules_by_category)}\n"
-            f"- Total rules : {len(results)}\n"
-            f"- PASS        : {pass_count}\n"
-            f"- FAIL/PARTIAL: {fail_count}\n"
-            f"- SKIP        : {skip_count}"
-        ))
+        self._update_summary_display(
+            total          = len(results),
+            pass_count     = pass_count,
+            fail_count     = fail_count,
+            partial_count  = partial_count,
+            skip_count     = skip_count,
+            error_count    = error_count,
+            cat_count      = len(self.rules_by_category),
+            checks_passed  = checks_passed,
+            checks_total   = checks_total,
+        )
+        _log.info(
+            "Scan complete in %s. Pass=%d Fail=%d Partial=%d Skip=%d Error=%d",
+            _fmt_duration(elapsed), pass_count, fail_count, partial_count, skip_count, error_count,
+        )
         self._update_progress(1.0)
         self.set_status(f"Done  ({_fmt_duration(elapsed)} total)")
         self.all_rules_run = True
@@ -693,6 +958,7 @@ class ComplianceDebugApp(ctk.CTk):
         def worker():
             try:
                 worker_fn(save_path)
+                _log.info("Export saved: %s", save_path)
                 self.after(0, lambda: (
                     self._update_progress(1.0),
                     self.set_status(f"{success_prefix}: {os.path.basename(save_path)}"),
@@ -700,6 +966,7 @@ class ComplianceDebugApp(ctk.CTk):
                 ))
             except Exception as exc:
                 err_msg = _safe_str(type(exc).__name__ + ": " + str(exc), max_len=200)
+                _log.error("Export failed: %s", err_msg)
                 self.after(0, lambda m=err_msg: (
                     self._update_progress(0.0),
                     self.set_status(f"Export failed: {m}"),
@@ -734,6 +1001,93 @@ class ComplianceDebugApp(ctk.CTk):
         )
 
     # ------------------------------------------------------------------
+    def _show_about(self) -> None:
+        """Open a small modal dialog with project and team information."""
+        win = ctk.CTkToplevel(self)
+        win.title("About")
+        win.resizable(False, False)
+        win.grab_set()   # modal — blocks interaction with the main window
+
+        # Center over the parent window
+        self.update_idletasks()
+        px = self.winfo_x() + self.winfo_width()  // 2
+        py = self.winfo_y() + self.winfo_height() // 2
+        win.geometry(f"420x340+{px - 210}+{py - 170}")
+
+        pad = {"padx": 24, "pady": (0, 6)}
+
+        ctk.CTkLabel(
+            win, text="Compliance Scanner",
+            font=ctk.CTkFont(size=20, weight="bold"),
+        ).pack(pady=(24, 4))
+
+        ctk.CTkLabel(
+            win, text="Version 1.0",
+            font=ctk.CTkFont(size=13),
+        ).pack(**pad)
+
+        ctk.CTkFrame(win, height=1, fg_color=("#cccccc", "#444444")).pack(
+            fill="x", padx=24, pady=10
+        )
+
+        ctk.CTkLabel(
+            win, text="CMMC Level 2 Compliance Scanner",
+            font=ctk.CTkFont(size=12, weight="bold"),
+        ).pack(**pad)
+
+        ctk.CTkLabel(
+            win,
+            text=(
+                "Scans Windows, Linux, and Debian systems against\n"
+                "CMMC Level 2 control requirements and generates\n"
+                "detailed PDF and CSV compliance reports."
+            ),
+            font=ctk.CTkFont(size=11),
+            justify="center",
+        ).pack(**pad)
+
+        ctk.CTkFrame(win, height=1, fg_color=("#cccccc", "#444444")).pack(
+            fill="x", padx=24, pady=10
+        )
+
+        ctk.CTkLabel(
+            win,
+            text="Derek Angelini   |   Connor McBee   |   Melanie Fox",
+            font=ctk.CTkFont(size=11),
+        ).pack(**pad)
+
+        ctk.CTkLabel(
+            win, text="Mercyhurst University",
+            font=ctk.CTkFont(size=11),
+        ).pack(padx=24, pady=(0, 16))
+
+        ctk.CTkButton(
+            win, text="Close", command=win.destroy, width=100,
+        ).pack(pady=(4, 20))
+
+        win.bind("<Escape>", lambda _e: win.destroy())
+
+    # ------------------------------------------------------------------
+    def _on_closing(self):
+        """
+        Called when the user clicks the window close button. If a scan is
+        currently running, ask for confirmation before exiting so the user
+        does not lose in-progress results by accident. Background threads
+        are daemonized and will terminate with the process.
+        """
+        if self.running:
+            confirmed = messagebox.askyesno(
+                "Scan In Progress",
+                "A scan is currently running. Closing now will cancel it and any "
+                "results collected so far will be lost.\n\nClose anyway?",
+                icon="warning",
+            )
+            if not confirmed:
+                return
+            _log.warning("Application closed by user while scan was in progress")
+        self.destroy()
+
+    # ------------------------------------------------------------------
     def _set_controls_enabled(self, enabled: bool):
         state = "normal" if enabled else "disabled"
         if self.run_all_btn:
@@ -755,8 +1109,11 @@ class ComplianceDebugApp(ctk.CTk):
 
 
 def main():
+    setup_logging()
+    _log.info("Application started. OS: %s", os_scan())
     app = ComplianceDebugApp()
     app.mainloop()
+    _log.info("Application exited")
 
 
 if __name__ == "__main__":
