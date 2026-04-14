@@ -1,0 +1,69 @@
+{
+  "id": "MA.L2-3.7.6",
+  "control_number": "MA.L2-3.7.6",
+  "title": "Supervise Maintenance Activities of Personnel Without Required Access Authorization",
+  "description": "supervise the maintenance activities of maintenance personnel without required access authorization",
+  "category": "MA",
+  "target_os": [
+    "debian",
+    "linux",
+    "windows-client",
+    "windows-server"
+  ],
+  "check_details": {
+    "windows-client": {
+      "checks": [
+        {
+          "check_type": "command",
+          "name": "Maintenance Personnel Without Required Access Authorization are Supervised During Maintenance",
+          "sub_control": "a",
+          "command": "NA",
+          "expected_result": "NA",
+          "purpose": "Supervision of unauthorized maintenance personnel including escort requirements, access restrictions, and activity monitoring is an organizational GRC documentation concern and is not technically verifiable via automated check on Windows Client"
+        }
+      ]
+    },
+    "windows-server": {
+      "checks": [
+        {
+          "check_type": "command",
+          "name": "Maintenance Personnel Without Required Access Authorization are Supervised During Maintenance",
+          "sub_control": "a",
+          "command": "NA",
+          "expected_result": "NA",
+          "purpose": "Supervision of unauthorized maintenance personnel is an organizational GRC documentation concern and is not technically verifiable via automated check on Windows Server"
+        }
+      ]
+    },
+    "linux": {
+      "checks": [
+        {
+          "check_type": "command",
+          "name": "Maintenance Personnel Without Required Access Authorization are Supervised During Maintenance",
+          "sub_control": "a",
+          "command": "NA",
+          "expected_result": "NA",
+          "purpose": "Supervision of unauthorized maintenance personnel is an organizational GRC documentation concern and is not technically verifiable via automated check on Linux"
+        }
+      ]
+    },
+    "debian": {
+      "checks": [
+        {
+          "check_type": "command",
+          "name": "Maintenance Personnel Without Required Access Authorization are Supervised During Maintenance",
+          "sub_control": "a",
+          "command": "NA",
+          "expected_result": "NA",
+          "purpose": "Supervision of unauthorized maintenance personnel is an organizational GRC documentation concern and is not technically verifiable via automated check on Debian"
+        }
+      ]
+    }
+  },
+  "severity": "Medium",
+  "remediation": "Establish and document escort and supervision requirements for maintenance personnel who do not hold required access authorizations. Ensure authorized organizational personnel accompany and monitor all activities of uncleared maintenance staff during CUI system maintenance. Maintain records of supervised maintenance activities.",
+  "tags": [
+    "MA",
+    "MA.L2-3.7.6"
+  ]
+}

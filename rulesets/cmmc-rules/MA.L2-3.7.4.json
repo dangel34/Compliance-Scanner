@@ -1,0 +1,69 @@
+{
+  "id": "MA.L2-3.7.4",
+  "control_number": "MA.L2-3.7.4",
+  "title": "Check Media Containing Diagnostic and Test Programs for Malicious Code",
+  "description": "check media containing diagnostic and test programs for malicious code before the media are used in organizational systems",
+  "category": "MA",
+  "target_os": [
+    "debian",
+    "linux",
+    "windows-client",
+    "windows-server"
+  ],
+  "check_details": {
+    "windows-client": {
+      "checks": [
+        {
+          "check_type": "command",
+          "name": "Media Containing Diagnostic and Test Programs are Checked for Malicious Code",
+          "sub_control": "a",
+          "command": "NA",
+          "expected_result": "NA",
+          "purpose": "Scanning of diagnostic and test media for malicious code prior to use is an organizational process concern requiring manual or tool-assisted verification before media is connected to CUI systems and is not technically verifiable via automated check on Windows Client"
+        }
+      ]
+    },
+    "windows-server": {
+      "checks": [
+        {
+          "check_type": "command",
+          "name": "Media Containing Diagnostic and Test Programs are Checked for Malicious Code",
+          "sub_control": "a",
+          "command": "NA",
+          "expected_result": "NA",
+          "purpose": "Scanning of diagnostic and test media for malicious code prior to use is an organizational process concern and is not technically verifiable via automated check on Windows Server"
+        }
+      ]
+    },
+    "linux": {
+      "checks": [
+        {
+          "check_type": "command",
+          "name": "Media Containing Diagnostic and Test Programs are Checked for Malicious Code",
+          "sub_control": "a",
+          "command": "NA",
+          "expected_result": "NA",
+          "purpose": "Scanning of diagnostic and test media for malicious code prior to use is an organizational process concern and is not technically verifiable via automated check on Linux"
+        }
+      ]
+    },
+    "debian": {
+      "checks": [
+        {
+          "check_type": "command",
+          "name": "Media Containing Diagnostic and Test Programs are Checked for Malicious Code",
+          "sub_control": "a",
+          "command": "NA",
+          "expected_result": "NA",
+          "purpose": "Scanning of diagnostic and test media for malicious code prior to use is an organizational process concern and is not technically verifiable via automated check on Debian"
+        }
+      ]
+    }
+  },
+  "severity": "High",
+  "remediation": "Establish and document procedures requiring all diagnostic and test media to be scanned with approved antivirus or malware detection tools before use on any CUI system. Maintain scan records and ensure personnel are trained on the requirement. Consider using write-protected or organizationally controlled media to reduce the attack surface.",
+  "tags": [
+    "MA",
+    "MA.L2-3.7.4"
+  ]
+}

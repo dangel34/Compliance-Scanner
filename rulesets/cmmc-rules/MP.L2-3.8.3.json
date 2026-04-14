@@ -1,0 +1,101 @@
+{
+  "id": "MP.L2-3.8.3",
+  "control_number": "MP.L2-3.8.3",
+  "title": "Sanitize or Destroy System Media Containing CUI Before Disposal or Reuse",
+  "description": "sanitize or destroy system media containing CUI before disposal or release for reuse",
+  "category": "MP",
+  "target_os": [
+    "debian",
+    "linux",
+    "windows-client",
+    "windows-server"
+  ],
+  "check_details": {
+    "windows-client": {
+      "checks": [
+        {
+          "check_type": "command",
+          "name": "System Media Containing CUI is Sanitized or Destroyed Before Disposal",
+          "sub_control": "a",
+          "command": "NA",
+          "expected_result": "NA",
+          "purpose": "Sanitization or destruction of system media containing CUI prior to disposal using NIST SP 800-88 compliant methods is an organizational GRC documentation concern and is not technically verifiable via automated check on Windows Client"
+        },
+        {
+          "check_type": "command",
+          "name": "System Media Containing CUI is Sanitized Before Release for Reuse",
+          "sub_control": "b",
+          "command": "NA",
+          "expected_result": "NA",
+          "purpose": "Sanitization of system media containing CUI prior to reuse including cryptographic erasure or secure overwrite is an organizational GRC documentation concern and is not technically verifiable via automated check on Windows Client"
+        }
+      ]
+    },
+    "windows-server": {
+      "checks": [
+        {
+          "check_type": "command",
+          "name": "System Media Containing CUI is Sanitized or Destroyed Before Disposal",
+          "sub_control": "a",
+          "command": "NA",
+          "expected_result": "NA",
+          "purpose": "Sanitization or destruction of system media is an organizational GRC documentation concern and is not technically verifiable via automated check on Windows Server"
+        },
+        {
+          "check_type": "command",
+          "name": "System Media Containing CUI is Sanitized Before Release for Reuse",
+          "sub_control": "b",
+          "command": "NA",
+          "expected_result": "NA",
+          "purpose": "Sanitization of system media prior to reuse is an organizational GRC documentation concern and is not technically verifiable via automated check on Windows Server"
+        }
+      ]
+    },
+    "linux": {
+      "checks": [
+        {
+          "check_type": "command",
+          "name": "System Media Containing CUI is Sanitized or Destroyed Before Disposal",
+          "sub_control": "a",
+          "command": "NA",
+          "expected_result": "NA",
+          "purpose": "Sanitization or destruction of system media is an organizational GRC documentation concern and is not technically verifiable via automated check on Linux"
+        },
+        {
+          "check_type": "command",
+          "name": "System Media Containing CUI is Sanitized Before Release for Reuse",
+          "sub_control": "b",
+          "command": "NA",
+          "expected_result": "NA",
+          "purpose": "Sanitization of system media prior to reuse is an organizational GRC documentation concern and is not technically verifiable via automated check on Linux"
+        }
+      ]
+    },
+    "debian": {
+      "checks": [
+        {
+          "check_type": "command",
+          "name": "System Media Containing CUI is Sanitized or Destroyed Before Disposal",
+          "sub_control": "a",
+          "command": "NA",
+          "expected_result": "NA",
+          "purpose": "Sanitization or destruction of system media is an organizational GRC documentation concern and is not technically verifiable via automated check on Debian"
+        },
+        {
+          "check_type": "command",
+          "name": "System Media Containing CUI is Sanitized Before Release for Reuse",
+          "sub_control": "b",
+          "command": "NA",
+          "expected_result": "NA",
+          "purpose": "Sanitization of system media prior to reuse is an organizational GRC documentation concern and is not technically verifiable via automated check on Debian"
+        }
+      ]
+    }
+  },
+  "severity": "High",
+  "remediation": "Establish and document media sanitization procedures compliant with NIST SP 800-88 Guidelines for Media Sanitization. Use cryptographic erasure for encrypted media, secure overwrite tools for magnetic media, and physical destruction for media that cannot be reliably sanitized. Maintain sanitization and destruction records for all CUI media.",
+  "tags": [
+    "MP",
+    "MP.L2-3.8.3"
+  ]
+}
