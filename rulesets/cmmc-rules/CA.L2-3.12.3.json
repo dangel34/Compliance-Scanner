@@ -1,0 +1,69 @@
+{
+  "id": "CA.L2-3.12.3",
+  "control_number": "CA.L2-3.12.3",
+  "title": "Monitor Security Controls on an Ongoing Basis",
+  "description": "monitor security controls on an ongoing basis to ensure the continued effectiveness of the controls",
+  "category": "CA",
+  "target_os": [
+    "debian",
+    "linux",
+    "windows-client",
+    "windows-server"
+  ],
+  "check_details": {
+    "windows-client": {
+      "checks": [
+        {
+          "check_type": "command",
+          "name": "Security Controls are Monitored on an Ongoing Basis",
+          "sub_control": "a",
+          "command": "NA",
+          "expected_result": "NA",
+          "purpose": "Ongoing monitoring of security controls through continuous monitoring programs, automated scanning, and manual review is an organizational GRC documentation concern and is not technically verifiable via automated check on Windows Client"
+        }
+      ]
+    },
+    "windows-server": {
+      "checks": [
+        {
+          "check_type": "command",
+          "name": "Security Controls are Monitored on an Ongoing Basis",
+          "sub_control": "a",
+          "command": "NA",
+          "expected_result": "NA",
+          "purpose": "Ongoing monitoring of security controls is an organizational GRC documentation concern and is not technically verifiable via automated check on Windows Server"
+        }
+      ]
+    },
+    "linux": {
+      "checks": [
+        {
+          "check_type": "command",
+          "name": "Security Controls are Monitored on an Ongoing Basis",
+          "sub_control": "a",
+          "command": "NA",
+          "expected_result": "NA",
+          "purpose": "Ongoing monitoring of security controls is an organizational GRC documentation concern and is not technically verifiable via automated check on Linux"
+        }
+      ]
+    },
+    "debian": {
+      "checks": [
+        {
+          "check_type": "command",
+          "name": "Security Controls are Monitored on an Ongoing Basis",
+          "sub_control": "a",
+          "command": "NA",
+          "expected_result": "NA",
+          "purpose": "Ongoing monitoring of security controls is an organizational GRC documentation concern and is not technically verifiable via automated check on Debian"
+        }
+      ]
+    }
+  },
+  "severity": "High",
+  "remediation": "Establish and implement a continuous monitoring program that includes automated vulnerability scanning, configuration monitoring, log review, and security metric tracking. Document monitoring activities, findings, and responses. Ensure monitoring results feed into the POA&M and security assessment processes.",
+  "tags": [
+    "CA",
+    "CA.L2-3.12.3"
+  ]
+}
