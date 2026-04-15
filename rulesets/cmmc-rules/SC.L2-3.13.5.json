@@ -14,7 +14,7 @@
     "windows_client": {
       "checks": [
         {
-          "check_type": "command",
+          "check_type": "policy",
           "name": "Network Segmentation Architecture Documented",
           "sub_control": "a",
           "command": "NA",
@@ -42,7 +42,7 @@
     "windows_server": {
       "checks": [
         {
-          "check_type": "command",
+          "check_type": "policy",
           "name": "Network Segmentation Architecture Documented",
           "sub_control": "a",
           "command": "NA",
@@ -58,7 +58,7 @@
           "purpose": "Confirm the server is on a Domain-authenticated network, indicating proper internal subnet placement separate from publicly accessible segments"
         },
         {
-          "check_type": "command",
+          "check_type": "policy",
           "name": "Publicly Accessible Services in Separate Subnet",
           "sub_control": "c",
           "command": "NA",
@@ -78,7 +78,7 @@
     "linux": {
       "checks": [
         {
-          "check_type": "command",
+          "check_type": "policy",
           "name": "Network Segmentation Architecture Documented",
           "sub_control": "a",
           "command": "NA",
@@ -106,7 +106,7 @@
     "debian": {
       "checks": [
         {
-          "check_type": "command",
+          "check_type": "policy",
           "name": "Network Segmentation Architecture Documented",
           "sub_control": "a",
           "command": "NA",

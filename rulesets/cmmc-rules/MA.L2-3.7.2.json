@@ -7,14 +7,14 @@
   "target_os": [
     "debian",
     "linux",
-    "windows-client",
-    "windows-server"
+    "windows_client",
+    "windows_server"
   ],
   "check_details": {
-    "windows-client": {
+    "windows_client": {
       "checks": [
         {
-          "check_type": "command",
+          "check_type": "policy",
           "name": "Tools Used to Conduct System Maintenance are Controlled",
           "sub_control": "a",
           "command": "NA",
@@ -22,7 +22,7 @@
           "purpose": "Control of maintenance tools such as approved software lists, tool sanitization requirements, and hardware diagnostic equipment is an organizational GRC documentation concern and is not technically verifiable via automated check on Windows Client"
         },
         {
-          "check_type": "command",
+          "check_type": "policy",
           "name": "Techniques Used to Conduct System Maintenance are Controlled",
           "sub_control": "b",
           "command": "NA",
@@ -30,7 +30,7 @@
           "purpose": "Control of maintenance techniques such as approved procedures, change management processes, and maintenance windows is an organizational GRC documentation concern and is not technically verifiable via automated check on Windows Client"
         },
         {
-          "check_type": "command",
+          "check_type": "policy",
           "name": "Mechanisms Used to Conduct System Maintenance are Controlled",
           "sub_control": "c",
           "command": "NA",
@@ -38,7 +38,7 @@
           "purpose": "Control of maintenance mechanisms such as remote access tools, diagnostic software, and privileged access management is an organizational GRC documentation concern and is not technically verifiable via automated check on Windows Client"
         },
         {
-          "check_type": "command",
+          "check_type": "policy",
           "name": "Personnel Used to Conduct System Maintenance are Controlled",
           "sub_control": "d",
           "command": "NA",
@@ -47,10 +47,10 @@
         }
       ]
     },
-    "windows-server": {
+    "windows_server": {
       "checks": [
         {
-          "check_type": "command",
+          "check_type": "policy",
           "name": "Tools Used to Conduct System Maintenance are Controlled",
           "sub_control": "a",
           "command": "NA",
@@ -58,7 +58,7 @@
           "purpose": "Control of maintenance tools is an organizational GRC documentation concern and is not technically verifiable via automated check on Windows Server"
         },
         {
-          "check_type": "command",
+          "check_type": "policy",
           "name": "Techniques Used to Conduct System Maintenance are Controlled",
           "sub_control": "b",
           "command": "NA",
@@ -66,7 +66,7 @@
           "purpose": "Control of maintenance techniques is an organizational GRC documentation concern and is not technically verifiable via automated check on Windows Server"
         },
         {
-          "check_type": "command",
+          "check_type": "policy",
           "name": "Mechanisms Used to Conduct System Maintenance are Controlled",
           "sub_control": "c",
           "command": "NA",
@@ -74,7 +74,7 @@
           "purpose": "Control of maintenance mechanisms is an organizational GRC documentation concern and is not technically verifiable via automated check on Windows Server"
         },
         {
-          "check_type": "command",
+          "check_type": "policy",
           "name": "Personnel Used to Conduct System Maintenance are Controlled",
           "sub_control": "d",
           "command": "NA",
@@ -86,7 +86,7 @@
     "linux": {
       "checks": [
         {
-          "check_type": "command",
+          "check_type": "policy",
           "name": "Tools Used to Conduct System Maintenance are Controlled",
           "sub_control": "a",
           "command": "NA",
@@ -94,7 +94,7 @@
           "purpose": "Control of maintenance tools is an organizational GRC documentation concern and is not technically verifiable via automated check on Linux"
         },
         {
-          "check_type": "command",
+          "check_type": "policy",
           "name": "Techniques Used to Conduct System Maintenance are Controlled",
           "sub_control": "b",
           "command": "NA",
@@ -102,7 +102,7 @@
           "purpose": "Control of maintenance techniques is an organizational GRC documentation concern and is not technically verifiable via automated check on Linux"
         },
         {
-          "check_type": "command",
+          "check_type": "policy",
           "name": "Mechanisms Used to Conduct System Maintenance are Controlled",
           "sub_control": "c",
           "command": "NA",
@@ -110,7 +110,7 @@
           "purpose": "Control of maintenance mechanisms is an organizational GRC documentation concern and is not technically verifiable via automated check on Linux"
         },
         {
-          "check_type": "command",
+          "check_type": "policy",
           "name": "Personnel Used to Conduct System Maintenance are Controlled",
           "sub_control": "d",
           "command": "NA",
@@ -122,7 +122,7 @@
     "debian": {
       "checks": [
         {
-          "check_type": "command",
+          "check_type": "policy",
           "name": "Tools Used to Conduct System Maintenance are Controlled",
           "sub_control": "a",
           "command": "NA",
@@ -130,7 +130,7 @@
           "purpose": "Control of maintenance tools is an organizational GRC documentation concern and is not technically verifiable via automated check on Debian"
         },
         {
-          "check_type": "command",
+          "check_type": "policy",
           "name": "Techniques Used to Conduct System Maintenance are Controlled",
           "sub_control": "b",
           "command": "NA",
@@ -138,7 +138,7 @@
           "purpose": "Control of maintenance techniques is an organizational GRC documentation concern and is not technically verifiable via automated check on Debian"
         },
         {
-          "check_type": "command",
+          "check_type": "policy",
           "name": "Mechanisms Used to Conduct System Maintenance are Controlled",
           "sub_control": "c",
           "command": "NA",
@@ -146,7 +146,7 @@
           "purpose": "Control of maintenance mechanisms is an organizational GRC documentation concern and is not technically verifiable via automated check on Debian"
         },
         {
-          "check_type": "command",
+          "check_type": "policy",
           "name": "Personnel Used to Conduct System Maintenance are Controlled",
           "sub_control": "d",
           "command": "NA",

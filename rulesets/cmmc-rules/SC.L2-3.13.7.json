@@ -30,7 +30,7 @@
           "purpose": "Confirm the routing table shows the default route (0.0.0.0/0) directs all traffic through the VPN interface when VPN is connected"
         },
         {
-          "check_type": "command",
+          "check_type": "policy",
           "name": "Split Tunneling Policy Documented",
           "sub_control": "c",
           "command": "NA",
@@ -58,7 +58,7 @@
           "purpose": "Confirm default routes are directed through the VPN tunnel interface on the server"
         },
         {
-          "check_type": "command",
+          "check_type": "policy",
           "name": "Split Tunneling Policy Enforced via GPO",
           "sub_control": "c",
           "command": "NA",
@@ -78,7 +78,7 @@
           "purpose": "Verify OpenVPN configs include redirect-gateway def1 or WireGuard configs use AllowedIPs = 0.0.0.0/0 to prevent split tunneling"
         },
         {
-          "check_type": "command",
+          "check_type": "policy",
           "name": "Split Tunneling Policy Documented",
           "sub_control": "b",
           "command": "NA",
@@ -98,7 +98,7 @@
           "purpose": "Verify OpenVPN configs include redirect-gateway def1 or WireGuard configs use AllowedIPs = 0.0.0.0/0 to prevent split tunneling"
         },
         {
-          "check_type": "command",
+          "check_type": "policy",
           "name": "Split Tunneling Policy Documented",
           "sub_control": "b",
           "command": "NA",

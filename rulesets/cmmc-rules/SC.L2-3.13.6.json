@@ -50,7 +50,7 @@
           "purpose": "Confirm explicit outbound Allow rules are defined on the server to support permit-by-exception posture"
         },
         {
-          "check_type": "command",
+          "check_type": "policy",
           "name": "Deny-by-Default Policy Documented",
           "sub_control": "c",
           "command": "NA",

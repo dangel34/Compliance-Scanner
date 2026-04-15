@@ -7,14 +7,14 @@
   "target_os": [
     "debian",
     "linux",
-    "windows-client",
-    "windows-server"
+    "windows_client",
+    "windows_server"
   ],
   "check_details": {
-    "windows-client": {
+    "windows_client": {
       "checks": [
         {
-          "check_type": "command",
+          "check_type": "policy",
           "name": "Paper Media Containing CUI is Physically Controlled",
           "sub_control": "a",
           "command": "NA",
@@ -22,7 +22,7 @@
           "purpose": "Physical control of paper media containing CUI including locked storage, access restrictions, and physical inventory is an organizational GRC documentation concern and is not technically verifiable via automated check on Windows Client"
         },
         {
-          "check_type": "command",
+          "check_type": "policy",
           "name": "Digital Media Containing CUI is Physically Controlled",
           "sub_control": "b",
           "command": "NA",
@@ -30,7 +30,7 @@
           "purpose": "Physical control of digital media containing CUI including locked storage, cable locks, and physical access restrictions is an organizational GRC documentation concern and is not technically verifiable via automated check on Windows Client"
         },
         {
-          "check_type": "command",
+          "check_type": "policy",
           "name": "Paper Media Containing CUI is Securely Stored",
           "sub_control": "c",
           "command": "NA",
@@ -38,7 +38,7 @@
           "purpose": "Secure storage of paper media containing CUI in locked cabinets or safes in controlled areas is an organizational GRC documentation concern and is not technically verifiable via automated check on Windows Client"
         },
         {
-          "check_type": "command",
+          "check_type": "policy",
           "name": "Digital Media Containing CUI is Securely Stored",
           "sub_control": "d",
           "command": "NA",
@@ -47,10 +47,10 @@
         }
       ]
     },
-    "windows-server": {
+    "windows_server": {
       "checks": [
         {
-          "check_type": "command",
+          "check_type": "policy",
           "name": "Paper Media Containing CUI is Physically Controlled",
           "sub_control": "a",
           "command": "NA",
@@ -58,7 +58,7 @@
           "purpose": "Physical control of paper media is an organizational GRC documentation concern and is not technically verifiable via automated check on Windows Server"
         },
         {
-          "check_type": "command",
+          "check_type": "policy",
           "name": "Digital Media Containing CUI is Physically Controlled",
           "sub_control": "b",
           "command": "NA",
@@ -66,7 +66,7 @@
           "purpose": "Physical control of digital media is an organizational GRC documentation concern and is not technically verifiable via automated check on Windows Server"
         },
         {
-          "check_type": "command",
+          "check_type": "policy",
           "name": "Paper Media Containing CUI is Securely Stored",
           "sub_control": "c",
           "command": "NA",
@@ -74,7 +74,7 @@
           "purpose": "Secure storage of paper media is an organizational GRC documentation concern and is not technically verifiable via automated check on Windows Server"
         },
         {
-          "check_type": "command",
+          "check_type": "policy",
           "name": "Digital Media Containing CUI is Securely Stored",
           "sub_control": "d",
           "command": "NA",
@@ -86,7 +86,7 @@
     "linux": {
       "checks": [
         {
-          "check_type": "command",
+          "check_type": "policy",
           "name": "Paper Media Containing CUI is Physically Controlled",
           "sub_control": "a",
           "command": "NA",
@@ -94,7 +94,7 @@
           "purpose": "Physical control of paper media is an organizational GRC documentation concern and is not technically verifiable via automated check on Linux"
         },
         {
-          "check_type": "command",
+          "check_type": "policy",
           "name": "Digital Media Containing CUI is Physically Controlled",
           "sub_control": "b",
           "command": "NA",
@@ -102,7 +102,7 @@
           "purpose": "Physical control of digital media is an organizational GRC documentation concern and is not technically verifiable via automated check on Linux"
         },
         {
-          "check_type": "command",
+          "check_type": "policy",
           "name": "Paper Media Containing CUI is Securely Stored",
           "sub_control": "c",
           "command": "NA",
@@ -110,7 +110,7 @@
           "purpose": "Secure storage of paper media is an organizational GRC documentation concern and is not technically verifiable via automated check on Linux"
         },
         {
-          "check_type": "command",
+          "check_type": "policy",
           "name": "Digital Media Containing CUI is Securely Stored",
           "sub_control": "d",
           "command": "NA",
@@ -122,7 +122,7 @@
     "debian": {
       "checks": [
         {
-          "check_type": "command",
+          "check_type": "policy",
           "name": "Paper Media Containing CUI is Physically Controlled",
           "sub_control": "a",
           "command": "NA",
@@ -130,7 +130,7 @@
           "purpose": "Physical control of paper media is an organizational GRC documentation concern and is not technically verifiable via automated check on Debian"
         },
         {
-          "check_type": "command",
+          "check_type": "policy",
           "name": "Digital Media Containing CUI is Physically Controlled",
           "sub_control": "b",
           "command": "NA",
@@ -138,7 +138,7 @@
           "purpose": "Physical control of digital media is an organizational GRC documentation concern and is not technically verifiable via automated check on Debian"
         },
         {
-          "check_type": "command",
+          "check_type": "policy",
           "name": "Paper Media Containing CUI is Securely Stored",
           "sub_control": "c",
           "command": "NA",
@@ -146,7 +146,7 @@
           "purpose": "Secure storage of paper media is an organizational GRC documentation concern and is not technically verifiable via automated check on Debian"
         },
         {
-          "check_type": "command",
+          "check_type": "policy",
           "name": "Digital Media Containing CUI is Securely Stored",
           "sub_control": "d",
           "command": "NA",

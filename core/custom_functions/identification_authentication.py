@@ -21,12 +21,19 @@ from pathlib import Path
 # Helpers
 # ---------------------------------------------------------------------------
 
-def _run(cmd: str, shell: bool = True, timeout: int = 30) -> tuple[int, str, str]:
+def _run(cmd, shell: bool | None = None, timeout: int = 30) -> tuple[int, str, str]:
     """Run a shell command and return (returncode, stdout, stderr)."""
+    shell_tokens = ("|", ">", "<", "&&", "||", ";", "$(", "`")
     try:
+        if isinstance(cmd, (list, tuple)):
+            args = list(cmd)
+            use_shell = False
+        else:
+            use_shell = shell if shell is not None else any(tok in cmd for tok in shell_tokens)
+            args = cmd if use_shell else shlex.split(cmd, posix=False)
         result = subprocess.run(
-            cmd,
-            shell=shell,
+            args,
+            shell=use_shell,
             capture_output=True,
             text=True,
             timeout=timeout
@@ -38,8 +45,10 @@ def _run(cmd: str, shell: bool = True, timeout: int = 30) -> tuple[int, str, str
 
 def _ps(cmd: str) -> tuple[int, str, str]:
     """Run a PowerShell command and return (returncode, stdout, stderr)."""
-    full_cmd = f'powershell.exe -NonInteractive -NoProfile -Command "{cmd}"'
-    return _run(full_cmd)
+    return _run(
+        ["powershell.exe", "-NonInteractive", "-NoProfile", "-Command", cmd],
+        shell=False,
+    )
 
 
 def _reg_get(key: str, value: str) -> str | None:

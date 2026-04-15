@@ -14,7 +14,7 @@
     "windows_client": {
       "checks": [
         {
-          "check_type": "command",
+          "check_type": "policy",
           "name": "Means of Limiting Unsuccessful Logon Attempts is Defined",
           "sub_control": "a",
           "command": "NA",

@@ -14,7 +14,7 @@
     "windows_client": {
       "checks": [
         {
-          "check_type": "command",
+          "check_type": "policy",
           "name": "Individuals Authorized to Post to Publicly Accessible Systems are Identified",
           "sub_control": "a",
           "command": "NA",
@@ -22,7 +22,7 @@
           "purpose": "Identification of individuals authorized to post to publicly accessible systems is an organizational GRC documentation concern documented in acceptable use and content management policies and is not technically verifiable via automated check on Windows Client"
         },
         {
-          "check_type": "command",
+          "check_type": "policy",
           "name": "Procedures to Ensure CUI is Not Posted to Publicly Accessible Systems are Identified",
           "sub_control": "b",
           "command": "NA",
@@ -30,7 +30,7 @@
           "purpose": "Identification of procedures ensuring CUI is not posted to publicly accessible systems is an organizational GRC documentation concern documented in content management policies and is not technically verifiable via automated check on Windows Client"
         },
         {
-          "check_type": "command",
+          "check_type": "policy",
           "name": "A Review Process is in Place Prior to Posting Content to Publicly Accessible Systems",
           "sub_control": "c",
           "command": "NA",
@@ -58,7 +58,7 @@
     "windows_server": {
       "checks": [
         {
-          "check_type": "command",
+          "check_type": "policy",
           "name": "Individuals Authorized to Post to Publicly Accessible Systems are Identified",
           "sub_control": "a",
           "command": "NA",
@@ -66,7 +66,7 @@
           "purpose": "Identification of individuals authorized to post to publicly accessible systems is an organizational GRC documentation concern and is not technically verifiable via automated check on Windows Server"
         },
         {
-          "check_type": "command",
+          "check_type": "policy",
           "name": "Procedures to Ensure CUI is Not Posted to Publicly Accessible Systems are Identified",
           "sub_control": "b",
           "command": "NA",
@@ -74,7 +74,7 @@
           "purpose": "Identification of procedures ensuring CUI is not posted to publicly accessible systems is an organizational GRC documentation concern and is not technically verifiable via automated check on Windows Server"
         },
         {
-          "check_type": "command",
+          "check_type": "policy",
           "name": "A Review Process is in Place Prior to Posting Content to Publicly Accessible Systems",
           "sub_control": "c",
           "command": "NA",
@@ -102,7 +102,7 @@
     "linux": {
       "checks": [
         {
-          "check_type": "command",
+          "check_type": "policy",
           "name": "Individuals Authorized to Post to Publicly Accessible Systems are Identified",
           "sub_control": "a",
           "command": "NA",
@@ -110,7 +110,7 @@
           "purpose": "Identification of individuals authorized to post to publicly accessible systems is an organizational GRC documentation concern and is not technically verifiable via automated check on Linux"
         },
         {
-          "check_type": "command",
+          "check_type": "policy",
           "name": "Procedures to Ensure CUI is Not Posted to Publicly Accessible Systems are Identified",
           "sub_control": "b",
           "command": "NA",
@@ -118,7 +118,7 @@
           "purpose": "Identification of procedures ensuring CUI is not posted to publicly accessible systems is an organizational GRC documentation concern and is not technically verifiable via automated check on Linux"
         },
         {
-          "check_type": "command",
+          "check_type": "policy",
           "name": "A Review Process is in Place Prior to Posting Content to Publicly Accessible Systems",
           "sub_control": "c",
           "command": "NA",
@@ -146,7 +146,7 @@
     "debian": {
       "checks": [
         {
-          "check_type": "command",
+          "check_type": "policy",
           "name": "Individuals Authorized to Post to Publicly Accessible Systems are Identified",
           "sub_control": "a",
           "command": "NA",
@@ -154,7 +154,7 @@
           "purpose": "Identification of individuals authorized to post to publicly accessible systems is an organizational GRC documentation concern and is not technically verifiable via automated check on Debian"
         },
         {
-          "check_type": "command",
+          "check_type": "policy",
           "name": "Procedures to Ensure CUI is Not Posted to Publicly Accessible Systems are Identified",
           "sub_control": "b",
           "command": "NA",
@@ -162,7 +162,7 @@
           "purpose": "Identification of procedures ensuring CUI is not posted to publicly accessible systems is an organizational GRC documentation concern and is not technically verifiable via automated check on Debian"
         },
         {
-          "check_type": "command",
+          "check_type": "policy",
           "name": "A Review Process is in Place Prior to Posting Content to Publicly Accessible Systems",
           "sub_control": "c",
           "command": "NA",

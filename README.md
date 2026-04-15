@@ -1,4 +1,4 @@
-# Compliance Scanner
+# RuleForge
 
 A desktop application that scans Windows, Linux, and Debian systems against CMMC Level 2 control requirements and produces detailed compliance reports. Built as a senior project at Mercyhurst University by Derek Angelini, Connor McBee, and Melanie Fox.
 

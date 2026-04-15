@@ -1,17 +1,22 @@
 import os
 import json
 import subprocess
+import sys
 
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 RULE_PATH = os.path.join(SCRIPT_DIR, "rulesets", "cmmc-rules", "AC.L2-3.1.1.json")
 
-with open(RULE_PATH) as f:
+with open(RULE_PATH, encoding="utf-8") as f:
     rule = json.load(f)
 
 
 def run_command(cmd):
     try:
-        result = subprocess.run(cmd, capture_output=True, text=True, shell=True)
+        if sys.platform == "win32":
+            args = ["powershell", "-NonInteractive", "-NoProfile", "-Command", cmd]
+        else:
+            args = ["bash", "-lc", cmd]
+        result = subprocess.run(args, capture_output=True, text=True, timeout=60)
         return {
             "stdout": result.stdout.strip(),
             "stderr": result.stderr.strip(),
@@ -21,8 +26,8 @@ def run_command(cmd):
         return {"stdout": "", "stderr": str(e), "returncode": -1}
 
 
-# Get checks for the chosen OS (keys in check_details use hyphens: windows-client, debian, etc.)
-os_key = "windows-client"
+# Get checks for the chosen OS (keys in check_details use underscores: windows_client, debian, etc.)
+os_key = "windows_client"
 os_checks = rule.get("check_details", {}).get(os_key, {}).get("checks", [])
 for check in os_checks:
     name = check.get("name")

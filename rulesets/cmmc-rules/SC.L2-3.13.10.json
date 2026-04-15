@@ -14,7 +14,7 @@
     "windows_client": {
       "checks": [
         {
-          "check_type": "command",
+          "check_type": "policy",
           "name": "Key Management Policy Documented",
           "sub_control": "a",
           "command": "NA",
@@ -30,7 +30,7 @@
           "purpose": "Verify BitLocker uses TPM as a key protector (TPM, TPM+PIN, or TPM+Recovery), ensuring encryption keys are protected by hardware and not stored in plaintext"
         },
         {
-          "check_type": "command",
+          "check_type": "policy",
           "name": "Key Rotation and Escrow Procedures Exist",
           "sub_control": "c",
           "command": "NA",
@@ -42,7 +42,7 @@
     "windows_server": {
       "checks": [
         {
-          "check_type": "command",
+          "check_type": "policy",
           "name": "Key Management Policy Documented",
           "sub_control": "a",
           "command": "NA",
@@ -58,7 +58,7 @@
           "purpose": "Verify BitLocker key protectors on the server use TPM-based protection to prevent plaintext key exposure"
         },
         {
-          "check_type": "command",
+          "check_type": "policy",
           "name": "Certificate Services Key Management Documented",
           "sub_control": "c",
           "command": "NA",
@@ -66,7 +66,7 @@
           "purpose": "Verify PKI/certificate authority key management procedures are documented including CA key protection and renewal schedules — policy review only"
         },
         {
-          "check_type": "command",
+          "check_type": "policy",
           "name": "Key Rotation Procedures Exist",
           "sub_control": "d",
           "command": "NA",
@@ -78,7 +78,7 @@
     "linux": {
       "checks": [
         {
-          "check_type": "command",
+          "check_type": "policy",
           "name": "Key Management Policy Documented",
           "sub_control": "a",
           "command": "NA",
@@ -106,7 +106,7 @@
     "debian": {
       "checks": [
         {
-          "check_type": "command",
+          "check_type": "policy",
           "name": "Key Management Policy Documented",
           "sub_control": "a",
           "command": "NA",

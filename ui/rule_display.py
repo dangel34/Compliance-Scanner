@@ -1,5 +1,5 @@
 """
-Rule display rendering for the Compliance Scanner UI.
+Rule display rendering for the RuleForge UI.
 
 Renders rule results and rule metadata previews into a tk.Text widget
 using named color/font tags.
@@ -27,6 +27,10 @@ _DETECTED_OS: str = os_scan()
 # Divider line used in both render functions
 _DIVIDER = "  " + "─" * 62 + "\n"
 
+# Cap on stdout/stderr lines rendered into the text widget.
+# Prevents the widget from slowing to a crawl on high-verbosity command output.
+_MAX_OUTPUT_LINES = 80
+
 # Status -> tag name mapping; dict literal created once, not per-call
 _STATUS_TAG_MAP: Dict[str, str] = {
     "PASS":    "status_pass",
@@ -34,6 +38,7 @@ _STATUS_TAG_MAP: Dict[str, str] = {
     "PARTIAL": "status_partial",
     "SKIP":    "status_skip",
     "ERROR":   "status_error",
+    "POLICY":  "status_policy",
 }
 
 # ---------------------------------------------------------------------------
@@ -66,6 +71,9 @@ _TAG_DEFS: Dict[str, tuple] = {
     "status_partial": ("#f0c040", None,      "#7a5c00", None,       True),
     "status_skip":    ("#95a5a6", None,      "#555e65", None,       True),
     "status_error":   ("#e74c3c", None,      "#a01010", None,       True),
+    "status_policy":  ("#a78bfa", None,      "#5b21b6", None,       True),
+    "policy_label":   ("#c4b5fd", None,      "#6d28d9", None,       True),
+    "policy_text":    ("#ddd6fe", None,      "#4c1d95", None,       False),
     "check_header":   ("#ffffff", "#1e3a5f", "#ffffff", "#1e3a5f",  True),
     "divider":        ("#3d5166", None,      "#9baab8", None,       False),
     "stdout_label":   ("#27ae60", None,      "#1a7a3a", None,       True),
@@ -167,6 +175,9 @@ def render_rule_details(widget: tk.Text, result: RunResult) -> None:
         w("  OS               : ", "label"); w(f"{result.get('os', '')}\n",                             "value")
         w("  Checks run       : ", "label"); w(f"{result.get('checks_run', 0)}\n",                      "value")
         w("  Checks skipped   : ", "label"); w(f"{result.get('checks_skipped', 0)} (NA subcontrols)\n", "value")
+        policy_count = result.get("checks_policy", 0)
+        if policy_count:
+            w("  Policy checks    : ", "label"); w(f"{policy_count} (require human review)\n", "status_policy")
 
         remediation = _safe_str(result.get("remediation", ""), max_len=2048).strip()
         if remediation and status in ("FAIL", "PARTIAL", "ERROR"):
@@ -183,22 +194,36 @@ def render_rule_details(widget: tk.Text, result: RunResult) -> None:
             chk_tag    = _status_tag(chk_status)
 
             w(f"  CHECK #{i}  |  {check.get('check_name', '')}\n", "check_header")
-            w("  Subcontrol       : ", "label"); w(f"{check.get('sub_control',     '')}\n", "value")
-            w("  Status           : ", "label"); w(f"{chk_status}\n",                        chk_tag)
-            w("  Command          : ", "label"); w(f"{check.get('command',         '')}\n", "value")
-            w("  Expected result  : ", "label"); w(f"{check.get('expected_result', '')}\n", "value")
-            w("  Return code      : ", "label"); w(f"{check.get('returncode',      '')}\n", "value")
+            w("  Subcontrol       : ", "label"); w(f"{check.get('sub_control', '')}\n", "value")
+            w("  Status           : ", "label"); w(f"{chk_status}\n", chk_tag)
 
-            stdout = check.get("stdout", "").strip()
-            stderr = check.get("stderr", "").strip()
-            if stdout:
-                w("\n  stdout:\n", "stdout_label")
-                for line in stdout.splitlines():
-                    w(f"    {line}\n", "stdout_text")
-            if stderr:
-                w("\n  stderr:\n", "stderr_label")
-                for line in stderr.splitlines():
-                    w(f"    {line}\n", "stderr_text")
+            if chk_status == "POLICY":
+                purpose = check.get("stdout", "").strip()  # purpose stored in stdout field
+                if purpose:
+                    w("\n  Policy requirement:\n", "policy_label")
+                    for line in purpose.splitlines():
+                        w(f"    {line}\n", "policy_text")
+            else:
+                w("  Command          : ", "label"); w(f"{check.get('command',         '')}\n", "value")
+                w("  Expected result  : ", "label"); w(f"{check.get('expected_result', '')}\n", "value")
+                w("  Return code      : ", "label"); w(f"{check.get('returncode',      '')}\n", "value")
+
+                stdout = check.get("stdout", "").strip()
+                stderr = check.get("stderr", "").strip()
+                if stdout:
+                    w("\n  stdout:\n", "stdout_label")
+                    lines = stdout.splitlines()
+                    for line in lines[:_MAX_OUTPUT_LINES]:
+                        w(f"    {line}\n", "stdout_text")
+                    if len(lines) > _MAX_OUTPUT_LINES:
+                        w(f"    … {len(lines) - _MAX_OUTPUT_LINES} more lines truncated\n", "meta")
+                if stderr:
+                    w("\n  stderr:\n", "stderr_label")
+                    lines = stderr.splitlines()
+                    for line in lines[:_MAX_OUTPUT_LINES]:
+                        w(f"    {line}\n", "stderr_text")
+                    if len(lines) > _MAX_OUTPUT_LINES:
+                        w(f"    … {len(lines) - _MAX_OUTPUT_LINES} more lines truncated\n", "meta")
 
             w("\n")
             w(_DIVIDER, "divider")

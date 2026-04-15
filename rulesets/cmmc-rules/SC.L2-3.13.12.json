@@ -30,7 +30,7 @@
           "purpose": "Verify LetAppsAccessMicrophone = 2 (Force Deny) in the AppPrivacy GPO registry, preventing applications from remotely activating the microphone"
         },
         {
-          "check_type": "command",
+          "check_type": "policy",
           "name": "Policy Prohibiting Remote Activation of Collaborative Devices",
           "sub_control": "c",
           "command": "NA",
@@ -58,7 +58,7 @@
           "purpose": "Verify LetAppsAccessMicrophone = 2 on the server to restrict microphone access"
         },
         {
-          "check_type": "command",
+          "check_type": "policy",
           "name": "Policy Prohibiting Remote Activation of Collaborative Devices",
           "sub_control": "c",
           "command": "NA",
@@ -86,7 +86,7 @@
           "purpose": "Verify /dev/snd/* devices are not world-accessible, preventing unauthorized processes from remotely activating the microphone"
         },
         {
-          "check_type": "command",
+          "check_type": "policy",
           "name": "Policy Prohibiting Remote Activation of Collaborative Devices",
           "sub_control": "c",
           "command": "NA",
@@ -114,7 +114,7 @@
           "purpose": "Verify /dev/snd/* devices are not world-accessible, preventing unauthorized processes from remotely activating the microphone"
         },
         {
-          "check_type": "command",
+          "check_type": "policy",
           "name": "Policy Prohibiting Remote Activation of Collaborative Devices",
           "sub_control": "c",
           "command": "NA",

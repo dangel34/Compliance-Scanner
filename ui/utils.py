@@ -1,5 +1,5 @@
 """
-Shared utilities for the Compliance Scanner UI.
+Shared utilities for the RuleForge UI.
 
 Establishes PROJECT_ROOT on sys.path so that all ui sub-modules can
 import from core without repeating the path-setup boilerplate.
@@ -58,7 +58,15 @@ def setup_logging() -> None:
     ))
 
     root = logging.getLogger()
-    root.setLevel(logging.DEBUG)
+    root.setLevel(logging.INFO)
+    # Avoid duplicate log lines if setup_logging() is called more than once.
+    for existing in root.handlers:
+        if isinstance(existing, logging.handlers.RotatingFileHandler):
+            try:
+                if os.path.abspath(existing.baseFilename) == os.path.abspath(log_path):
+                    return
+            except Exception:
+                continue
     root.addHandler(handler)
 
 
@@ -71,17 +79,24 @@ RunResult = Dict[str, Any]
 # String helpers
 # ---------------------------------------------------------------------------
 
-# Compiled once — matches ASCII control characters that are unsafe in UI/PDF
-_CTRL_CHARS = re.compile(r"[\x00-\x08\x0b\x0c\x0e-\x1f\x7f]")
+# Compiled once — each pattern targets a distinct class of unsafe content
+_CTRL_CHARS   = re.compile(r"[\x00-\x08\x0b\x0c\x0e-\x1f\x7f]")
+_ANSI_ESCAPE  = re.compile(r"\x1b\[[0-9;]*[a-zA-Z]")   # terminal colour codes
+_UNICODE_CTRL = re.compile(                              # bidi overrides, zero-width chars, BOM
+    r"[\u200b-\u200f\u202a-\u202e\u2060-\u2064\ufeff]"
+)
 
 
 def _safe_str(value: Any, max_len: int = 512) -> str:
     """
-    Coerce *value* to a plain string, strip control characters, and cap length.
+    Coerce *value* to a plain string, strip control characters, ANSI escape
+    codes, and Unicode directional/invisible controls, then cap length.
     Used everywhere user-supplied JSON data is read so that malformed or
     adversarial content cannot propagate into the UI or PDF renderer.
     """
     s = str(value) if value is not None else ""
+    s = _ANSI_ESCAPE.sub("", s)
+    s = _UNICODE_CTRL.sub("", s)
     return _CTRL_CHARS.sub("", s)[:max_len]
 
 
@@ -106,7 +121,12 @@ def get_rule_status(result: RunResult) -> str:
     checks = result.get("checks", [])
     if not checks:
         return "SKIP"
-    statuses = [c.get("status") for c in checks]
+    # Separate policy checks from automated ones — policy checks don't count
+    # toward pass/fail; a rule that is entirely policy gets its own status.
+    automated = [c for c in checks if c.get("status") != "POLICY"]
+    if not automated:
+        return "POLICY"
+    statuses = [c.get("status") for c in automated]
     if all(s == "PASS" for s in statuses):
         return "PASS"
     if all(s == "FAIL" for s in statuses):
