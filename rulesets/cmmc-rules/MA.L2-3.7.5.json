@@ -1,0 +1,101 @@
+{
+  "id": "MA.L2-3.7.5",
+  "control_number": "MA.L2-3.7.5",
+  "title": "Require MFA for Nonlocal Maintenance Sessions and Terminate When Complete",
+  "description": "require multifactor authentication to establish nonlocal maintenance sessions via external network connections and terminate such connections when nonlocal maintenance is complete",
+  "category": "MA",
+  "target_os": [
+    "debian",
+    "linux",
+    "windows-client",
+    "windows-server"
+  ],
+  "check_details": {
+    "windows-client": {
+      "checks": [
+        {
+          "check_type": "command",
+          "name": "MFA is Used to Establish Nonlocal Maintenance Sessions via External Network Connections",
+          "sub_control": "a",
+          "command": "NA",
+          "expected_result": "NA",
+          "purpose": "Enforcement of MFA for nonlocal maintenance sessions is an organizational policy and identity management concern dependent on the MFA solution in use and is not technically verifiable via automated check on Windows Client"
+        },
+        {
+          "check_type": "command",
+          "name": "Nonlocal Maintenance Sessions are Terminated When Maintenance is Complete",
+          "sub_control": "b",
+          "command": "NA",
+          "expected_result": "NA",
+          "purpose": "Termination of nonlocal maintenance sessions upon completion is an organizational process concern requiring manual verification or privileged access management tooling and is not technically verifiable via automated check on Windows Client"
+        }
+      ]
+    },
+    "windows-server": {
+      "checks": [
+        {
+          "check_type": "command",
+          "name": "MFA is Used to Establish Nonlocal Maintenance Sessions via External Network Connections",
+          "sub_control": "a",
+          "command": "NA",
+          "expected_result": "NA",
+          "purpose": "Enforcement of MFA for nonlocal maintenance sessions is an organizational policy and identity management concern and is not technically verifiable via automated check on Windows Server"
+        },
+        {
+          "check_type": "command",
+          "name": "Nonlocal Maintenance Sessions are Terminated When Maintenance is Complete",
+          "sub_control": "b",
+          "command": "NA",
+          "expected_result": "NA",
+          "purpose": "Termination of nonlocal maintenance sessions upon completion is an organizational process concern and is not technically verifiable via automated check on Windows Server"
+        }
+      ]
+    },
+    "linux": {
+      "checks": [
+        {
+          "check_type": "command",
+          "name": "MFA is Used to Establish Nonlocal Maintenance Sessions via External Network Connections",
+          "sub_control": "a",
+          "command": "NA",
+          "expected_result": "NA",
+          "purpose": "Enforcement of MFA for nonlocal maintenance sessions is an organizational policy and identity management concern and is not technically verifiable via automated check on Linux"
+        },
+        {
+          "check_type": "command",
+          "name": "Nonlocal Maintenance Sessions are Terminated When Maintenance is Complete",
+          "sub_control": "b",
+          "command": "NA",
+          "expected_result": "NA",
+          "purpose": "Termination of nonlocal maintenance sessions upon completion is an organizational process concern and is not technically verifiable via automated check on Linux"
+        }
+      ]
+    },
+    "debian": {
+      "checks": [
+        {
+          "check_type": "command",
+          "name": "MFA is Used to Establish Nonlocal Maintenance Sessions via External Network Connections",
+          "sub_control": "a",
+          "command": "NA",
+          "expected_result": "NA",
+          "purpose": "Enforcement of MFA for nonlocal maintenance sessions is an organizational policy and identity management concern and is not technically verifiable via automated check on Debian"
+        },
+        {
+          "check_type": "command",
+          "name": "Nonlocal Maintenance Sessions are Terminated When Maintenance is Complete",
+          "sub_control": "b",
+          "command": "NA",
+          "expected_result": "NA",
+          "purpose": "Termination of nonlocal maintenance sessions upon completion is an organizational process concern and is not technically verifiable via automated check on Debian"
+        }
+      ]
+    }
+  },
+  "severity": "High",
+  "remediation": "Implement MFA for all nonlocal maintenance sessions established via external network connections using an approved MFA solution such as PIV cards, FIDO2 tokens, or authenticator apps. Establish and document procedures requiring maintenance personnel to explicitly terminate remote sessions upon completion of maintenance activities. Consider implementing privileged access management tooling to enforce session termination automatically.",
+  "tags": [
+    "MA",
+    "MA.L2-3.7.5"
+  ]
+}
