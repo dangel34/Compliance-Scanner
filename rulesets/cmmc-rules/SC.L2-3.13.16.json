@@ -30,12 +30,12 @@
           "purpose": "Confirm the BitLocker encryption percentage is 100%, ensuring no unencrypted data remains on the system drive"
         },
         {
-          "check_type": "command",
+          "check_type": "policy",
           "name": "CUI at Rest Encryption Policy Documented",
           "sub_control": "c",
           "command": "NA",
           "expected_result": "NA",
-          "purpose": "Verify documented policy identifies all locations where CUI is stored at rest and mandates encryption for each \u00e2\u20ac\u201d policy review only"
+          "purpose": "Verify documented policy identifies all locations where CUI is stored at rest and mandates encryption for each â€” policy review only"
         }
       ]
     },
@@ -58,12 +58,12 @@
           "purpose": "Confirm BitLocker encryption percentage is 100% on the server's system drive, ensuring all CUI is fully protected"
         },
         {
-          "check_type": "command",
+          "check_type": "policy",
           "name": "CUI at Rest Encryption Policy Documented",
           "sub_control": "c",
           "command": "NA",
           "expected_result": "NA",
-          "purpose": "Verify documented policy mandates encryption for all CUI at rest locations including databases, file shares, and backup media \u00e2\u20ac\u201d policy review only"
+          "purpose": "Verify documented policy mandates encryption for all CUI at rest locations including databases, file shares, and backup media â€” policy review only"
         },
         {
           "check_type": "command",
@@ -71,7 +71,7 @@
           "sub_control": "d",
           "command": "NA",
           "expected_result": "NA",
-          "purpose": "Verify BitLocker or EFS encryption is applied to all data drives storing CUI, not just the system drive \u00e2\u20ac\u201d requires manual review of additional volumes"
+          "purpose": "Verify BitLocker or EFS encryption is applied to all data drives storing CUI, not just the system drive â€” requires manual review of additional volumes"
         }
       ]
     },
@@ -94,12 +94,12 @@
           "purpose": "Confirm LUKS device mappings (dm-crypt) are active and mounted, verifying that encrypted volumes are properly unlocked and accessible only through the encryption layer"
         },
         {
-          "check_type": "command",
+          "check_type": "policy",
           "name": "CUI at Rest Encryption Policy Documented",
           "sub_control": "c",
           "command": "NA",
           "expected_result": "NA",
-          "purpose": "Verify documented policy mandates encryption for all CUI stored at rest \u00e2\u20ac\u201d policy review only"
+          "purpose": "Verify documented policy mandates encryption for all CUI stored at rest â€” policy review only"
         }
       ]
     },
@@ -122,12 +122,12 @@
           "purpose": "Confirm LUKS device mappings (dm-crypt) are active and mounted, verifying that encrypted volumes are properly unlocked and accessible only through the encryption layer"
         },
         {
-          "check_type": "command",
+          "check_type": "policy",
           "name": "CUI at Rest Encryption Policy Documented",
           "sub_control": "c",
           "command": "NA",
           "expected_result": "NA",
-          "purpose": "Verify documented policy mandates encryption for all CUI stored at rest \u00e2\u20ac\u201d policy review only"
+          "purpose": "Verify documented policy mandates encryption for all CUI stored at rest â€” policy review only"
         }
       ]
     }

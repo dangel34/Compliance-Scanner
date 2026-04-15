@@ -1,14 +1,26 @@
 import subprocess
 import json
 import re
+import sys
 
 def run_command(cmd: str):
     try:
-        result = subprocess.run(
+        ps_match = re.match(
+            r'^\s*powershell(?:\.exe)?\s+-NoProfile\s+-Command\s+"(.*)"\s*$',
             cmd,
+            re.IGNORECASE,
+        )
+        if ps_match:
+            args = ["powershell", "-NonInteractive", "-NoProfile", "-Command", ps_match.group(1)]
+        elif sys.platform == "win32":
+            args = ["powershell", "-NonInteractive", "-NoProfile", "-Command", cmd]
+        else:
+            args = ["bash", "-lc", cmd]
+        result = subprocess.run(
+            args,
             capture_output=True,
             text=True,
-            shell=True
+            timeout=60
         )
         return {
             "stdout": result.stdout.strip(),

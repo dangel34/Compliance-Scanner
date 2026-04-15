@@ -14,7 +14,7 @@
     "windows_client": {
       "checks": [
         {
-          "check_type": "command",
+          "check_type": "policy",
           "name": "Managed Access Control Points are Identified and Implemented",
           "sub_control": "a",
           "command": "NA",
@@ -34,7 +34,7 @@
     "windows_server": {
       "checks": [
         {
-          "check_type": "command",
+          "check_type": "policy",
           "name": "Managed Access Control Points are Identified and Implemented",
           "sub_control": "a",
           "command": "NA",
@@ -54,7 +54,7 @@
     "linux": {
       "checks": [
         {
-          "check_type": "command",
+          "check_type": "policy",
           "name": "Managed Access Control Points are Identified and Implemented",
           "sub_control": "a",
           "command": "NA",
@@ -74,7 +74,7 @@
     "debian": {
       "checks": [
         {
-          "check_type": "command",
+          "check_type": "policy",
           "name": "Managed Access Control Points are Identified and Implemented",
           "sub_control": "a",
           "command": "NA",

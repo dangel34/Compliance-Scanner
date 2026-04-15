@@ -7,14 +7,14 @@
   "target_os": [
     "debian",
     "linux",
-    "windows-client",
-    "windows-server"
+    "windows_client",
+    "windows_server"
   ],
   "check_details": {
-    "windows-client": {
+    "windows_client": {
       "checks": [
         {
-          "check_type": "command",
+          "check_type": "policy",
           "name": "Incidents are Tracked",
           "sub_control": "a",
           "command": "NA",
@@ -22,7 +22,7 @@
           "purpose": "Incident tracking via ticketing systems or incident logs is an organizational GRC documentation concern and is not technically verifiable via automated check on Windows Client"
         },
         {
-          "check_type": "command",
+          "check_type": "policy",
           "name": "Incidents are Documented",
           "sub_control": "b",
           "command": "NA",
@@ -30,7 +30,7 @@
           "purpose": "Incident documentation including timelines, affected systems, and response actions is an organizational GRC documentation concern and is not technically verifiable via automated check on Windows Client"
         },
         {
-          "check_type": "command",
+          "check_type": "policy",
           "name": "Authorities to Whom Incidents are to be Reported are Identified",
           "sub_control": "c",
           "command": "NA",
@@ -38,7 +38,7 @@
           "purpose": "Identification of external reporting authorities such as US-CERT and DIBNet is an organizational GRC documentation concern documented in the incident response plan and is not technically verifiable via automated check"
         },
         {
-          "check_type": "command",
+          "check_type": "policy",
           "name": "Organizational Officials to Whom Incidents are to be Reported are Identified",
           "sub_control": "d",
           "command": "NA",
@@ -63,10 +63,10 @@
         }
       ]
     },
-    "windows-server": {
+    "windows_server": {
       "checks": [
         {
-          "check_type": "command",
+          "check_type": "policy",
           "name": "Incidents are Tracked",
           "sub_control": "a",
           "command": "NA",
@@ -74,7 +74,7 @@
           "purpose": "Incident tracking is an organizational GRC documentation concern and is not technically verifiable via automated check on Windows Server"
         },
         {
-          "check_type": "command",
+          "check_type": "policy",
           "name": "Incidents are Documented",
           "sub_control": "b",
           "command": "NA",
@@ -82,7 +82,7 @@
           "purpose": "Incident documentation is an organizational GRC documentation concern and is not technically verifiable via automated check on Windows Server"
         },
         {
-          "check_type": "command",
+          "check_type": "policy",
           "name": "Authorities to Whom Incidents are to be Reported are Identified",
           "sub_control": "c",
           "command": "NA",
@@ -90,7 +90,7 @@
           "purpose": "Identification of external reporting authorities is an organizational GRC documentation concern and is not technically verifiable via automated check"
         },
         {
-          "check_type": "command",
+          "check_type": "policy",
           "name": "Organizational Officials to Whom Incidents are to be Reported are Identified",
           "sub_control": "d",
           "command": "NA",
@@ -118,7 +118,7 @@
     "linux": {
       "checks": [
         {
-          "check_type": "command",
+          "check_type": "policy",
           "name": "Incidents are Tracked",
           "sub_control": "a",
           "command": "NA",
@@ -126,7 +126,7 @@
           "purpose": "Incident tracking is an organizational GRC documentation concern and is not technically verifiable via automated check on Linux"
         },
         {
-          "check_type": "command",
+          "check_type": "policy",
           "name": "Incidents are Documented",
           "sub_control": "b",
           "command": "NA",
@@ -134,7 +134,7 @@
           "purpose": "Incident documentation is an organizational GRC documentation concern and is not technically verifiable via automated check on Linux"
         },
         {
-          "check_type": "command",
+          "check_type": "policy",
           "name": "Authorities to Whom Incidents are to be Reported are Identified",
           "sub_control": "c",
           "command": "NA",
@@ -142,7 +142,7 @@
           "purpose": "Identification of external reporting authorities is an organizational GRC documentation concern and is not technically verifiable via automated check"
         },
         {
-          "check_type": "command",
+          "check_type": "policy",
           "name": "Organizational Officials to Whom Incidents are to be Reported are Identified",
           "sub_control": "d",
           "command": "NA",
@@ -170,7 +170,7 @@
     "debian": {
       "checks": [
         {
-          "check_type": "command",
+          "check_type": "policy",
           "name": "Incidents are Tracked",
           "sub_control": "a",
           "command": "NA",
@@ -178,7 +178,7 @@
           "purpose": "Incident tracking is an organizational GRC documentation concern and is not technically verifiable via automated check on Debian"
         },
         {
-          "check_type": "command",
+          "check_type": "policy",
           "name": "Incidents are Documented",
           "sub_control": "b",
           "command": "NA",
@@ -186,7 +186,7 @@
           "purpose": "Incident documentation is an organizational GRC documentation concern and is not technically verifiable via automated check on Debian"
         },
         {
-          "check_type": "command",
+          "check_type": "policy",
           "name": "Authorities to Whom Incidents are to be Reported are Identified",
           "sub_control": "c",
           "command": "NA",
@@ -194,7 +194,7 @@
           "purpose": "Identification of external reporting authorities is an organizational GRC documentation concern and is not technically verifiable via automated check"
         },
         {
-          "check_type": "command",
+          "check_type": "policy",
           "name": "Organizational Officials to Whom Incidents are to be Reported are Identified",
           "sub_control": "d",
           "command": "NA",

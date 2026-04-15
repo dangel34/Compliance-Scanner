@@ -7,14 +7,14 @@
   "target_os": [
     "debian",
     "linux",
-    "windows-client",
-    "windows-server"
+    "windows_client",
+    "windows_server"
   ],
   "check_details": {
-    "windows-client": {
+    "windows_client": {
       "checks": [
         {
-          "check_type": "command",
+          "check_type": "policy",
           "name": "Deficiencies and Vulnerabilities to be Addressed are Identified",
           "sub_control": "a",
           "command": "NA",
@@ -22,7 +22,7 @@
           "purpose": "Identification of deficiencies and vulnerabilities to be addressed in the plan of action is an organizational GRC documentation concern requiring assessment findings and vulnerability scan results and is not technically verifiable via automated check on Windows Client"
         },
         {
-          "check_type": "command",
+          "check_type": "policy",
           "name": "A Plan of Action is Developed to Correct Identified Deficiencies and Vulnerabilities",
           "sub_control": "b",
           "command": "NA",
@@ -30,7 +30,7 @@
           "purpose": "Development of a plan of action and milestones documenting corrective actions, responsible parties, and completion dates is an organizational GRC documentation concern and is not technically verifiable via automated check on Windows Client"
         },
         {
-          "check_type": "command",
+          "check_type": "policy",
           "name": "The Plan of Action is Implemented to Correct Deficiencies and Reduce Vulnerabilities",
           "sub_control": "c",
           "command": "NA",
@@ -39,10 +39,10 @@
         }
       ]
     },
-    "windows-server": {
+    "windows_server": {
       "checks": [
         {
-          "check_type": "command",
+          "check_type": "policy",
           "name": "Deficiencies and Vulnerabilities to be Addressed are Identified",
           "sub_control": "a",
           "command": "NA",
@@ -50,7 +50,7 @@
           "purpose": "Identification of deficiencies and vulnerabilities is an organizational GRC documentation concern and is not technically verifiable via automated check on Windows Server"
         },
         {
-          "check_type": "command",
+          "check_type": "policy",
           "name": "A Plan of Action is Developed to Correct Identified Deficiencies and Vulnerabilities",
           "sub_control": "b",
           "command": "NA",
@@ -58,7 +58,7 @@
           "purpose": "Development of a plan of action and milestones is an organizational GRC documentation concern and is not technically verifiable via automated check on Windows Server"
         },
         {
-          "check_type": "command",
+          "check_type": "policy",
           "name": "The Plan of Action is Implemented to Correct Deficiencies and Reduce Vulnerabilities",
           "sub_control": "c",
           "command": "NA",
@@ -70,7 +70,7 @@
     "linux": {
       "checks": [
         {
-          "check_type": "command",
+          "check_type": "policy",
           "name": "Deficiencies and Vulnerabilities to be Addressed are Identified",
           "sub_control": "a",
           "command": "NA",
@@ -78,7 +78,7 @@
           "purpose": "Identification of deficiencies and vulnerabilities is an organizational GRC documentation concern and is not technically verifiable via automated check on Linux"
         },
         {
-          "check_type": "command",
+          "check_type": "policy",
           "name": "A Plan of Action is Developed to Correct Identified Deficiencies and Vulnerabilities",
           "sub_control": "b",
           "command": "NA",
@@ -86,7 +86,7 @@
           "purpose": "Development of a plan of action and milestones is an organizational GRC documentation concern and is not technically verifiable via automated check on Linux"
         },
         {
-          "check_type": "command",
+          "check_type": "policy",
           "name": "The Plan of Action is Implemented to Correct Deficiencies and Reduce Vulnerabilities",
           "sub_control": "c",
           "command": "NA",
@@ -98,7 +98,7 @@
     "debian": {
       "checks": [
         {
-          "check_type": "command",
+          "check_type": "policy",
           "name": "Deficiencies and Vulnerabilities to be Addressed are Identified",
           "sub_control": "a",
           "command": "NA",
@@ -106,7 +106,7 @@
           "purpose": "Identification of deficiencies and vulnerabilities is an organizational GRC documentation concern and is not technically verifiable via automated check on Debian"
         },
         {
-          "check_type": "command",
+          "check_type": "policy",
           "name": "A Plan of Action is Developed to Correct Identified Deficiencies and Vulnerabilities",
           "sub_control": "b",
           "command": "NA",
@@ -114,7 +114,7 @@
           "purpose": "Development of a plan of action and milestones is an organizational GRC documentation concern and is not technically verifiable via automated check on Debian"
         },
         {
-          "check_type": "command",
+          "check_type": "policy",
           "name": "The Plan of Action is Implemented to Correct Deficiencies and Reduce Vulnerabilities",
           "sub_control": "c",
           "command": "NA",

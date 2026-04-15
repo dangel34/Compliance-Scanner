@@ -9,10 +9,9 @@ class DebianModule(ScannerTarget):
     def run_cmd(self, cmd: str) -> dict:
         try:
             result = subprocess.run(
-                cmd,
+                ["bash", "-lc", cmd],
                 capture_output=True,
                 text=True,
-                shell=True,
                 timeout=30,
             )
             return {

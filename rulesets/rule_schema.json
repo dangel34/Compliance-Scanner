@@ -40,7 +40,7 @@
     "category": {
       "type": "string",
       "description": "CMMC control family abbreviation",
-      "enum": ["AC", "AU", "CM", "IA", "MA", "MP", "PE", "PS", "RA", "CA", "SC", "SI"]
+      "enum": ["AC", "AU", "CM", "IA", "IR", "MA", "MP", "PE", "PS", "RA", "CA", "SC", "SI"]
     },
     "target_os": {
       "type": "array",
@@ -99,7 +99,7 @@
       "properties": {
         "check_type": {
           "type": "string",
-          "enum": ["command", "service", "file_permissions"],
+          "enum": ["command", "service", "file_permissions", "policy"],
           "description": "How to execute this check"
         },
         "name": {

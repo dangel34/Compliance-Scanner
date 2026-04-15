@@ -14,7 +14,7 @@
     "windows_client": {
       "checks": [
         {
-          "check_type": "command",
+          "check_type": "policy",
           "name": "Mobile Devices that Process Store or Transmit CUI are Identified",
           "sub_control": "a",
           "command": "NA",
@@ -22,7 +22,7 @@
           "purpose": "Identification of mobile devices that process store or transmit CUI is an organizational GRC documentation concern and is not technically verifiable via automated check on Windows Client"
         },
         {
-          "check_type": "command",
+          "check_type": "policy",
           "name": "Mobile Device Connections are Authorized",
           "sub_control": "b",
           "command": "NA",
@@ -42,7 +42,7 @@
     "windows_server": {
       "checks": [
         {
-          "check_type": "command",
+          "check_type": "policy",
           "name": "Mobile Devices that Process Store or Transmit CUI are Identified",
           "sub_control": "a",
           "command": "NA",
@@ -50,7 +50,7 @@
           "purpose": "Identification of mobile devices that process store or transmit CUI is an organizational GRC documentation concern and is not technically verifiable via automated check on Windows Server"
         },
         {
-          "check_type": "command",
+          "check_type": "policy",
           "name": "Mobile Device Connections are Authorized",
           "sub_control": "b",
           "command": "NA",
@@ -70,7 +70,7 @@
     "linux": {
       "checks": [
         {
-          "check_type": "command",
+          "check_type": "policy",
           "name": "Mobile Devices that Process Store or Transmit CUI are Identified",
           "sub_control": "a",
           "command": "NA",
@@ -78,7 +78,7 @@
           "purpose": "Identification of mobile devices that process store or transmit CUI is an organizational GRC documentation concern and is not technically verifiable via automated check on Linux"
         },
         {
-          "check_type": "command",
+          "check_type": "policy",
           "name": "Mobile Device Connections are Authorized",
           "sub_control": "b",
           "command": "NA",
@@ -98,7 +98,7 @@
     "debian": {
       "checks": [
         {
-          "check_type": "command",
+          "check_type": "policy",
           "name": "Mobile Devices that Process Store or Transmit CUI are Identified",
           "sub_control": "a",
           "command": "NA",
@@ -106,7 +106,7 @@
           "purpose": "Identification of mobile devices that process store or transmit CUI is an organizational GRC documentation concern and is not technically verifiable via automated check on Debian"
         },
         {
-          "check_type": "command",
+          "check_type": "policy",
           "name": "Mobile Device Connections are Authorized",
           "sub_control": "b",
           "command": "NA",

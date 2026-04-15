@@ -7,14 +7,14 @@
   "target_os": [
     "debian",
     "linux",
-    "windows-client",
-    "windows-server"
+    "windows_client",
+    "windows_server"
   ],
   "check_details": {
-    "windows-client": {
+    "windows_client": {
       "checks": [
         {
-          "check_type": "command",
+          "check_type": "policy",
           "name": "An Operational Incident-Handling Capability is Established",
           "sub_control": "a",
           "command": "NA",
@@ -22,7 +22,7 @@
           "purpose": "Establishment of an operational incident-handling capability is an organizational GRC documentation concern documented in the incident response plan and is not technically verifiable via automated check"
         },
         {
-          "check_type": "command",
+          "check_type": "policy",
           "name": "The Incident-Handling Capability Includes Preparation",
           "sub_control": "b",
           "command": "NA",
@@ -30,7 +30,7 @@
           "purpose": "Preparation activities such as training, tool readiness, and contact lists are organizational GRC documentation concerns and are not technically verifiable via automated check"
         },
         {
-          "check_type": "command",
+          "check_type": "policy",
           "name": "The Incident-Handling Capability Includes Detection",
           "sub_control": "c",
           "command": "NA",
@@ -38,7 +38,7 @@
           "purpose": "Detection capabilities such as monitoring tools and alert thresholds are organizational GRC documentation concerns and are not technically verifiable via automated check"
         },
         {
-          "check_type": "command",
+          "check_type": "policy",
           "name": "The Incident-Handling Capability Includes Analysis",
           "sub_control": "d",
           "command": "NA",
@@ -46,7 +46,7 @@
           "purpose": "Analysis procedures such as triage criteria and forensic processes are organizational GRC documentation concerns and are not technically verifiable via automated check"
         },
         {
-          "check_type": "command",
+          "check_type": "policy",
           "name": "The Incident-Handling Capability Includes Containment",
           "sub_control": "e",
           "command": "NA",
@@ -54,7 +54,7 @@
           "purpose": "Containment procedures such as isolation steps and escalation paths are organizational GRC documentation concerns and are not technically verifiable via automated check"
         },
         {
-          "check_type": "command",
+          "check_type": "policy",
           "name": "The Incident-Handling Capability Includes Recovery",
           "sub_control": "f",
           "command": "NA",
@@ -62,7 +62,7 @@
           "purpose": "Recovery procedures such as restoration steps and post-incident review processes are organizational GRC documentation concerns and are not technically verifiable via automated check"
         },
         {
-          "check_type": "command",
+          "check_type": "policy",
           "name": "The Incident-Handling Capability Includes User Response Activities",
           "sub_control": "g",
           "command": "NA",
@@ -71,10 +71,10 @@
         }
       ]
     },
-    "windows-server": {
+    "windows_server": {
       "checks": [
         {
-          "check_type": "command",
+          "check_type": "policy",
           "name": "An Operational Incident-Handling Capability is Established",
           "sub_control": "a",
           "command": "NA",
@@ -82,7 +82,7 @@
           "purpose": "Establishment of an operational incident-handling capability is an organizational GRC documentation concern and is not technically verifiable via automated check"
         },
         {
-          "check_type": "command",
+          "check_type": "policy",
           "name": "The Incident-Handling Capability Includes Preparation",
           "sub_control": "b",
           "command": "NA",
@@ -90,7 +90,7 @@
           "purpose": "Preparation activities are organizational GRC documentation concerns and are not technically verifiable via automated check"
         },
         {
-          "check_type": "command",
+          "check_type": "policy",
           "name": "The Incident-Handling Capability Includes Detection",
           "sub_control": "c",
           "command": "NA",
@@ -98,7 +98,7 @@
           "purpose": "Detection capabilities are organizational GRC documentation concerns and are not technically verifiable via automated check"
         },
         {
-          "check_type": "command",
+          "check_type": "policy",
           "name": "The Incident-Handling Capability Includes Analysis",
           "sub_control": "d",
           "command": "NA",
@@ -106,7 +106,7 @@
           "purpose": "Analysis procedures are organizational GRC documentation concerns and are not technically verifiable via automated check"
         },
         {
-          "check_type": "command",
+          "check_type": "policy",
           "name": "The Incident-Handling Capability Includes Containment",
           "sub_control": "e",
           "command": "NA",
@@ -114,7 +114,7 @@
           "purpose": "Containment procedures are organizational GRC documentation concerns and are not technically verifiable via automated check"
         },
         {
-          "check_type": "command",
+          "check_type": "policy",
           "name": "The Incident-Handling Capability Includes Recovery",
           "sub_control": "f",
           "command": "NA",
@@ -122,7 +122,7 @@
           "purpose": "Recovery procedures are organizational GRC documentation concerns and are not technically verifiable via automated check"
         },
         {
-          "check_type": "command",
+          "check_type": "policy",
           "name": "The Incident-Handling Capability Includes User Response Activities",
           "sub_control": "g",
           "command": "NA",
@@ -134,7 +134,7 @@
     "linux": {
       "checks": [
         {
-          "check_type": "command",
+          "check_type": "policy",
           "name": "An Operational Incident-Handling Capability is Established",
           "sub_control": "a",
           "command": "NA",
@@ -142,7 +142,7 @@
           "purpose": "Establishment of an operational incident-handling capability is an organizational GRC documentation concern and is not technically verifiable via automated check"
         },
         {
-          "check_type": "command",
+          "check_type": "policy",
           "name": "The Incident-Handling Capability Includes Preparation",
           "sub_control": "b",
           "command": "NA",
@@ -150,7 +150,7 @@
           "purpose": "Preparation activities are organizational GRC documentation concerns and are not technically verifiable via automated check"
         },
         {
-          "check_type": "command",
+          "check_type": "policy",
           "name": "The Incident-Handling Capability Includes Detection",
           "sub_control": "c",
           "command": "NA",
@@ -158,7 +158,7 @@
           "purpose": "Detection capabilities are organizational GRC documentation concerns and are not technically verifiable via automated check"
         },
         {
-          "check_type": "command",
+          "check_type": "policy",
           "name": "The Incident-Handling Capability Includes Analysis",
           "sub_control": "d",
           "command": "NA",
@@ -166,7 +166,7 @@
           "purpose": "Analysis procedures are organizational GRC documentation concerns and are not technically verifiable via automated check"
         },
         {
-          "check_type": "command",
+          "check_type": "policy",
           "name": "The Incident-Handling Capability Includes Containment",
           "sub_control": "e",
           "command": "NA",
@@ -174,7 +174,7 @@
           "purpose": "Containment procedures are organizational GRC documentation concerns and are not technically verifiable via automated check"
         },
         {
-          "check_type": "command",
+          "check_type": "policy",
           "name": "The Incident-Handling Capability Includes Recovery",
           "sub_control": "f",
           "command": "NA",
@@ -182,7 +182,7 @@
           "purpose": "Recovery procedures are organizational GRC documentation concerns and are not technically verifiable via automated check"
         },
         {
-          "check_type": "command",
+          "check_type": "policy",
           "name": "The Incident-Handling Capability Includes User Response Activities",
           "sub_control": "g",
           "command": "NA",
@@ -194,7 +194,7 @@
     "debian": {
       "checks": [
         {
-          "check_type": "command",
+          "check_type": "policy",
           "name": "An Operational Incident-Handling Capability is Established",
           "sub_control": "a",
           "command": "NA",
@@ -202,7 +202,7 @@
           "purpose": "Establishment of an operational incident-handling capability is an organizational GRC documentation concern and is not technically verifiable via automated check"
         },
         {
-          "check_type": "command",
+          "check_type": "policy",
           "name": "The Incident-Handling Capability Includes Preparation",
           "sub_control": "b",
           "command": "NA",
@@ -210,7 +210,7 @@
           "purpose": "Preparation activities are organizational GRC documentation concerns and are not technically verifiable via automated check"
         },
         {
-          "check_type": "command",
+          "check_type": "policy",
           "name": "The Incident-Handling Capability Includes Detection",
           "sub_control": "c",
           "command": "NA",
@@ -218,7 +218,7 @@
           "purpose": "Detection capabilities are organizational GRC documentation concerns and are not technically verifiable via automated check"
         },
         {
-          "check_type": "command",
+          "check_type": "policy",
           "name": "The Incident-Handling Capability Includes Analysis",
           "sub_control": "d",
           "command": "NA",
@@ -226,7 +226,7 @@
           "purpose": "Analysis procedures are organizational GRC documentation concerns and are not technically verifiable via automated check"
         },
         {
-          "check_type": "command",
+          "check_type": "policy",
           "name": "The Incident-Handling Capability Includes Containment",
           "sub_control": "e",
           "command": "NA",
@@ -234,7 +234,7 @@
           "purpose": "Containment procedures are organizational GRC documentation concerns and are not technically verifiable via automated check"
         },
         {
-          "check_type": "command",
+          "check_type": "policy",
           "name": "The Incident-Handling Capability Includes Recovery",
           "sub_control": "f",
           "command": "NA",
@@ -242,7 +242,7 @@
           "purpose": "Recovery procedures are organizational GRC documentation concerns and are not technically verifiable via automated check"
         },
         {
-          "check_type": "command",
+          "check_type": "policy",
           "name": "The Incident-Handling Capability Includes User Response Activities",
           "sub_control": "g",
           "command": "NA",

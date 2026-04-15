@@ -13,10 +13,10 @@ def local_administrators_group():
     """
     try:
         result = subprocess.run(
-            "net localgroup administrators",
+            ["net", "localgroup", "administrators"],
             capture_output=True,
             text=True,
-            shell=True
+            timeout=30
         )
 
         if result.returncode != 0:
@@ -41,10 +41,10 @@ def enabled_local_users():
     """
     try:
         result = subprocess.run(
-            "wmic useraccount where disabled=false get name",
+            ["wmic", "useraccount", "where", "disabled=false", "get", "name"],
             capture_output=True,
             text=True,
-            shell=True
+            timeout=30
         )
 
         if result.returncode != 0:

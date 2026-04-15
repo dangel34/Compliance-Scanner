@@ -30,12 +30,12 @@
           "purpose": "Verify certificate revocation checking is not disabled, ensuring TLS sessions are authenticated against valid, non-revoked certificates"
         },
         {
-          "check_type": "command",
+          "check_type": "policy",
           "name": "Session Authenticity Policy Documented",
           "sub_control": "c",
           "command": "NA",
           "expected_result": "NA",
-          "purpose": "Verify organizational policy requires mutual authentication for all communications sessions handling CUI \u00e2\u20ac\u201d policy review only"
+          "purpose": "Verify organizational policy requires mutual authentication for all communications sessions handling CUI â€” policy review only"
         }
       ]
     },
@@ -94,12 +94,12 @@
           "purpose": "Verify StrictHostKeyChecking = yes in /etc/ssh/ssh_config to enforce host key verification on outbound SSH sessions, preventing connection to impersonated hosts"
         },
         {
-          "check_type": "command",
+          "check_type": "policy",
           "name": "Session Authenticity Policy Documented",
           "sub_control": "c",
           "command": "NA",
           "expected_result": "NA",
-          "purpose": "Verify organizational policy requires authentication for all communications sessions \u00e2\u20ac\u201d policy review only"
+          "purpose": "Verify organizational policy requires authentication for all communications sessions â€” policy review only"
         }
       ]
     },
@@ -122,12 +122,12 @@
           "purpose": "Verify StrictHostKeyChecking = yes in /etc/ssh/ssh_config to enforce host key verification on outbound SSH sessions, preventing connection to impersonated hosts"
         },
         {
-          "check_type": "command",
+          "check_type": "policy",
           "name": "Session Authenticity Policy Documented",
           "sub_control": "c",
           "command": "NA",
           "expected_result": "NA",
-          "purpose": "Verify organizational policy requires authentication for all communications sessions \u00e2\u20ac\u201d policy review only"
+          "purpose": "Verify organizational policy requires authentication for all communications sessions â€” policy review only"
         }
       ]
     }

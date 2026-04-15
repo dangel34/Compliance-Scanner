@@ -1,5 +1,5 @@
 """
-Compliance Scanner — main GUI entry point.
+RuleForge — main GUI entry point.
 
 Handles layout, threading, accordion rule list, and scan orchestration.
 Rendering and export logic live in the ui sub-modules:
@@ -68,11 +68,14 @@ def _cat_sort_key(cat: str) -> tuple:
     return (cat.lower() == "uncategorised", cat.lower())
 
 
+_NATURAL_SORT_RE = re.compile(r"(\d+)")
+
+
 def _natural_key(meta: Dict[str, str]) -> list:
     fname = os.path.basename(meta["path"])
     return [
         int(chunk) if chunk.isdigit() else chunk.lower()
-        for chunk in re.split(r"(\d+)", fname)
+        for chunk in _NATURAL_SORT_RE.split(fname)
     ]
 
 
@@ -82,6 +85,9 @@ def _natural_key(meta: Dict[str, str]) -> list:
 
 _RULE_SCHEMA: Optional[Dict[str, Any]] = None
 _RULE_SCHEMA_LOADED: bool = False
+_RULE_VALIDATOR: Optional[Any] = None
+_RULE_VALIDATOR_READY: bool = False
+_RULE_VALIDATION_CACHE: Dict[tuple[str, int], List[str]] = {}
 
 
 def _load_rule_schema() -> Optional[Dict[str, Any]]:
@@ -99,20 +105,32 @@ def _load_rule_schema() -> Optional[Dict[str, Any]]:
 
 
 def _validate_rule(data: Dict[str, Any]) -> List[str]:
+    global _RULE_VALIDATOR, _RULE_VALIDATOR_READY
     try:
         import jsonschema
     except ImportError:
         return []
-    schema = _load_rule_schema()
-    if schema is None:
+    if not _RULE_VALIDATOR_READY:
+        _RULE_VALIDATOR_READY = True
+        schema = _load_rule_schema()
+        if schema is not None:
+            try:
+                _RULE_VALIDATOR = jsonschema.Draft7Validator(schema)
+            except jsonschema.SchemaError as exc:
+                _log.warning("rule_schema.json is itself invalid: %s", exc.message)
+                _RULE_VALIDATOR = None
+    if _RULE_VALIDATOR is None:
         return []
     try:
-        jsonschema.validate(data, schema)
-        return []
+        errors = sorted(_RULE_VALIDATOR.iter_errors(data), key=lambda e: e.path)
+        if not errors:
+            return []
+        return [e.message for e in errors]
     except jsonschema.ValidationError as exc:
+        # Defensive fallback for jsonschema API compatibility.
         return [exc.message]
-    except jsonschema.SchemaError as exc:
-        _log.warning("rule_schema.json is itself invalid: %s", exc.message)
+    except Exception as exc:
+        _log.warning("Schema validation failed unexpectedly: %s", exc)
         return []
 
 
@@ -148,7 +166,13 @@ def discover_rule_files(rules_dir: str) -> Dict[str, List[Dict[str, str]]]:
             try:
                 with open(real_path, "r", encoding="utf-8") as f:
                     data = json.load(f)
-                for err in _validate_rule(data):
+                mtime_ns = os.stat(real_path).st_mtime_ns
+                cache_key = (real_path, mtime_ns)
+                cached_errors = _RULE_VALIDATION_CACHE.get(cache_key)
+                if cached_errors is None:
+                    cached_errors = _validate_rule(data)
+                    _RULE_VALIDATION_CACHE[cache_key] = cached_errors
+                for err in cached_errors:
                     _log.warning("Schema validation error in %s: %s", real_path, err)
                 category = _safe_str(data.get("category") or "Uncategorised") or "Uncategorised"
                 rule_id  = _safe_str(data.get("id") or data.get("rule_id") or name)
@@ -179,6 +203,7 @@ def discover_rule_files(rules_dir: str) -> Dict[str, List[Dict[str, str]]]:
 def run_rules_blocking(
     rule_paths: List[str],
     progress_cb: Optional[callable] = None,
+    result_cb:   Optional[callable] = None,
 ) -> Dict[str, RunResult]:
     results: Dict[str, RunResult] = {}
     total = len(rule_paths)
@@ -187,11 +212,10 @@ def run_rules_blocking(
             progress_cb(i, total, path)
         try:
             r = RuleRunner(rule_path=path, os_type=None).run_checks()
-            results[path] = r
         except Exception as e:
             error_msg = _safe_str(type(e).__name__ + ": " + str(e), max_len=256)
             _log.error("Rule execution error: %s: %s", os.path.basename(path), error_msg)
-            results[path] = {
+            r = {
                 "rule_id":        os.path.basename(path),
                 "title":          os.path.basename(path),
                 "os":             os_scan(),
@@ -200,6 +224,9 @@ def run_rules_blocking(
                 "checks":         [],
                 "error":          error_msg,
             }
+        results[path] = r
+        if result_cb:
+            result_cb(path, r)
     return results
 
 
@@ -213,8 +240,9 @@ class AccordionSection:
         "PARTIAL": ("#d1a800", "#d1a800"),
         "FAIL":    ("#8b1e1e", "#8b1e1e"),
         "ERROR":   ("#8b1e1e", "#8b1e1e"),
+        "POLICY":  ("#4a2a7a", "#4a2a7a"),
     }
-    _ICON_MAP = {"PASS": "  ✓", "PARTIAL": "  !", "FAIL": "  ✗", "ERROR": "  ✗"}
+    _ICON_MAP = {"PASS": "  ✓", "PARTIAL": "  !", "FAIL": "  ✗", "ERROR": "  ✗", "POLICY": "  ⊙"}
 
     def __init__(
         self,
@@ -319,7 +347,7 @@ class ComplianceDebugApp(ctk.CTk):
     def __init__(self):
         super().__init__()
 
-        self.title("Compliance Scanner (Debug)")
+        self.title("RuleForge")
         self.geometry("1000x750")
         self.minsize(900, 650)
 
@@ -352,8 +380,10 @@ class ComplianceDebugApp(ctk.CTk):
         self._score_bar:         Optional[ctk.CTkProgressBar] = None
         self._score_label:       Optional[ctk.CTkLabel]       = None
         self._summary_meta:      Optional[ctk.CTkLabel]       = None
+        self._summary_counts:    Dict[str, int]               = {}
 
         self._build_layout()
+        self._reset_summary_counts()
         self.refresh_rules()
         self.protocol("WM_DELETE_WINDOW", self._on_closing)
 
@@ -539,6 +569,7 @@ class ComplianceDebugApp(ctk.CTk):
             ("fail",    "Fail",    ("#4a1a1a", "#f0c8c8"), ("#e74c3c", "#a01010")),
             ("partial", "Partial", ("#4a3800", "#f0dfaa"), ("#f0c040", "#7a5c00")),
             ("skip",    "Skip",    ("#2e2e2e", "#d0d0d0"), ("#95a5a6", "#555e65")),
+            ("policy",  "Policy",  ("#2d1a4a", "#e8d5ff"), ("#a78bfa", "#5b21b6")),
         ]
 
         cards_row = ctk.CTkFrame(outer, fg_color="transparent")
@@ -590,6 +621,7 @@ class ComplianceDebugApp(ctk.CTk):
         partial_count: int  = 0,
         skip_count: int     = 0,
         error_count: int    = 0,
+        policy_count: int   = 0,
         cat_count: int      = 0,
         checks_passed: int  = 0,
         checks_total: int   = 0,
@@ -607,6 +639,7 @@ class ComplianceDebugApp(ctk.CTk):
             self._stat_count_labels["fail"].configure(text=str(combined_fail))
             self._stat_count_labels["partial"].configure(text=str(partial_count))
             self._stat_count_labels["skip"].configure(text=str(skip_count))
+            self._stat_count_labels["policy"].configure(text=str(policy_count))
 
         # Score is based on individual subcontrols (checks), not rules.
         # checks_total is the number of checks that actually ran (skipped checks excluded).
@@ -621,6 +654,51 @@ class ComplianceDebugApp(ctk.CTk):
             self._score_label.configure(text=pct_text)
         if self._score_bar is not None:
             self._score_bar.set(ratio)
+
+    def _reset_summary_counts(self) -> None:
+        self._summary_counts = {
+            "total": 0,
+            "pass": 0,
+            "fail": 0,
+            "partial": 0,
+            "skip": 0,
+            "error": 0,
+            "policy": 0,
+            "checks_passed": 0,
+            "checks_total": 0,
+        }
+
+    @staticmethod
+    def _result_check_totals(result: RunResult) -> tuple[int, int]:
+        checks_passed = 0
+        checks_total = 0
+        for check in result.get("checks", []):
+            if check.get("status") == "POLICY":
+                continue
+            checks_total += 1
+            if check.get("status") == "PASS":
+                checks_passed += 1
+        return checks_passed, checks_total
+
+    def _apply_result_delta(self, previous: Optional[RunResult], current: RunResult) -> None:
+        if previous is not None:
+            prev_status = get_rule_status(previous)
+            prev_key = prev_status.lower()
+            if prev_key in self._summary_counts:
+                self._summary_counts[prev_key] = max(0, self._summary_counts[prev_key] - 1)
+            prev_passed, prev_total = self._result_check_totals(previous)
+            self._summary_counts["checks_passed"] = max(0, self._summary_counts["checks_passed"] - prev_passed)
+            self._summary_counts["checks_total"] = max(0, self._summary_counts["checks_total"] - prev_total)
+        else:
+            self._summary_counts["total"] += 1
+
+        curr_status = get_rule_status(current)
+        curr_key = curr_status.lower()
+        if curr_key in self._summary_counts:
+            self._summary_counts[curr_key] += 1
+        curr_passed, curr_total = self._result_check_totals(current)
+        self._summary_counts["checks_passed"] += curr_passed
+        self._summary_counts["checks_total"] += curr_total
 
     # ------------------------------------------------------------------
     def toggle_theme(self):
@@ -671,6 +749,7 @@ class ComplianceDebugApp(ctk.CTk):
         self.accordion_sections.clear()
         self._path_to_section.clear()
         self.results_by_path.clear()
+        self._reset_summary_counts()
         self._update_progress(0.0)
 
         for category, metas in categories.items():
@@ -799,17 +878,50 @@ class ComplianceDebugApp(ctk.CTk):
 
         threading.Thread(target=worker, daemon=True).start()
 
+    def _recompute_summary(self) -> None:
+        """Refresh the dashboard from incrementally maintained counters."""
+        self._update_summary_display(
+            total         = self._summary_counts["total"],
+            pass_count    = self._summary_counts["pass"],
+            fail_count    = self._summary_counts["fail"],
+            partial_count = self._summary_counts["partial"],
+            skip_count    = self._summary_counts["skip"],
+            error_count   = self._summary_counts["error"],
+            policy_count  = self._summary_counts["policy"],
+            cat_count     = len(self.rules_by_category),
+            checks_passed = self._summary_counts["checks_passed"],
+            checks_total  = self._summary_counts["checks_total"],
+        )
+
+    def _on_rule_result(self, path: str, result: RunResult) -> None:
+        """Called on the main thread after each individual rule finishes during a full scan."""
+        prev = self.results_by_path.get(path)
+        self.results_by_path[path] = result
+        self._apply_result_delta(prev, result)
+        status  = get_rule_status(result)
+        section = self._section_for_path(path)
+        if section:
+            section.set_button_color(path, status, result.get("rule_id", os.path.basename(path)))
+            if path == self.selected_rule_path:
+                section.highlight_selected(path, self.results_by_path)
+        self._recompute_summary()
+        if path == self.selected_rule_path:
+            render_rule_details(self.details_text, result)
+
     def _on_selected_rule_done(self, result: RunResult):
         self.running = False
         path = self.selected_rule_path
         if not path:
             return
+        prev = self.results_by_path.get(path)
         self.results_by_path[path] = result
+        self._apply_result_delta(prev, result)
         status  = get_rule_status(result)
         section = self._section_for_path(path)
         if section:
             section.set_button_color(path, status, result.get("rule_id", os.path.basename(path)))
             section.highlight_selected(path, self.results_by_path)
+        self._recompute_summary()
         self._update_progress(1.0)
         render_rule_details(self.details_text, result)
         self.set_status("Done")
@@ -846,61 +958,22 @@ class ComplianceDebugApp(ctk.CTk):
                 self.after(0, lambda p=progress, s=status_text:
                            (self.set_status(s), self._update_progress(p)))
 
+        def result_cb(path: str, result: RunResult):
+            self.after(0, lambda p=path, r=result: self._on_rule_result(p, r))
+
         def worker():
-            results = run_rules_blocking(rule_paths, progress_cb=progress_cb)
+            results = run_rules_blocking(rule_paths, progress_cb=progress_cb, result_cb=result_cb)
             elapsed = time.monotonic() - _scan_start[0]
             self.after(0, lambda r=results, e=elapsed: self._on_all_rules_done(r, e))
 
         threading.Thread(target=worker, daemon=True).start()
 
     def _on_all_rules_done(self, results: Dict[str, RunResult], elapsed: float = 0.0):
-        self.running         = False
-        self.results_by_path = results
-        pass_count = fail_count = partial_count = skip_count = error_count = 0
-        checks_passed = checks_total = 0
-
-        # Single pass: update button colours and tally rule + subcontrol counts
-        for path, result in results.items():
-            status  = get_rule_status(result)
-            section = self._section_for_path(path)
-            if section:
-                section.set_button_color(path, status, result.get("rule_id", os.path.basename(path)))
-            if status == "PASS":
-                pass_count += 1
-            elif status == "FAIL":
-                fail_count += 1
-            elif status == "PARTIAL":
-                partial_count += 1
-            elif status == "ERROR":
-                error_count += 1
-            else:
-                skip_count += 1
-
-            # Tally individual subcontrol (check) results for the score
-            for check in result.get("checks", []):
-                checks_total += 1
-                if check.get("status") == "PASS":
-                    checks_passed += 1
-
-        if self.selected_rule_path:
-            for section in self.accordion_sections.values():
-                section.highlight_selected(self.selected_rule_path, results)
-
-        self._update_summary_display(
-            total          = len(results),
-            pass_count     = pass_count,
-            fail_count     = fail_count,
-            partial_count  = partial_count,
-            skip_count     = skip_count,
-            error_count    = error_count,
-            cat_count      = len(self.rules_by_category),
-            checks_passed  = checks_passed,
-            checks_total   = checks_total,
-        )
-        _log.info(
-            "Scan complete in %s. Pass=%d Fail=%d Partial=%d Skip=%d Error=%d",
-            _fmt_duration(elapsed), pass_count, fail_count, partial_count, skip_count, error_count,
-        )
+        self.running = False
+        # results_by_path and button colours were updated live by _on_rule_result;
+        # do a final recompute to ensure the dashboard is fully in sync.
+        self._recompute_summary()
+        _log.info("Scan complete in %s.", _fmt_duration(elapsed))
         self._update_progress(1.0)
         self.set_status(f"Done  ({_fmt_duration(elapsed)} total)")
         self.all_rules_run = True
@@ -929,8 +1002,8 @@ class ComplianceDebugApp(ctk.CTk):
         Common save-dialog → path-validation → background-thread pattern
         shared by all export actions.
         """
-        if not self.all_rules_run or not self.results_by_path:
-            self.set_status("Run All Rules first before exporting.")
+        if not self.results_by_path:
+            self.set_status("Run at least one rule before exporting.")
             return
 
         default_name = f"compliance_report_{datetime.datetime.now().strftime('%Y%m%d_%H%M%S')}{ext}"
@@ -1017,7 +1090,7 @@ class ComplianceDebugApp(ctk.CTk):
         pad = {"padx": 24, "pady": (0, 6)}
 
         ctk.CTkLabel(
-            win, text="Compliance Scanner",
+            win, text="RuleForge",
             font=ctk.CTkFont(size=20, weight="bold"),
         ).pack(pady=(24, 4))
 
@@ -1031,7 +1104,7 @@ class ComplianceDebugApp(ctk.CTk):
         )
 
         ctk.CTkLabel(
-            win, text="CMMC Level 2 Compliance Scanner",
+            win, text="CMMC Level 2 Compliance Scanner by RuleForge",
             font=ctk.CTkFont(size=12, weight="bold"),
         ).pack(**pad)
 
@@ -1101,7 +1174,7 @@ class ComplianceDebugApp(ctk.CTk):
                 state="normal" if self.selected_rule_path else "disabled")
         else:
             self.run_selected_btn.configure(state="disabled")
-        export_state = "normal" if (enabled and self.all_rules_run) else "disabled"
+        export_state = "normal" if (enabled and bool(self.results_by_path)) else "disabled"
         if hasattr(self, "export_btn") and self.export_btn:
             self.export_btn.configure(state=export_state)
         if hasattr(self, "export_csv_btn") and self.export_csv_btn:

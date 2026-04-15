@@ -2,10 +2,12 @@
 Loads rules (JSON) and runs checks via core scanners. Uses scanner_init for
 OS detection and, when applicable, scanner methods for service/file_permissions.
 """
+import concurrent.futures
 import logging
 import os
 import json
 import subprocess
+import sys
 import re
 import importlib
 from typing import List, Dict, Any, Optional
@@ -37,17 +39,23 @@ class RuleRunner:
     def _load_rule(self) -> Dict[str, Any]:
         if not os.path.isfile(self.rule_path):
             raise FileNotFoundError(f"Rule file not found: {self.rule_path}")
-        with open(self.rule_path, "r") as f:
+        with open(self.rule_path, "r", encoding="utf-8") as f:
             return json.load(f)
 
     @staticmethod
     def run_command(cmd: str) -> Dict[str, Any]:
+        # Use the OS-appropriate interpreter explicitly instead of shell=True.
+        # This prevents cmd.exe from interpreting shell metacharacters on Windows
+        # while still running PowerShell / bash commands as intended.
+        if sys.platform == "win32":
+            args = ["powershell", "-NonInteractive", "-Command", cmd]
+        else:
+            args = ["bash", "-c", cmd]
         try:
             result = subprocess.run(
-                cmd,
+                args,
                 capture_output=True,
                 text=True,
-                shell=True,
                 timeout=60
             )
             return {
@@ -108,7 +116,17 @@ class RuleRunner:
 
             func = getattr(module, func_name)
 
-            result = func()
+            # Run with a 60-second timeout — same budget as shell commands.
+            # shutdown(wait=False) lets the stray thread die naturally without
+            # blocking the scan when the timeout fires.
+            executor = concurrent.futures.ThreadPoolExecutor(max_workers=1)
+            future   = executor.submit(func)
+            executor.shutdown(wait=False)
+            try:
+                result = future.result(timeout=60)
+            except concurrent.futures.TimeoutError:
+                _log.warning("Custom function timed out (60s): %s", func_call)
+                return {"stdout": "", "stderr": "custom function timed out", "returncode": -1}
 
             if isinstance(result, tuple):
                 success, output = result
@@ -140,11 +158,29 @@ class RuleRunner:
         results = []
         scanner = self._get_scanner()
         checks_skipped = 0
+        checks_policy  = 0
 
         for check in self.get_checks():
             name = check.get("name", "Unnamed Check")
             sub_control = check.get("sub_control", "Unnamed Subcontrol")
             check_type = check.get("check_type", "command")
+
+            # Policy subcontrols require human review — record them but don't execute.
+            # Must be checked before _is_na_check() because policy checks may still
+            # carry command: "NA" as a placeholder.
+            if check_type == "policy":
+                checks_policy += 1
+                results.append({
+                    "check_name":      name,
+                    "sub_control":     sub_control,
+                    "command":         "policy",
+                    "expected_result": check.get("expected_result", ""),
+                    "status":          "POLICY",
+                    "returncode":      None,
+                    "stdout":          check.get("purpose", ""),
+                    "stderr":          "",
+                })
+                continue
 
             # Skip NA subcontrols for speed (no executable command)
             if self._is_na_check(check):
@@ -222,14 +258,16 @@ class RuleRunner:
                     "stderr": execution.get("stderr", "")
                 })
 
+        automated = [c for c in results if c["status"] != "POLICY"]
         return {
-            "rule_id":     self.rule.get("rule_id") or self.rule.get("id"),
-            "title":       self.rule.get("title"),
-            "os":          self.os_type,
-            "severity":    self.rule.get("severity", ""),
-            "remediation": self.rule.get("remediation", ""),
-            "checks_run":     len(results),
+            "rule_id":       self.rule.get("rule_id") or self.rule.get("id"),
+            "title":         self.rule.get("title"),
+            "os":            self.os_type,
+            "severity":      self.rule.get("severity", ""),
+            "remediation":   self.rule.get("remediation", ""),
+            "checks_run":     len(automated),
             "checks_skipped": checks_skipped,
+            "checks_policy":  checks_policy,
             "checks":         results,
         }
 

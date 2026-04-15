@@ -14,12 +14,12 @@
     "windows_client": {
       "checks": [
         {
-          "check_type": "command",
+          "check_type": "policy",
           "name": "VoIP Usage Policy Documented",
           "sub_control": "a",
           "command": "NA",
           "expected_result": "NA",
-          "purpose": "Verify a documented policy identifies authorized VoIP technologies, usage restrictions, and monitoring requirements \u00e2\u20ac\u201d policy review only"
+          "purpose": "Verify a documented policy identifies authorized VoIP technologies, usage restrictions, and monitoring requirements â€” policy review only"
         },
         {
           "check_type": "command",
@@ -35,19 +35,19 @@
           "sub_control": "c",
           "command": "NA",
           "expected_result": "NA",
-          "purpose": "Verify VoIP communications are logged and monitored per the organizational security monitoring program \u00e2\u20ac\u201d requires manual verification"
+          "purpose": "Verify VoIP communications are logged and monitored per the organizational security monitoring program â€” requires manual verification"
         }
       ]
     },
     "windows_server": {
       "checks": [
         {
-          "check_type": "command",
+          "check_type": "policy",
           "name": "VoIP Usage Policy Documented",
           "sub_control": "a",
           "command": "NA",
           "expected_result": "NA",
-          "purpose": "Verify a documented policy identifies authorized VoIP technologies and usage controls \u00e2\u20ac\u201d policy review only"
+          "purpose": "Verify a documented policy identifies authorized VoIP technologies and usage controls â€” policy review only"
         },
         {
           "check_type": "command",
@@ -63,27 +63,27 @@
           "sub_control": "c",
           "command": "NA",
           "expected_result": "NA",
-          "purpose": "Verify VoIP communications are logged and subject to security monitoring on the server \u00e2\u20ac\u201d requires manual verification"
+          "purpose": "Verify VoIP communications are logged and subject to security monitoring on the server â€” requires manual verification"
         },
         {
-          "check_type": "command",
+          "check_type": "policy",
           "name": "Unauthorized VoIP Applications Blocked",
           "sub_control": "d",
           "command": "NA",
           "expected_result": "NA",
-          "purpose": "Verify application control policies block unauthorized VoIP clients \u00e2\u20ac\u201d requires AppLocker/WDAC policy review"
+          "purpose": "Verify application control policies block unauthorized VoIP clients â€” requires AppLocker/WDAC policy review"
         }
       ]
     },
     "linux": {
       "checks": [
         {
-          "check_type": "command",
+          "check_type": "policy",
           "name": "VoIP Usage Policy Documented",
           "sub_control": "a",
           "command": "NA",
           "expected_result": "NA",
-          "purpose": "Verify a documented policy governs VoIP use including authorized technologies and monitoring \u00e2\u20ac\u201d policy review only"
+          "purpose": "Verify a documented policy governs VoIP use including authorized technologies and monitoring â€” policy review only"
         },
         {
           "check_type": "command",
@@ -99,19 +99,19 @@
           "sub_control": "c",
           "command": "NA",
           "expected_result": "NA",
-          "purpose": "Verify VoIP communications are subject to security monitoring and logging \u00e2\u20ac\u201d requires manual verification"
+          "purpose": "Verify VoIP communications are subject to security monitoring and logging â€” requires manual verification"
         }
       ]
     },
     "debian": {
       "checks": [
         {
-          "check_type": "command",
+          "check_type": "policy",
           "name": "VoIP Usage Policy Documented",
           "sub_control": "a",
           "command": "NA",
           "expected_result": "NA",
-          "purpose": "Verify a documented policy governs VoIP use including authorized technologies and monitoring \u00e2\u20ac\u201d policy review only"
+          "purpose": "Verify a documented policy governs VoIP use including authorized technologies and monitoring â€” policy review only"
         },
         {
           "check_type": "command",
@@ -127,7 +127,7 @@
           "sub_control": "c",
           "command": "NA",
           "expected_result": "NA",
-          "purpose": "Verify VoIP communications are subject to security monitoring and logging \u00e2\u20ac\u201d requires manual verification"
+          "purpose": "Verify VoIP communications are subject to security monitoring and logging â€” requires manual verification"
         }
       ]
     }

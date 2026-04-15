@@ -50,7 +50,7 @@
           "purpose": "Confirm screen lock timeout is 900 seconds or less on the server console"
         },
         {
-          "check_type": "command",
+          "check_type": "policy",
           "name": "Session Timeout Policy Documented",
           "sub_control": "c",
           "command": "NA",

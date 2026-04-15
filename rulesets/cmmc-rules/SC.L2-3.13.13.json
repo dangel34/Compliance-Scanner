@@ -66,12 +66,12 @@
           "purpose": "Confirm application control policies are active on the server to restrict unauthorized code execution"
         },
         {
-          "check_type": "command",
+          "check_type": "policy",
           "name": "Mobile Code Policy Documented",
           "sub_control": "d",
           "command": "NA",
           "expected_result": "NA",
-          "purpose": "Verify a documented policy identifies authorized mobile code technologies and controls their use \u00e2\u20ac\u201d policy review only"
+          "purpose": "Verify a documented policy identifies authorized mobile code technologies and controls their use â€” policy review only"
         }
       ]
     },
@@ -94,12 +94,12 @@
           "purpose": "Verify no world-writable directories exist in the system PATH, preventing injection of malicious executables that could masquerade as system commands"
         },
         {
-          "check_type": "command",
+          "check_type": "policy",
           "name": "Mobile Code Policy Documented",
           "sub_control": "c",
           "command": "NA",
           "expected_result": "NA",
-          "purpose": "Verify organizational policy controls authorized mobile code \u00e2\u20ac\u201d policy review only"
+          "purpose": "Verify organizational policy controls authorized mobile code â€” policy review only"
         }
       ]
     },
@@ -122,12 +122,12 @@
           "purpose": "Verify no world-writable directories exist in the system PATH, preventing injection of malicious executables that could masquerade as system commands"
         },
         {
-          "check_type": "command",
+          "check_type": "policy",
           "name": "Mobile Code Policy Documented",
           "sub_control": "c",
           "command": "NA",
           "expected_result": "NA",
-          "purpose": "Verify organizational policy controls authorized mobile code \u00e2\u20ac\u201d policy review only"
+          "purpose": "Verify organizational policy controls authorized mobile code â€” policy review only"
         }
       ]
     }

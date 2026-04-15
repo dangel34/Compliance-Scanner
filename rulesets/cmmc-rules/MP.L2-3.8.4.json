@@ -7,14 +7,14 @@
   "target_os": [
     "debian",
     "linux",
-    "windows-client",
-    "windows-server"
+    "windows_client",
+    "windows_server"
   ],
   "check_details": {
-    "windows-client": {
+    "windows_client": {
       "checks": [
         {
-          "check_type": "command",
+          "check_type": "policy",
           "name": "Media Containing CUI is Marked with Applicable CUI Markings",
           "sub_control": "a",
           "command": "NA",
@@ -22,7 +22,7 @@
           "purpose": "Marking of media with CUI designations per the CUI Registry and organizational marking policies is an organizational GRC documentation concern and is not technically verifiable via automated check on Windows Client"
         },
         {
-          "check_type": "command",
+          "check_type": "policy",
           "name": "Media Containing CUI is Marked with Distribution Limitations",
           "sub_control": "b",
           "command": "NA",
@@ -31,10 +31,10 @@
         }
       ]
     },
-    "windows-server": {
+    "windows_server": {
       "checks": [
         {
-          "check_type": "command",
+          "check_type": "policy",
           "name": "Media Containing CUI is Marked with Applicable CUI Markings",
           "sub_control": "a",
           "command": "NA",
@@ -42,7 +42,7 @@
           "purpose": "Marking of media with CUI designations is an organizational GRC documentation concern and is not technically verifiable via automated check on Windows Server"
         },
         {
-          "check_type": "command",
+          "check_type": "policy",
           "name": "Media Containing CUI is Marked with Distribution Limitations",
           "sub_control": "b",
           "command": "NA",
@@ -54,7 +54,7 @@
     "linux": {
       "checks": [
         {
-          "check_type": "command",
+          "check_type": "policy",
           "name": "Media Containing CUI is Marked with Applicable CUI Markings",
           "sub_control": "a",
           "command": "NA",
@@ -62,7 +62,7 @@
           "purpose": "Marking of media with CUI designations is an organizational GRC documentation concern and is not technically verifiable via automated check on Linux"
         },
         {
-          "check_type": "command",
+          "check_type": "policy",
           "name": "Media Containing CUI is Marked with Distribution Limitations",
           "sub_control": "b",
           "command": "NA",
@@ -74,7 +74,7 @@
     "debian": {
       "checks": [
         {
-          "check_type": "command",
+          "check_type": "policy",
           "name": "Media Containing CUI is Marked with Applicable CUI Markings",
           "sub_control": "a",
           "command": "NA",
@@ -82,7 +82,7 @@
           "purpose": "Marking of media with CUI designations is an organizational GRC documentation concern and is not technically verifiable via automated check on Debian"
         },
         {
-          "check_type": "command",
+          "check_type": "policy",
           "name": "Media Containing CUI is Marked with Distribution Limitations",
           "sub_control": "b",
           "command": "NA",

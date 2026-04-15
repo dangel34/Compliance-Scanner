@@ -66,7 +66,7 @@
           "purpose": "Confirm outbound firewall Block rules restrict unauthorized data exfiltration channels from the server"
         },
         {
-          "check_type": "command",
+          "check_type": "policy",
           "name": "Information Transfer Policy Documented",
           "sub_control": "d",
           "command": "NA",

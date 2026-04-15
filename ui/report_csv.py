@@ -1,5 +1,5 @@
 """
-CSV report generation for the Compliance Scanner.
+CSV report generation for RuleForge.
 
 Produces a flat CSV where each row represents one check within a rule,
 suitable for import into spreadsheet tools or further analysis.

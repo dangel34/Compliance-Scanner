@@ -11,10 +11,10 @@ def firewall_enabled():
     """
     try:
         result = subprocess.run(
-            "netsh advfirewall show allprofiles",
+            ["netsh", "advfirewall", "show", "allprofiles"],
             capture_output=True,
             text=True,
-            shell=True
+            timeout=30
         )
 
         output = result.stdout.strip()

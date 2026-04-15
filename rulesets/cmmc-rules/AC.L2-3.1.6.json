@@ -14,7 +14,7 @@
     "windows_client": {
       "checks": [
         {
-          "check_type": "command",
+          "check_type": "policy",
           "name": "Nonsecurity Functions are Identified",
           "sub_control": "a",
           "command": "NA",
@@ -34,7 +34,7 @@
     "windows_server": {
       "checks": [
         {
-          "check_type": "command",
+          "check_type": "policy",
           "name": "Nonsecurity Functions are Identified",
           "sub_control": "a",
           "command": "NA",

@@ -22,12 +22,12 @@
           "purpose": "Verify FipsAlgorithmPolicy Enabled = 1 in the LSA registry, placing Windows in FIPS-compliant mode that restricts all cryptographic operations to FIPS 140-2 validated algorithms"
         },
         {
-          "check_type": "command",
+          "check_type": "policy",
           "name": "FIPS Mode Enforcement Policy Documented",
           "sub_control": "b",
           "command": "NA",
           "expected_result": "NA",
-          "purpose": "Verify organizational policy requires FIPS-validated cryptography for all CUI protection \u00e2\u20ac\u201d policy review only"
+          "purpose": "Verify organizational policy requires FIPS-validated cryptography for all CUI protection â€” policy review only"
         }
       ]
     },
@@ -42,12 +42,12 @@
           "purpose": "Verify FipsAlgorithmPolicy Enabled = 1 on the server, restricting all cryptographic operations to FIPS 140-2 validated modules"
         },
         {
-          "check_type": "command",
+          "check_type": "policy",
           "name": "FIPS Mode Enforcement Policy Documented",
           "sub_control": "b",
           "command": "NA",
           "expected_result": "NA",
-          "purpose": "Verify organizational policy mandates FIPS-validated cryptography \u00e2\u20ac\u201d policy review only"
+          "purpose": "Verify organizational policy mandates FIPS-validated cryptography â€” policy review only"
         },
         {
           "check_type": "command",
@@ -55,7 +55,7 @@
           "sub_control": "c",
           "command": "NA",
           "expected_result": "NA",
-          "purpose": "Verify that all applications handling CUI use FIPS-validated cryptographic modules \u00e2\u20ac\u201d application-level review required"
+          "purpose": "Verify that all applications handling CUI use FIPS-validated cryptographic modules â€” application-level review required"
         }
       ]
     },
@@ -78,12 +78,12 @@
           "purpose": "Verify the kernel command line includes fips=1 to ensure FIPS mode persists across reboots"
         },
         {
-          "check_type": "command",
+          "check_type": "policy",
           "name": "FIPS Policy Documented",
           "sub_control": "c",
           "command": "NA",
           "expected_result": "NA",
-          "purpose": "Verify the organization documents which FIPS 140-2 validated modules are used for CUI protection \u00e2\u20ac\u201d policy review only"
+          "purpose": "Verify the organization documents which FIPS 140-2 validated modules are used for CUI protection â€” policy review only"
         }
       ]
     },
@@ -106,12 +106,12 @@
           "purpose": "Verify the kernel command line includes fips=1 to ensure FIPS mode persists across reboots"
         },
         {
-          "check_type": "command",
+          "check_type": "policy",
           "name": "FIPS Policy Documented",
           "sub_control": "c",
           "command": "NA",
           "expected_result": "NA",
-          "purpose": "Verify the organization documents which FIPS 140-2 validated modules are used for CUI protection \u00e2\u20ac\u201d policy review only"
+          "purpose": "Verify the organization documents which FIPS 140-2 validated modules are used for CUI protection â€” policy review only"
         }
       ]
     }

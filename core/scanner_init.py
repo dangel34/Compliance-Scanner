@@ -30,10 +30,12 @@ def os_scan() -> str:
     """
     os_parent = platform.system().lower()
     if "win" in os_parent:
-        if "server" in platform.win32_ver():
-            return "windows_server"
-        else:
-            return "windows_client"
+        try:
+            if "server" in platform.win32_edition().lower():
+                return "windows_server"
+        except AttributeError:
+            pass
+        return "windows_client"
     elif "darwin" in os_parent:
         return "mac"
     elif "linux" in os_parent:

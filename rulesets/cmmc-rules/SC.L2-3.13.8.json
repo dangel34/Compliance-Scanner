@@ -110,12 +110,12 @@
           "purpose": "Verify the installed OpenSSL version is at least 1.0.1 to support TLS 1.2, ensuring cryptographic mechanisms are available for application-level encryption"
         },
         {
-          "check_type": "command",
+          "check_type": "policy",
           "name": "Encryption in Transit Policy Documented",
           "sub_control": "c",
           "command": "NA",
           "expected_result": "NA",
-          "purpose": "Verify organizational policy mandates encryption for all CUI in transit across all protocols \u00e2\u20ac\u201d policy review only"
+          "purpose": "Verify organizational policy mandates encryption for all CUI in transit across all protocols â€” policy review only"
         }
       ]
     },
@@ -138,12 +138,12 @@
           "purpose": "Verify the installed OpenSSL version is at least 1.0.1 to support TLS 1.2, ensuring cryptographic mechanisms are available for application-level encryption"
         },
         {
-          "check_type": "command",
+          "check_type": "policy",
           "name": "Encryption in Transit Policy Documented",
           "sub_control": "c",
           "command": "NA",
           "expected_result": "NA",
-          "purpose": "Verify organizational policy mandates encryption for all CUI in transit across all protocols \u00e2\u20ac\u201d policy review only"
+          "purpose": "Verify organizational policy mandates encryption for all CUI in transit across all protocols â€” policy review only"
         }
       ]
     }
