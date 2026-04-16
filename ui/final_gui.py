@@ -142,9 +142,9 @@ def discover_rule_files(rules_dir: str) -> Dict[str, List[Dict[str, str]]]:
     Security: every discovered path is validated to be inside rules_dir
     (prevents path-traversal attacks via symlinks or crafted filenames).
     """
-    categories: Dict[str, List[Dict[str, str]]] = {}
+    folders: Dict[str, Dict[str, List[Dict[str, str]]]] = {}
     if not os.path.isdir(rules_dir):
-        return categories
+        return folders
 
     rules_dir_real = os.path.realpath(rules_dir)
 
@@ -164,6 +164,13 @@ def discover_rule_files(rules_dir: str) -> Dict[str, List[Dict[str, str]]]:
                 continue
 
             try:
+                rel = os.path.relpath(real_path, rules_dir_real)
+            except ValueError:
+                rel = name
+            rel_parts = rel.split(os.sep)
+            folder_label = rel_parts[0] if len(rel_parts) > 1 else "_root_"
+
+            try:
                 with open(real_path, "r", encoding="utf-8") as f:
                     data = json.load(f)
                 mtime_ns = os.stat(real_path).st_mtime_ns
@@ -175,8 +182,8 @@ def discover_rule_files(rules_dir: str) -> Dict[str, List[Dict[str, str]]]:
                 for err in cached_errors:
                     _log.warning("Schema validation error in %s: %s", real_path, err)
                 category = _safe_str(data.get("category") or "Uncategorised") or "Uncategorised"
-                rule_id  = _safe_str(data.get("id") or data.get("rule_id") or name)
-                title    = _safe_str(data.get("title") or data.get("control_number") or name)
+                rule_id = _safe_str(data.get("id") or data.get("rule_id") or name)
+                title = _safe_str(data.get("title") or data.get("control_number") or name)
                 severity = _safe_str(data.get("severity", ""))
             except json.JSONDecodeError:
                 _log.warning("Skipping malformed JSON: %s", real_path)
@@ -185,14 +192,22 @@ def discover_rule_files(rules_dir: str) -> Dict[str, List[Dict[str, str]]]:
                 _log.warning("Could not read rule file %s: %s", real_path, exc)
                 continue
 
-            categories.setdefault(category, []).append(
-                {"path": real_path, "rule_id": rule_id, "title": title,
-                 "severity": severity, "category": category}
+            (
+                folders
+                .setdefault(folder_label, {})
+                .setdefault(category, [])
+                .append({
+                    "path": real_path, "rule_id": rule_id, "title": title,
+                    "severity": severity, "category": category, "folder": folder_label,
+                })
             )
 
     return {
-        cat: sorted(metas, key=_natural_key)
-        for cat, metas in sorted(categories.items(), key=lambda kv: _cat_sort_key(kv[0]))
+        folder: {
+            cat: sorted(metas, key=_natural_key)
+            for cat, metas in sorted(cats.items(), key=lambda kv: _cat_sort_key(kv[0]))
+        }
+        for folder, cats in sorted(folders.items(), key=lambda kv: kv[0].lower())
     }
 
 
@@ -233,6 +248,73 @@ def run_rules_blocking(
 # ---------------------------------------------------------------------------
 # Accordion widget
 # ---------------------------------------------------------------------------
+class FolderSection:
+    """
+    A collapsible top-level group in the left sidebar that holds one or more
+    AccordionSection widgets.  The header shows the folder name; clicking it
+    collapses/expands all the category sections inside.
+    """
+
+    def __init__(
+        self,
+        parent: ctk.CTkScrollableFrame,
+        folder_label: str,
+    ):
+        self.folder_label      = folder_label
+        self.expanded: bool    = True
+        self.accordion_sections: Dict[str, "AccordionSection"] = {}
+
+        display_name = folder_label if folder_label != "_root_" else "General"
+
+        self.wrapper = ctk.CTkFrame(parent, fg_color="transparent")
+        self.wrapper.pack(fill="x", pady=(8, 0), padx=2)
+
+        self.header_btn = ctk.CTkButton(
+            self.wrapper,
+            text=self._header_text(display_name),
+            anchor="w",
+            fg_color=("#1e3a5f", "#152844"),
+            hover_color=("#2a4f7a", "#1e3a5f"),
+            text_color=("white", "white"),
+            font=ctk.CTkFont(size=13, weight="bold"),
+            command=self.toggle,
+        )
+        self.header_btn.pack(fill="x")
+
+        self.body_frame = ctk.CTkFrame(self.wrapper, fg_color="transparent")
+        self.body_frame.pack(fill="x", padx=(10, 0))
+
+        self._display_name = display_name
+
+    def _header_text(self, name: Optional[str] = None) -> str:
+        arrow = "▼" if self.expanded else "▶"
+        label = name or self._display_name
+        return f"  {arrow}  📁  {label}"
+
+    def toggle(self):
+        self.expanded = not self.expanded
+        self.header_btn.configure(text=self._header_text())
+        if self.expanded:
+            self.body_frame.pack(fill="x", padx=(10, 0))
+        else:
+            self.body_frame.pack_forget()
+
+    def apply_filter(self, visible_paths: set) -> bool:
+        """
+        Propagate filter to every child AccordionSection.
+        Re-packs visible sections in original order; hides empty ones.
+        Returns True if at least one rule button is visible.
+        """
+        any_visible = False
+        for section in self.accordion_sections.values():
+            section.wrapper.pack_forget()
+        for section in self.accordion_sections.values():
+            has_visible = section.apply_filter(visible_paths)
+            if has_visible:
+                section.wrapper.pack(fill="x", pady=(4, 0), padx=2)
+                any_visible = True
+        return any_visible
+
 
 class AccordionSection:
     _COLOR_MAP = {
@@ -315,14 +397,30 @@ class AccordionSection:
         Uses grid_remove/grid so positions are preserved when rules reappear.
         Returns True if at least one button is visible.
         """
-        any_visible = False
-        for path, btn in self.rule_buttons.items():
-            if path in visible_paths:
-                btn.grid()
-                any_visible = True
-            else:
-                btn.grid_remove()
-        return any_visible
+        cat_filter = self._filter_category
+        sev_filter = self._filter_severity
+
+        visible: set = set()
+        for meta in self.rules:
+            if (cat_filter == "All" or meta.get("category", "") == cat_filter) and \
+                    (sev_filter == "All" or meta.get("severity", "") == sev_filter):
+                visible.add(meta["path"])
+
+        # Re-pack folder wrappers in order, hiding any that have no visible rules
+        for fs in self.folder_sections.values():
+            fs.wrapper.pack_forget()
+
+        for fs in self.folder_sections.values():
+            has_visible = fs.apply_filter(visible)
+            if has_visible:
+                fs.wrapper.pack(fill="x", pady=(8, 0), padx=2)
+
+        visible_count = len(visible)
+        total_count = len(self.rules)
+        if visible_count == total_count:
+            self.set_status("Idle")
+        else:
+            self.set_status(f"Filter active: {visible_count} of {total_count} rules shown")
 
     def highlight_selected(self, selected_path: str, results_by_path: Dict[str, RunResult]):
         for path, btn in self.rule_buttons.items():
@@ -360,6 +458,7 @@ class ComplianceDebugApp(ctk.CTk):
         self.selected_rule_path: Optional[str]                    = None
         self.accordion_sections: Dict[str, AccordionSection]      = {}
         self._path_to_section:   Dict[str, AccordionSection]      = {}
+        self.folder_sections: Dict[str, FolderSection]            = {}
 
         self.theme:         str  = "dark"
         self.running:       bool = False
@@ -738,33 +837,47 @@ class ComplianceDebugApp(ctk.CTk):
 
     # ------------------------------------------------------------------
     def refresh_rules(self):
-        rules_dir  = os.path.join(PROJECT_ROOT, "rulesets")
-        categories = discover_rule_files(rules_dir)
+        rules_dir = os.path.join(PROJECT_ROOT, "rulesets")
+        folders = discover_rule_files(rules_dir)  # folder → category → [metas]
 
-        self.rules_by_category = categories
-        self.rules = [m for metas in categories.values() for m in metas]
+        # Keep a flat category view for exports and the category filter dropdown
+        self.rules_by_folder = folders
+        self.rules_by_category = {
+            cat: metas
+            for cats in folders.values()
+            for cat, metas in cats.items()
+        }
+        self.rules = [m for metas in self.rules_by_category.values() for m in metas]
 
-        for section in self.accordion_sections.values():
-            section.wrapper.destroy()
+        # Tear down old UI tree
+        for fs in self.folder_sections.values():
+            fs.wrapper.destroy()
+        self.folder_sections.clear()
         self.accordion_sections.clear()
         self._path_to_section.clear()
         self.results_by_path.clear()
         self._reset_summary_counts()
         self._update_progress(0.0)
 
-        for category, metas in categories.items():
-            section = AccordionSection(
-                parent=self.rules_scroll,
-                category=category,
-                rule_metas=metas,
-                on_rule_select=self.select_rule,
-            )
-            self.accordion_sections[category] = section
-            for meta in metas:
-                self._path_to_section[meta["path"]] = section
+        # Rebuild folder → category accordion tree
+        for folder_label, categories in folders.items():
+            fs = FolderSection(parent=self.rules_scroll, folder_label=folder_label)
+            self.folder_sections[folder_label] = fs
 
-        # Rebuild category dropdown with current rule set
-        cat_names = ["All"] + sorted(categories.keys())
+            for category, metas in categories.items():
+                section = AccordionSection(
+                    parent=fs.body_frame,
+                    category=category,
+                    rule_metas=metas,
+                    on_rule_select=self.select_rule,
+                )
+                fs.accordion_sections[category] = section
+                self.accordion_sections[category] = section
+                for meta in metas:
+                    self._path_to_section[meta["path"]] = section
+
+        # Rebuild category dropdown
+        cat_names = ["All"] + sorted(self.rules_by_category.keys())
         if self._filter_category_menu:
             self._filter_category_menu.configure(values=cat_names)
             self._filter_category_menu.set("All")
@@ -773,13 +886,14 @@ class ComplianceDebugApp(ctk.CTk):
         self._filter_category = "All"
         self._filter_severity = "All"
 
-        total     = len(self.rules)
+        total = len(self.rules)
         cat_count = len(self.rules_by_category)
-        _log.info("Rules loaded: %d rules across %d categories", total, cat_count)
+        _log.info("Rules loaded: %d rules across %d categories in %d folders",
+                  total, cat_count, len(folders))
         self._update_summary_display(total=total, cat_count=cat_count)
         render_placeholder(self.details_text, "Run rules to view results.")
         self.selected_rule_path = None
-        self.all_rules_run      = False
+        self.all_rules_run = False
         self.run_selected_btn.configure(state="disabled")
         self.set_status("Idle")
 
