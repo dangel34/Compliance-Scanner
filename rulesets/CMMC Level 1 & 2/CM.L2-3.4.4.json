@@ -1,0 +1,125 @@
+{
+  "id": "CM.L2-3.4.4",
+  "control_number": "CM.L2-3.4.4",
+  "title": "Analyze Security Impact of Changes Prior to Implementation",
+  "description": "Analyze the security impact of changes prior to implementation.",
+  "category": "CM",
+  "target_os": [
+    "debian",
+    "linux",
+    "windows_client",
+    "windows_server"
+  ],
+  "check_details": {
+    "windows_client": {
+      "checks": [
+        {
+          "check_type": "command",
+          "name": "Change Management Process Enforces Pre-Change Security Review",
+          "sub_control": "a",
+          "command": "cs_f(configuration_management.pre_change_review_wc)",
+          "expected_result": "True",
+          "purpose": "Verify that a security impact analysis step is documented and enforced in the change management process before changes are applied to this system"
+        },
+        {
+          "check_type": "command",
+          "name": "Unapproved Configuration Changes are Detectable",
+          "sub_control": "b",
+          "command": "cs_f(configuration_management.unapproved_change_detect_wc)",
+          "expected_result": "True",
+          "purpose": "Confirm that configuration drift from baseline is detectable via GPO compliance reporting, SCCM, or equivalent tooling"
+        }
+      ]
+    },
+    "windows_server": {
+      "checks": [
+        {
+          "check_type": "command",
+          "name": "Change Management Process Enforces Pre-Change Security Review",
+          "sub_control": "a",
+          "command": "cs_f(configuration_management.pre_change_review_ws)",
+          "expected_result": "True",
+          "purpose": "Verify that a security impact analysis step is documented and enforced in the change management process before changes are applied to this server"
+        },
+        {
+          "check_type": "command",
+          "name": "Unapproved Configuration Changes are Detectable",
+          "sub_control": "b",
+          "command": "cs_f(configuration_management.unapproved_change_detect_ws)",
+          "expected_result": "True",
+          "purpose": "Confirm configuration drift from baseline is detectable via GPO compliance reporting, SCCM baseline compliance, or SIEM alerts"
+        },
+        {
+          "check_type": "command",
+          "name": "Patch Testing Environment Exists Before Production Deployment",
+          "sub_control": "c",
+          "command": "cs_f(configuration_management.patch_test_env_ws)",
+          "expected_result": "True",
+          "purpose": "Verify patches and updates are staged in a test environment before production deployment to assess security impact"
+        }
+      ]
+    },
+    "linux": {
+      "checks": [
+        {
+          "check_type": "command",
+          "name": "FIM Baseline is Current and Reflects Approved State",
+          "sub_control": "a",
+          "command": "cs_f(configuration_management.fim_baseline_current_lx)",
+          "expected_result": "True",
+          "purpose": "Verify the AIDE or equivalent FIM database has been updated after approved changes, reflecting only authorized system state"
+        },
+        {
+          "check_type": "command",
+          "name": "Package Updates Require Authorization",
+          "sub_control": "b",
+          "command": "cs_f(configuration_management.unattended_upgrade_controlled_lx)",
+          "expected_result": "True",
+          "purpose": "Confirm unattended-upgrades or yum-cron is configured to require approval or is disabled, preventing unauthorized automatic changes"
+        },
+        {
+          "check_type": "command",
+          "name": "Unapproved Configuration Changes are Detectable",
+          "sub_control": "c",
+          "command": "cs_f(configuration_management.unapproved_change_detect_lx)",
+          "expected_result": "True",
+          "purpose": "Verify auditd or FIM is configured to alert on unauthorized changes to critical configuration files and system binaries"
+        }
+      ]
+    },
+    "debian": {
+      "checks": [
+        {
+          "check_type": "command",
+          "name": "FIM Baseline is Current and Reflects Approved State",
+          "sub_control": "a",
+          "command": "cs_f(configuration_management.fim_baseline_current_lx)",
+          "expected_result": "True",
+          "purpose": "Verify the AIDE or equivalent FIM database has been updated after approved changes, reflecting only authorized system state"
+        },
+        {
+          "check_type": "command",
+          "name": "Package Updates Require Authorization",
+          "sub_control": "b",
+          "command": "cs_f(configuration_management.unattended_upgrade_controlled_lx)",
+          "expected_result": "True",
+          "purpose": "Confirm unattended-upgrades is configured to require approval or is disabled on Debian, preventing unauthorized automatic changes"
+        },
+        {
+          "check_type": "command",
+          "name": "Unapproved Configuration Changes are Detectable",
+          "sub_control": "c",
+          "command": "cs_f(configuration_management.unapproved_change_detect_lx)",
+          "expected_result": "True",
+          "purpose": "Verify auditd or FIM is configured to alert on unauthorized changes to critical configuration files and system binaries"
+        }
+      ]
+    }
+  },
+  "severity": "Medium",
+  "remediation": "Implement a formal change management process requiring security impact analysis before changes are approved. Use SCCM, Ansible, or equivalent to detect configuration drift. Update FIM baselines only after approved changes. Maintain a staging or test environment for pre-production validation of patches and configuration changes.",
+  "tags": [
+    "CM",
+    "CM.L2-3.4.4"
+  ]
+}

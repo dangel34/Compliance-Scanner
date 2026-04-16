@@ -1,0 +1,101 @@
+{
+  "id": "MP.L2-3.8.5",
+  "control_number": "MP.L2-3.8.5",
+  "title": "Control Access to and Maintain Accountability for CUI Media During Transport",
+  "description": "control access to media containing CUI and maintain accountability for media during transport outside of controlled areas",
+  "category": "MP",
+  "target_os": [
+    "debian",
+    "linux",
+    "windows_client",
+    "windows_server"
+  ],
+  "check_details": {
+    "windows_client": {
+      "checks": [
+        {
+          "check_type": "policy",
+          "name": "Access to Media Containing CUI is Controlled",
+          "sub_control": "a",
+          "command": "NA",
+          "expected_result": "NA",
+          "purpose": "Control of access to CUI media during transport including tamper-evident packaging, encryption requirements, and courier authorization is an organizational GRC documentation concern and is not technically verifiable via automated check on Windows Client"
+        },
+        {
+          "check_type": "policy",
+          "name": "Accountability for Media Containing CUI is Maintained During Transport Outside Controlled Areas",
+          "sub_control": "b",
+          "command": "NA",
+          "expected_result": "NA",
+          "purpose": "Maintenance of accountability for CUI media during transport including chain of custody documentation, tracking mechanisms, and receipt verification is an organizational GRC documentation concern and is not technically verifiable via automated check on Windows Client"
+        }
+      ]
+    },
+    "windows_server": {
+      "checks": [
+        {
+          "check_type": "policy",
+          "name": "Access to Media Containing CUI is Controlled",
+          "sub_control": "a",
+          "command": "NA",
+          "expected_result": "NA",
+          "purpose": "Control of access to CUI media during transport is an organizational GRC documentation concern and is not technically verifiable via automated check on Windows Server"
+        },
+        {
+          "check_type": "policy",
+          "name": "Accountability for Media Containing CUI is Maintained During Transport Outside Controlled Areas",
+          "sub_control": "b",
+          "command": "NA",
+          "expected_result": "NA",
+          "purpose": "Maintenance of accountability for CUI media during transport is an organizational GRC documentation concern and is not technically verifiable via automated check on Windows Server"
+        }
+      ]
+    },
+    "linux": {
+      "checks": [
+        {
+          "check_type": "policy",
+          "name": "Access to Media Containing CUI is Controlled",
+          "sub_control": "a",
+          "command": "NA",
+          "expected_result": "NA",
+          "purpose": "Control of access to CUI media during transport is an organizational GRC documentation concern and is not technically verifiable via automated check on Linux"
+        },
+        {
+          "check_type": "policy",
+          "name": "Accountability for Media Containing CUI is Maintained During Transport Outside Controlled Areas",
+          "sub_control": "b",
+          "command": "NA",
+          "expected_result": "NA",
+          "purpose": "Maintenance of accountability for CUI media during transport is an organizational GRC documentation concern and is not technically verifiable via automated check on Linux"
+        }
+      ]
+    },
+    "debian": {
+      "checks": [
+        {
+          "check_type": "policy",
+          "name": "Access to Media Containing CUI is Controlled",
+          "sub_control": "a",
+          "command": "NA",
+          "expected_result": "NA",
+          "purpose": "Control of access to CUI media during transport is an organizational GRC documentation concern and is not technically verifiable via automated check on Debian"
+        },
+        {
+          "check_type": "policy",
+          "name": "Accountability for Media Containing CUI is Maintained During Transport Outside Controlled Areas",
+          "sub_control": "b",
+          "command": "NA",
+          "expected_result": "NA",
+          "purpose": "Maintenance of accountability for CUI media during transport is an organizational GRC documentation concern and is not technically verifiable via automated check on Debian"
+        }
+      ]
+    }
+  },
+  "severity": "High",
+  "remediation": "Establish and document media transport procedures requiring tamper-evident packaging, encryption of digital media, chain of custody documentation, and use of authorized couriers or carriers for CUI media transport. Implement a media tracking system and require signed receipts upon delivery to maintain accountability throughout the transport process.",
+  "tags": [
+    "MP",
+    "MP.L2-3.8.5"
+  ]
+}

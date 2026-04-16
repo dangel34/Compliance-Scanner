@@ -1,0 +1,173 @@
+{
+  "id": "SI.L2-3.14.1",
+  "control_number": "SI.L2-3.14.1",
+  "title": "Identify, Report, and Correct System Flaws",
+  "description": "Identify, report, and correct information system flaws in a timely manner.",
+  "category": "SI",
+  "target_os": [
+    "debian",
+    "linux",
+    "windows_client",
+    "windows_server"
+  ],
+  "check_details": {
+    "windows_client": {
+      "checks": [
+        {
+          "check_type": "command",
+          "name": "Windows Update is Enabled and Configured",
+          "sub_control": "a",
+          "command": "cs_f(system_information_integrity.windows_update_enabled_wc)",
+          "expected_result": "True",
+          "purpose": "Verify the Windows Update service is running and configured to receive and install updates"
+        },
+        {
+          "check_type": "command",
+          "name": "No Critical or High Patches are Missing",
+          "sub_control": "b",
+          "command": "cs_f(system_information_integrity.missing_patches_wc)",
+          "expected_result": "True",
+          "purpose": "Confirm no critical or high severity patches are missing from the system based on the last update scan"
+        },
+        {
+          "check_type": "command",
+          "name": "Last Successful Windows Update is Within Policy Window",
+          "sub_control": "c",
+          "command": "cs_f(system_information_integrity.last_update_date_wc)",
+          "expected_result": "True",
+          "purpose": "Verify the system has successfully applied updates within the defined patching window (typically 30 days for critical, 90 days for high)"
+        },
+        {
+          "check_type": "command",
+          "name": "Patch Management Agent is Active",
+          "sub_control": "d",
+          "command": "cs_f(system_information_integrity.patch_agent_active_wc)",
+          "expected_result": "True",
+          "purpose": "Confirm a patch management agent (WSUS client, SCCM, Intune, or equivalent) is installed and communicating with the patch management server"
+        }
+      ]
+    },
+    "windows_server": {
+      "checks": [
+        {
+          "check_type": "command",
+          "name": "Windows Update is Enabled and Configured",
+          "sub_control": "a",
+          "command": "cs_f(system_information_integrity.windows_update_enabled_ws)",
+          "expected_result": "True",
+          "purpose": "Verify the Windows Update service is running and configured to receive and install updates on the server"
+        },
+        {
+          "check_type": "command",
+          "name": "No Critical or High Patches are Missing",
+          "sub_control": "b",
+          "command": "cs_f(system_information_integrity.missing_patches_ws)",
+          "expected_result": "True",
+          "purpose": "Confirm no critical or high severity patches are missing from the server based on the last update scan"
+        },
+        {
+          "check_type": "command",
+          "name": "Last Successful Windows Update is Within Policy Window",
+          "sub_control": "c",
+          "command": "cs_f(system_information_integrity.last_update_date_ws)",
+          "expected_result": "True",
+          "purpose": "Verify the server has successfully applied updates within the defined patching window"
+        },
+        {
+          "check_type": "command",
+          "name": "Patch Management Agent is Active",
+          "sub_control": "d",
+          "command": "cs_f(system_information_integrity.patch_agent_active_ws)",
+          "expected_result": "True",
+          "purpose": "Confirm a patch management agent is installed and communicating with the patch management server"
+        },
+        {
+          "check_type": "command",
+          "name": "Pending Reboot for Patch Completion is Detected",
+          "sub_control": "e",
+          "command": "cs_f(system_information_integrity.pending_reboot_ws)",
+          "expected_result": "True",
+          "purpose": "Detect if a pending reboot is blocking patch completion, which would leave the system in a partially patched and potentially vulnerable state"
+        }
+      ]
+    },
+    "linux": {
+      "checks": [
+        {
+          "check_type": "command",
+          "name": "Package Manager Has Access to Security Update Repositories",
+          "sub_control": "a",
+          "command": "cs_f(system_information_integrity.security_repos_configured_lx)",
+          "expected_result": "True",
+          "purpose": "Verify security update repositories are configured and reachable in /etc/yum.repos.d/ or /etc/apt/sources.list"
+        },
+        {
+          "check_type": "command",
+          "name": "No Critical Security Packages are Pending Update",
+          "sub_control": "b",
+          "command": "cs_f(system_information_integrity.missing_patches_lx)",
+          "expected_result": "True",
+          "purpose": "Confirm no outstanding security updates are available by checking the package manager update cache"
+        },
+        {
+          "check_type": "command",
+          "name": "Last Package Update is Within Policy Window",
+          "sub_control": "c",
+          "command": "cs_f(system_information_integrity.last_update_date_lx)",
+          "expected_result": "True",
+          "purpose": "Verify the system has applied security updates within the defined patching window by checking package manager logs"
+        },
+        {
+          "check_type": "command",
+          "name": "Kernel is Current and Not Vulnerable",
+          "sub_control": "d",
+          "command": "cs_f(system_information_integrity.kernel_current_lx)",
+          "expected_result": "True",
+          "purpose": "Check that the running kernel version is the latest available and no kernel security updates are pending"
+        }
+      ]
+    },
+    "debian": {
+      "checks": [
+        {
+          "check_type": "command",
+          "name": "APT Security Update Repositories are Configured",
+          "sub_control": "a",
+          "command": "cs_f(system_information_integrity.security_repos_configured_lx)",
+          "expected_result": "True",
+          "purpose": "Verify Debian security repositories are present and reachable in /etc/apt/sources.list or /etc/apt/sources.list.d/"
+        },
+        {
+          "check_type": "command",
+          "name": "No Critical Security Packages are Pending Update",
+          "sub_control": "b",
+          "command": "cs_f(system_information_integrity.missing_patches_lx)",
+          "expected_result": "True",
+          "purpose": "Confirm no outstanding security updates are available via apt-get --dry-run upgrade or apt list --upgradable"
+        },
+        {
+          "check_type": "command",
+          "name": "Last Package Update is Within Policy Window",
+          "sub_control": "c",
+          "command": "cs_f(system_information_integrity.last_update_date_lx)",
+          "expected_result": "True",
+          "purpose": "Verify the system has applied security updates within the defined patching window by checking /var/log/dpkg.log"
+        },
+        {
+          "check_type": "command",
+          "name": "Kernel is Current and Not Vulnerable",
+          "sub_control": "d",
+          "command": "cs_f(system_information_integrity.kernel_current_lx)",
+          "expected_result": "True",
+          "purpose": "Check that the running kernel is the latest available and no kernel security updates are pending in apt"
+        }
+      ]
+    }
+  },
+  "severity": "High",
+  "remediation": "Enable and configure Windows Update or a patch management solution (WSUS, SCCM, Intune). Establish a patching SLA: critical patches within 15-30 days, high within 30-90 days. On Linux, configure security repositories and schedule regular apt/yum update runs. Maintain logs of patch activity and remediate pending reboots promptly.",
+  "tags": [
+    "SI",
+    "SI.L2-3.14.1"
+  ]
+}

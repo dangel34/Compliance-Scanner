@@ -1,0 +1,165 @@
+{
+  "id": "AC.L2-3.1.15",
+  "control_number": "AC.L2-3.1.15",
+  "title": "Authorize Remote Execution of Privileged Commands and Remote Access to Security-Relevant Information",
+  "description": "authorize remote execution of privileged commands and remote access to security-relevant information via remote access only for operational needs",
+  "category": "AC",
+  "target_os": [
+    "debian",
+    "linux",
+    "windows_client",
+    "windows_server"
+  ],
+  "check_details": {
+    "windows_client": {
+      "checks": [
+        {
+          "check_type": "policy",
+          "name": "Privileged Commands Authorized for Remote Execution are Identified",
+          "sub_control": "a",
+          "command": "NA",
+          "expected_result": "NA",
+          "purpose": "Identification of privileged commands authorized for remote execution is an organizational GRC documentation concern and is not technically verifiable via automated check on Windows Client"
+        },
+        {
+          "check_type": "policy",
+          "name": "Security-Relevant Information Authorized for Remote Access is Identified",
+          "sub_control": "b",
+          "command": "NA",
+          "expected_result": "NA",
+          "purpose": "Identification of security-relevant information authorized for remote access is an organizational GRC documentation concern and is not technically verifiable via automated check on Windows Client"
+        },
+        {
+          "check_type": "command",
+          "name": "Remote Execution of Privileged Commands is Authorized",
+          "sub_control": "c",
+          "command": "cs_f(access_control.remote_privileged_exec_wc)",
+          "expected_result": "True",
+          "purpose": "Verify that remote execution of privileged commands via WinRM and PowerShell remoting is restricted to named privileged accounts and that WinRM access is scoped to approved sources"
+        },
+        {
+          "check_type": "command",
+          "name": "Remote Access to Security-Relevant Information is Authorized",
+          "sub_control": "d",
+          "command": "cs_f(access_control.remote_security_info_access_wc)",
+          "expected_result": "True",
+          "purpose": "Verify that remote access to security-relevant information such as audit logs, security policy, and registry security keys is restricted to named privileged accounts via NTFS and registry permissions"
+        }
+      ]
+    },
+    "windows_server": {
+      "checks": [
+        {
+          "check_type": "policy",
+          "name": "Privileged Commands Authorized for Remote Execution are Identified",
+          "sub_control": "a",
+          "command": "NA",
+          "expected_result": "NA",
+          "purpose": "Identification of privileged commands authorized for remote execution is an organizational GRC documentation concern and is not technically verifiable via automated check on Windows Server"
+        },
+        {
+          "check_type": "policy",
+          "name": "Security-Relevant Information Authorized for Remote Access is Identified",
+          "sub_control": "b",
+          "command": "NA",
+          "expected_result": "NA",
+          "purpose": "Identification of security-relevant information authorized for remote access is an organizational GRC documentation concern and is not technically verifiable via automated check on Windows Server"
+        },
+        {
+          "check_type": "command",
+          "name": "Remote Execution of Privileged Commands is Authorized",
+          "sub_control": "c",
+          "command": "cs_f(access_control.remote_privileged_exec_ws)",
+          "expected_result": "True",
+          "purpose": "Verify that WinRM and PowerShell remoting are restricted to named AD privileged groups, WinRM listeners are scoped to internal addresses, and remote execution audit logging is active"
+        },
+        {
+          "check_type": "command",
+          "name": "Remote Access to Security-Relevant Information is Authorized",
+          "sub_control": "d",
+          "command": "cs_f(access_control.remote_security_info_access_ws)",
+          "expected_result": "True",
+          "purpose": "Verify that remote access to security-relevant information such as AD audit logs, GPO settings, and security event logs is restricted to named privileged AD groups via share and NTFS permissions"
+        }
+      ]
+    },
+    "linux": {
+      "checks": [
+        {
+          "check_type": "policy",
+          "name": "Privileged Commands Authorized for Remote Execution are Identified",
+          "sub_control": "a",
+          "command": "NA",
+          "expected_result": "NA",
+          "purpose": "Identification of privileged commands authorized for remote execution is an organizational GRC documentation concern and is not technically verifiable via automated check on Linux"
+        },
+        {
+          "check_type": "policy",
+          "name": "Security-Relevant Information Authorized for Remote Access is Identified",
+          "sub_control": "b",
+          "command": "NA",
+          "expected_result": "NA",
+          "purpose": "Identification of security-relevant information authorized for remote access is an organizational GRC documentation concern and is not technically verifiable via automated check on Linux"
+        },
+        {
+          "check_type": "command",
+          "name": "Remote Execution of Privileged Commands is Authorized",
+          "sub_control": "c",
+          "command": "cs_f(access_control.remote_privileged_exec_lx)",
+          "expected_result": "True",
+          "purpose": "Verify that remote sudo execution is scoped to named accounts via sudoers, SSH forced commands restrict what remote sessions can execute, and root remote login is disabled"
+        },
+        {
+          "check_type": "command",
+          "name": "Remote Access to Security-Relevant Information is Authorized",
+          "sub_control": "d",
+          "command": "cs_f(access_control.remote_security_info_access_lx)",
+          "expected_result": "True",
+          "purpose": "Verify that remote access to security-relevant files such as audit logs, sudoers, and SSH configuration is restricted via file permissions and ACLs to named privileged accounts only"
+        }
+      ]
+    },
+    "debian": {
+      "checks": [
+        {
+          "check_type": "policy",
+          "name": "Privileged Commands Authorized for Remote Execution are Identified",
+          "sub_control": "a",
+          "command": "NA",
+          "expected_result": "NA",
+          "purpose": "Identification of privileged commands authorized for remote execution is an organizational GRC documentation concern and is not technically verifiable via automated check on Debian"
+        },
+        {
+          "check_type": "policy",
+          "name": "Security-Relevant Information Authorized for Remote Access is Identified",
+          "sub_control": "b",
+          "command": "NA",
+          "expected_result": "NA",
+          "purpose": "Identification of security-relevant information authorized for remote access is an organizational GRC documentation concern and is not technically verifiable via automated check on Debian"
+        },
+        {
+          "check_type": "command",
+          "name": "Remote Execution of Privileged Commands is Authorized",
+          "sub_control": "c",
+          "command": "cs_f(access_control.remote_privileged_exec_lx)",
+          "expected_result": "True",
+          "purpose": "Verify that remote sudo execution is scoped to named accounts via sudoers, SSH forced commands restrict what remote sessions can execute, and root remote login is disabled"
+        },
+        {
+          "check_type": "command",
+          "name": "Remote Access to Security-Relevant Information is Authorized",
+          "sub_control": "d",
+          "command": "cs_f(access_control.remote_security_info_access_lx)",
+          "expected_result": "True",
+          "purpose": "Verify that remote access to security-relevant files such as audit logs, sudoers, and SSH configuration is restricted via file permissions and ACLs to named privileged accounts only"
+        }
+      ]
+    }
+  },
+  "severity": "High",
+  "remediation": "Document all privileged commands that are authorized for remote execution and obtain written authorization for each. On Windows, restrict PowerShell remoting and WinRM access to named privileged accounts and approved source addresses via WinRM configuration and Windows Defender Firewall rules. Restrict access to security-relevant information such as audit logs and security policy files to named privileged accounts via NTFS permissions. On Linux, scope remote sudo execution to named accounts via sudoers and use SSH forced commands to restrict what remote sessions can execute. Ensure root remote login is disabled in /etc/ssh/sshd_config.",
+  "tags": [
+    "AC",
+    "AC.L2-3.1.15"
+  ]
+}

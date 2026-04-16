@@ -1,0 +1,133 @@
+{
+  "id": "SC.L2-3.13.12",
+  "control_number": "SC.L2-3.13.12",
+  "title": "Prohibit Remote Activation of Collaborative Computing Devices",
+  "description": "Prohibit remote activation of collaborative computing devices and provide indication of use to users present at the device.",
+  "category": "SC",
+  "target_os": [
+    "debian",
+    "linux",
+    "windows_client",
+    "windows_server"
+  ],
+  "check_details": {
+    "windows_client": {
+      "checks": [
+        {
+          "check_type": "command",
+          "name": "Camera Access Restricted via GPO",
+          "sub_control": "a",
+          "command": "cs_f(system_communications_protection.camera_access_restricted_wc)",
+          "expected_result": "True",
+          "purpose": "Verify LetAppsAccessCamera = 2 (Force Deny) in the AppPrivacy GPO registry, preventing applications from remotely activating the camera"
+        },
+        {
+          "check_type": "command",
+          "name": "Microphone Access Restricted via GPO",
+          "sub_control": "b",
+          "command": "cs_f(system_communications_protection.microphone_access_restricted_wc)",
+          "expected_result": "True",
+          "purpose": "Verify LetAppsAccessMicrophone = 2 (Force Deny) in the AppPrivacy GPO registry, preventing applications from remotely activating the microphone"
+        },
+        {
+          "check_type": "policy",
+          "name": "Policy Prohibiting Remote Activation of Collaborative Devices",
+          "sub_control": "c",
+          "command": "NA",
+          "expected_result": "NA",
+          "purpose": "Verify organizational policy prohibits remote activation of cameras, microphones, and other collaborative devices — policy review only"
+        }
+      ]
+    },
+    "windows_server": {
+      "checks": [
+        {
+          "check_type": "command",
+          "name": "Camera Access Restricted via GPO",
+          "sub_control": "a",
+          "command": "cs_f(system_communications_protection.camera_access_restricted_ws)",
+          "expected_result": "True",
+          "purpose": "Verify LetAppsAccessCamera = 2 on the server to restrict camera access"
+        },
+        {
+          "check_type": "command",
+          "name": "Microphone Access Restricted via GPO",
+          "sub_control": "b",
+          "command": "cs_f(system_communications_protection.microphone_access_restricted_ws)",
+          "expected_result": "True",
+          "purpose": "Verify LetAppsAccessMicrophone = 2 on the server to restrict microphone access"
+        },
+        {
+          "check_type": "policy",
+          "name": "Policy Prohibiting Remote Activation of Collaborative Devices",
+          "sub_control": "c",
+          "command": "NA",
+          "expected_result": "NA",
+          "purpose": "Verify organizational policy prohibits remote activation of collaborative computing devices — policy review only"
+        }
+      ]
+    },
+    "linux": {
+      "checks": [
+        {
+          "check_type": "command",
+          "name": "Camera Devices Not World-Accessible",
+          "sub_control": "a",
+          "command": "cs_f(system_communications_protection.camera_permissions_lx)",
+          "expected_result": "True",
+          "purpose": "Verify /dev/video* devices are not world-readable or world-writable, preventing unauthorized remote applications from accessing the camera"
+        },
+        {
+          "check_type": "command",
+          "name": "Audio Capture Devices Not World-Accessible",
+          "sub_control": "b",
+          "command": "cs_f(system_communications_protection.microphone_permissions_lx)",
+          "expected_result": "True",
+          "purpose": "Verify /dev/snd/* devices are not world-accessible, preventing unauthorized processes from remotely activating the microphone"
+        },
+        {
+          "check_type": "policy",
+          "name": "Policy Prohibiting Remote Activation of Collaborative Devices",
+          "sub_control": "c",
+          "command": "NA",
+          "expected_result": "NA",
+          "purpose": "Verify organizational policy prohibits remote activation of cameras and microphones — policy review only"
+        }
+      ]
+    },
+    "debian": {
+      "checks": [
+        {
+          "check_type": "command",
+          "name": "Camera Devices Not World-Accessible",
+          "sub_control": "a",
+          "command": "cs_f(system_communications_protection.camera_permissions_lx)",
+          "expected_result": "True",
+          "purpose": "Verify /dev/video* devices are not world-readable or world-writable, preventing unauthorized remote applications from accessing the camera"
+        },
+        {
+          "check_type": "command",
+          "name": "Audio Capture Devices Not World-Accessible",
+          "sub_control": "b",
+          "command": "cs_f(system_communications_protection.microphone_permissions_lx)",
+          "expected_result": "True",
+          "purpose": "Verify /dev/snd/* devices are not world-accessible, preventing unauthorized processes from remotely activating the microphone"
+        },
+        {
+          "check_type": "policy",
+          "name": "Policy Prohibiting Remote Activation of Collaborative Devices",
+          "sub_control": "c",
+          "command": "NA",
+          "expected_result": "NA",
+          "purpose": "Verify organizational policy prohibits remote activation of cameras and microphones — policy review only"
+        }
+      ]
+    }
+  },
+  "severity": "Medium",
+  "remediation": "Configure GPO settings under Computer Configuration > Administrative Templates > Windows Components > App Privacy to Force Deny camera and microphone access (LetAppsAccessCamera and LetAppsAccessMicrophone = 2). On Linux, use udev rules to restrict /dev/video* and /dev/snd/* device permissions to the video/audio group only.",
+  "tags": [
+    "SC",
+    "SC.L2-3.13.12"
+  ]
+}

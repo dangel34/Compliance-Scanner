@@ -1,0 +1,165 @@
+{
+  "id": "SI.L2-3.14.6",
+  "control_number": "SI.L2-3.14.6",
+  "title": "Monitor Systems to Detect Attacks and Indicators of Potential Attacks",
+  "description": "Monitor organizational systems, including inbound and outbound communications traffic, to detect attacks and indicators of potential attacks.",
+  "category": "SI",
+  "target_os": [
+    "debian",
+    "linux",
+    "windows_client",
+    "windows_server"
+  ],
+  "check_details": {
+    "windows_client": {
+      "checks": [
+        {
+          "check_type": "command",
+          "name": "SIEM or EDR Agent is Installed and Active",
+          "sub_control": "a",
+          "command": "cs_f(system_information_integrity.siem_agent_active_wc)",
+          "expected_result": "True",
+          "purpose": "Verify an EDR or SIEM agent is installed and actively monitoring system events for attack indicators"
+        },
+        {
+          "check_type": "command",
+          "name": "Windows Defender Attack Surface Reduction Rules are Enabled",
+          "sub_control": "b",
+          "command": "cs_f(system_information_integrity.asr_rules_enabled_wc)",
+          "expected_result": "True",
+          "purpose": "Confirm Windows Defender Attack Surface Reduction (ASR) rules are enabled to detect and block common attack techniques"
+        },
+        {
+          "check_type": "command",
+          "name": "Audit Logs are Forwarded for Centralized Detection",
+          "sub_control": "c",
+          "command": "cs_f(system_information_integrity.logs_forwarded_wc)",
+          "expected_result": "True",
+          "purpose": "Verify security event logs are forwarded to a centralized SIEM for correlation and attack detection"
+        }
+      ]
+    },
+    "windows_server": {
+      "checks": [
+        {
+          "check_type": "command",
+          "name": "SIEM or EDR Agent is Installed and Active",
+          "sub_control": "a",
+          "command": "cs_f(system_information_integrity.siem_agent_active_ws)",
+          "expected_result": "True",
+          "purpose": "Verify an EDR or SIEM agent is installed and actively monitoring system events on the server"
+        },
+        {
+          "check_type": "command",
+          "name": "Windows Defender Attack Surface Reduction Rules are Enabled",
+          "sub_control": "b",
+          "command": "cs_f(system_information_integrity.asr_rules_enabled_ws)",
+          "expected_result": "True",
+          "purpose": "Confirm ASR rules are enabled on the server to detect and block attack techniques"
+        },
+        {
+          "check_type": "command",
+          "name": "Audit Logs are Forwarded for Centralized Detection",
+          "sub_control": "c",
+          "command": "cs_f(system_information_integrity.logs_forwarded_ws)",
+          "expected_result": "True",
+          "purpose": "Verify security event logs are forwarded to a centralized SIEM for correlation and attack detection"
+        },
+        {
+          "check_type": "command",
+          "name": "Network Traffic Monitoring is Active",
+          "sub_control": "d",
+          "command": "cs_f(system_information_integrity.network_monitoring_ws)",
+          "expected_result": "True",
+          "purpose": "Confirm inbound and outbound network traffic monitoring is in place via IDS/IPS, NDR, or network flow analysis"
+        },
+        {
+          "check_type": "command",
+          "name": "Windows Defender Credential Guard is Enabled",
+          "sub_control": "e",
+          "command": "cs_f(system_information_integrity.credential_guard_ws)",
+          "expected_result": "True",
+          "purpose": "Verify Credential Guard is enabled to detect and prevent credential theft attacks"
+        }
+      ]
+    },
+    "linux": {
+      "checks": [
+        {
+          "check_type": "command",
+          "name": "Intrusion Detection System is Installed and Active",
+          "sub_control": "a",
+          "command": "cs_f(system_information_integrity.ids_active_lx)",
+          "expected_result": "True",
+          "purpose": "Verify an IDS or HIDS tool (AIDE, OSSEC, Wazuh, Fail2ban) is installed and actively monitoring for attack indicators"
+        },
+        {
+          "check_type": "command",
+          "name": "Fail2ban or Equivalent is Configured to Block Brute Force",
+          "sub_control": "b",
+          "command": "cs_f(system_information_integrity.fail2ban_active_lx)",
+          "expected_result": "True",
+          "purpose": "Confirm fail2ban or equivalent is running and configured to detect and block brute-force SSH and authentication attacks"
+        },
+        {
+          "check_type": "command",
+          "name": "Audit Logs are Forwarded for Centralized Detection",
+          "sub_control": "c",
+          "command": "cs_f(system_information_integrity.logs_forwarded_lx)",
+          "expected_result": "True",
+          "purpose": "Verify audit logs are forwarded to a centralized SIEM for correlation and attack detection"
+        },
+        {
+          "check_type": "command",
+          "name": "Auditd Syscall Rules Monitor for Attack Patterns",
+          "sub_control": "d",
+          "command": "cs_f(system_information_integrity.auditd_attack_rules_lx)",
+          "expected_result": "True",
+          "purpose": "Confirm auditd rules include syscall monitoring for privilege escalation, file tampering, and network configuration changes indicative of attack activity"
+        }
+      ]
+    },
+    "debian": {
+      "checks": [
+        {
+          "check_type": "command",
+          "name": "Intrusion Detection System is Installed and Active",
+          "sub_control": "a",
+          "command": "cs_f(system_information_integrity.ids_active_lx)",
+          "expected_result": "True",
+          "purpose": "Verify an IDS or HIDS tool is installed and actively monitoring for attack indicators on Debian"
+        },
+        {
+          "check_type": "command",
+          "name": "Fail2ban or Equivalent is Configured to Block Brute Force",
+          "sub_control": "b",
+          "command": "cs_f(system_information_integrity.fail2ban_active_lx)",
+          "expected_result": "True",
+          "purpose": "Confirm fail2ban is running and configured to detect brute-force attacks on Debian"
+        },
+        {
+          "check_type": "command",
+          "name": "Audit Logs are Forwarded for Centralized Detection",
+          "sub_control": "c",
+          "command": "cs_f(system_information_integrity.logs_forwarded_lx)",
+          "expected_result": "True",
+          "purpose": "Verify audit logs are forwarded to a centralized SIEM on Debian"
+        },
+        {
+          "check_type": "command",
+          "name": "Auditd Syscall Rules Monitor for Attack Patterns",
+          "sub_control": "d",
+          "command": "cs_f(system_information_integrity.auditd_attack_rules_lx)",
+          "expected_result": "True",
+          "purpose": "Confirm auditd rules include syscall monitoring for attack patterns on Debian"
+        }
+      ]
+    }
+  },
+  "severity": "High",
+  "remediation": "Deploy an EDR or SIEM agent on all systems. Enable ASR rules in Windows Defender. Forward all security logs to a centralized SIEM with detection rules. On Linux, deploy Wazuh or OSSEC as a HIDS, configure fail2ban for brute-force protection, and ensure auditd rules cover attack-relevant syscalls.",
+  "tags": [
+    "SI",
+    "SI.L2-3.14.6"
+  ]
+}

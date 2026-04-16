@@ -1,0 +1,125 @@
+{
+  "id": "AU.L2-3.3.4",
+  "control_number": "AU.L2-3.3.4",
+  "title": "Alert in the Event of Audit Logging Process Failure",
+  "description": "Alert in the event of an audit logging process failure.",
+  "category": "AU",
+  "target_os": [
+    "debian",
+    "linux",
+    "windows_client",
+    "windows_server"
+  ],
+  "check_details": {
+    "windows_client": {
+      "checks": [
+        {
+          "check_type": "command",
+          "name": "Audit Failure Alerts are Configured",
+          "sub_control": "a",
+          "command": "cs_f(audit_accountability.audit_failure_alert_wc)",
+          "expected_result": "True",
+          "purpose": "Verify the system is configured to generate an alert or take action when the Security event log is full or audit failures occur (CrashOnAuditFail setting)"
+        },
+        {
+          "check_type": "command",
+          "name": "Event Log Full Action is Configured",
+          "sub_control": "b",
+          "command": "cs_f(audit_accountability.log_full_action_wc)",
+          "expected_result": "True",
+          "purpose": "Confirm the Security event log retention method does not silently overwrite events without alerting; validate max size and overflow action"
+        }
+      ]
+    },
+    "windows_server": {
+      "checks": [
+        {
+          "check_type": "command",
+          "name": "Audit Failure Alerts are Configured",
+          "sub_control": "a",
+          "command": "cs_f(audit_accountability.audit_failure_alert_ws)",
+          "expected_result": "True",
+          "purpose": "Verify CrashOnAuditFail or equivalent alerting mechanism is configured so audit failures are not silently ignored"
+        },
+        {
+          "check_type": "command",
+          "name": "Event Log Full Action is Configured",
+          "sub_control": "b",
+          "command": "cs_f(audit_accountability.log_full_action_ws)",
+          "expected_result": "True",
+          "purpose": "Confirm the Security event log is set to an appropriate size and the overflow action triggers an alert or archives logs before overwriting"
+        },
+        {
+          "check_type": "command",
+          "name": "SIEM or Monitoring Agent is Alerting on Audit Service Failures",
+          "sub_control": "c",
+          "command": "cs_f(audit_accountability.siem_audit_alert_ws)",
+          "expected_result": "True",
+          "purpose": "Verify a SIEM or monitoring tool is configured to alert on Windows Event ID 1102 (audit log cleared) and 1100 (audit service stopped)"
+        }
+      ]
+    },
+    "linux": {
+      "checks": [
+        {
+          "check_type": "command",
+          "name": "Auditd Disk Full Action is Configured",
+          "sub_control": "a",
+          "command": "cs_f(audit_accountability.auditd_disk_full_action_lx)",
+          "expected_result": "True",
+          "purpose": "Verify disk_full_action in /etc/audit/auditd.conf is set to halt, syslog, or email to prevent silent audit failures when disk is full"
+        },
+        {
+          "check_type": "command",
+          "name": "Auditd Space Left Action is Configured",
+          "sub_control": "b",
+          "command": "cs_f(audit_accountability.auditd_space_left_action_lx)",
+          "expected_result": "True",
+          "purpose": "Confirm space_left_action and admin_space_left_action in auditd.conf are set to email or halt to provide early warning before disk exhaustion"
+        },
+        {
+          "check_type": "command",
+          "name": "Auditd Failure Flag is Set",
+          "sub_control": "c",
+          "command": "cs_f(audit_accountability.auditd_failure_flag_lx)",
+          "expected_result": "True",
+          "purpose": "Verify auditd rules include -f 2 (panic on failure) or -f 1 (syslog on failure) to define behavior when audit subsystem encounters an error"
+        }
+      ]
+    },
+    "debian": {
+      "checks": [
+        {
+          "check_type": "command",
+          "name": "Auditd Disk Full Action is Configured",
+          "sub_control": "a",
+          "command": "cs_f(audit_accountability.auditd_disk_full_action_lx)",
+          "expected_result": "True",
+          "purpose": "Verify disk_full_action in /etc/audit/auditd.conf is set to halt, syslog, or email to prevent silent audit failures when disk is full"
+        },
+        {
+          "check_type": "command",
+          "name": "Auditd Space Left Action is Configured",
+          "sub_control": "b",
+          "command": "cs_f(audit_accountability.auditd_space_left_action_lx)",
+          "expected_result": "True",
+          "purpose": "Confirm space_left_action and admin_space_left_action in auditd.conf are set to email or halt to provide early warning before disk exhaustion"
+        },
+        {
+          "check_type": "command",
+          "name": "Auditd Failure Flag is Set",
+          "sub_control": "c",
+          "command": "cs_f(audit_accountability.auditd_failure_flag_lx)",
+          "expected_result": "True",
+          "purpose": "Verify auditd rules include -f 2 (panic on failure) or -f 1 (syslog on failure) to define behavior when audit subsystem encounters an error"
+        }
+      ]
+    }
+  },
+  "severity": "High",
+  "remediation": "Configure CrashOnAuditFail on Windows to halt or alert on audit failure. Set event log max size appropriately. On Linux, configure disk_full_action, space_left_action, and admin_space_left_action in auditd.conf. Integrate audit service failure events into SIEM alerting.",
+  "tags": [
+    "AU",
+    "AU.L2-3.3.4"
+  ]
+}

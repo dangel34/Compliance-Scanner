@@ -1,0 +1,69 @@
+{
+  "id": "MA.L2-3.7.3",
+  "control_number": "MA.L2-3.7.3",
+  "title": "Sanitize Equipment Removed for Off-Site Maintenance of CUI",
+  "description": "ensure equipment removed for off-site maintenance is sanitized of any CUI",
+  "category": "MA",
+  "target_os": [
+    "debian",
+    "linux",
+    "windows_client",
+    "windows_server"
+  ],
+  "check_details": {
+    "windows_client": {
+      "checks": [
+        {
+          "check_type": "policy",
+          "name": "Equipment Removed for Off-Site Maintenance is Sanitized of CUI",
+          "sub_control": "a",
+          "command": "NA",
+          "expected_result": "NA",
+          "purpose": "Sanitization of equipment prior to off-site maintenance including data wiping, encryption verification, and removal of CUI from storage media is an organizational GRC documentation concern and is not technically verifiable via automated check on Windows Client"
+        }
+      ]
+    },
+    "windows_server": {
+      "checks": [
+        {
+          "check_type": "policy",
+          "name": "Equipment Removed for Off-Site Maintenance is Sanitized of CUI",
+          "sub_control": "a",
+          "command": "NA",
+          "expected_result": "NA",
+          "purpose": "Sanitization of equipment prior to off-site maintenance is an organizational GRC documentation concern and is not technically verifiable via automated check on Windows Server"
+        }
+      ]
+    },
+    "linux": {
+      "checks": [
+        {
+          "check_type": "policy",
+          "name": "Equipment Removed for Off-Site Maintenance is Sanitized of CUI",
+          "sub_control": "a",
+          "command": "NA",
+          "expected_result": "NA",
+          "purpose": "Sanitization of equipment prior to off-site maintenance is an organizational GRC documentation concern and is not technically verifiable via automated check on Linux"
+        }
+      ]
+    },
+    "debian": {
+      "checks": [
+        {
+          "check_type": "policy",
+          "name": "Equipment Removed for Off-Site Maintenance is Sanitized of CUI",
+          "sub_control": "a",
+          "command": "NA",
+          "expected_result": "NA",
+          "purpose": "Sanitization of equipment prior to off-site maintenance is an organizational GRC documentation concern and is not technically verifiable via automated check on Debian"
+        }
+      ]
+    }
+  },
+  "severity": "High",
+  "remediation": "Establish and document equipment sanitization procedures for off-site maintenance. Ensure all CUI is removed or encrypted prior to equipment leaving organizational spaces. Maintain sanitization records and verify equipment upon return from off-site maintenance.",
+  "tags": [
+    "MA",
+    "MA.L2-3.7.3"
+  ]
+}

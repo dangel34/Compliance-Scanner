@@ -1,0 +1,101 @@
+{
+  "id": "AC.L2-3.1.16",
+  "control_number": "AC.L2-3.1.16",
+  "title": "Authorize Wireless Access Prior to Allowing Such Connections",
+  "description": "authorize wireless access prior to allowing such connections",
+  "category": "AC",
+  "target_os": [
+    "debian",
+    "linux",
+    "windows_client",
+    "windows_server"
+  ],
+  "check_details": {
+    "windows_client": {
+      "checks": [
+        {
+          "check_type": "policy",
+          "name": "Wireless Access Points are Identified",
+          "sub_control": "a",
+          "command": "NA",
+          "expected_result": "NA",
+          "purpose": "Identification of wireless access points is a network inventory and architectural GRC documentation concern and is not technically verifiable via automated check on Windows Client"
+        },
+        {
+          "check_type": "command",
+          "name": "Wireless Access is Authorized Prior to Allowing Connections",
+          "sub_control": "b",
+          "command": "cs_f(access_control.wireless_authorization_wc)",
+          "expected_result": "True",
+          "purpose": "Verify that any active wireless adapter is connected only to authorized networks using WPA2 or WPA3 enterprise authentication and that unauthorized wireless profiles are not present"
+        }
+      ]
+    },
+    "windows_server": {
+      "checks": [
+        {
+          "check_type": "policy",
+          "name": "Wireless Access Points are Identified",
+          "sub_control": "a",
+          "command": "NA",
+          "expected_result": "NA",
+          "purpose": "Identification of wireless access points is a network inventory and architectural GRC documentation concern and is not technically verifiable via automated check on Windows Server"
+        },
+        {
+          "check_type": "command",
+          "name": "Wireless Access is Authorized Prior to Allowing Connections",
+          "sub_control": "b",
+          "command": "cs_f(access_control.wireless_authorization_ws)",
+          "expected_result": "True",
+          "purpose": "Verify that wireless adapters are disabled on the server or if present are connected only to authorized networks with enterprise authentication, and that Group Policy restricts unauthorized wireless connections"
+        }
+      ]
+    },
+    "linux": {
+      "checks": [
+        {
+          "check_type": "policy",
+          "name": "Wireless Access Points are Identified",
+          "sub_control": "a",
+          "command": "NA",
+          "expected_result": "NA",
+          "purpose": "Identification of wireless access points is a network inventory and architectural GRC documentation concern and is not technically verifiable via automated check on Linux"
+        },
+        {
+          "check_type": "command",
+          "name": "Wireless Access is Authorized Prior to Allowing Connections",
+          "sub_control": "b",
+          "command": "cs_f(access_control.wireless_authorization_lx)",
+          "expected_result": "True",
+          "purpose": "Verify that any active wireless interface is connected to an authorized network using WPA2 or WPA3 enterprise authentication and that unauthorized wireless interfaces are disabled or absent"
+        }
+      ]
+    },
+    "debian": {
+      "checks": [
+        {
+          "check_type": "policy",
+          "name": "Wireless Access Points are Identified",
+          "sub_control": "a",
+          "command": "NA",
+          "expected_result": "NA",
+          "purpose": "Identification of wireless access points is a network inventory and architectural GRC documentation concern and is not technically verifiable via automated check on Debian"
+        },
+        {
+          "check_type": "command",
+          "name": "Wireless Access is Authorized Prior to Allowing Connections",
+          "sub_control": "b",
+          "command": "cs_f(access_control.wireless_authorization_lx)",
+          "expected_result": "True",
+          "purpose": "Verify that any active wireless interface is connected to an authorized network using WPA2 or WPA3 enterprise authentication and that unauthorized wireless interfaces are disabled or absent"
+        }
+      ]
+    }
+  },
+  "severity": "High",
+  "remediation": "Maintain a documented inventory of all authorized wireless access points and approved wireless networks. On Windows, use Group Policy to restrict wireless profiles to approved SSIDs and require WPA2 or WPA3 enterprise authentication for any wireless connections. Disable wireless adapters on systems that do not require wireless connectivity via Device Manager or Group Policy device installation restrictions. On Linux, disable wireless interfaces that are not required using ip link set wlan0 down and rfkill, and ensure wpa_supplicant is configured only for authorized networks. Conduct periodic wireless scans to detect unauthorized access points.",
+  "tags": [
+    "AC",
+    "AC.L2-3.1.16"
+  ]
+}

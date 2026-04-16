@@ -1,0 +1,173 @@
+{
+  "id": "CM.L2-3.4.7",
+  "control_number": "CM.L2-3.4.7",
+  "title": "Restrict, Disable, or Prevent Use of Nonessential Programs, Ports, Protocols, and Services",
+  "description": "Restrict, disable, or prevent the use of nonessential programs, functions, ports, protocols, and services.",
+  "category": "CM",
+  "target_os": [
+    "debian",
+    "linux",
+    "windows_client",
+    "windows_server"
+  ],
+  "check_details": {
+    "windows_client": {
+      "checks": [
+        {
+          "check_type": "command",
+          "name": "Insecure Protocols are Disabled",
+          "sub_control": "a",
+          "command": "cs_f(configuration_management.insecure_protocols_disabled_wc)",
+          "expected_result": "True",
+          "purpose": "Verify insecure protocols (SMBv1, TLS 1.0, TLS 1.1, LMv1, NTLMv1) are disabled via registry settings"
+        },
+        {
+          "check_type": "command",
+          "name": "Unused Ports are Blocked by Firewall",
+          "sub_control": "b",
+          "command": "cs_f(configuration_management.unused_ports_blocked_wc)",
+          "expected_result": "True",
+          "purpose": "Confirm Windows Defender Firewall blocks inbound traffic on non-approved ports"
+        },
+        {
+          "check_type": "command",
+          "name": "Remote Desktop Protocol Access is Controlled",
+          "sub_control": "c",
+          "command": "cs_f(configuration_management.rdp_controlled_wc)",
+          "expected_result": "True",
+          "purpose": "Verify RDP is either disabled or restricted to authorized IP ranges and requires NLA authentication"
+        },
+        {
+          "check_type": "command",
+          "name": "PowerShell Execution Policy is Restricted",
+          "sub_control": "d",
+          "command": "cs_f(configuration_management.ps_execution_policy_wc)",
+          "expected_result": "True",
+          "purpose": "Confirm PowerShell execution policy is set to RemoteSigned or AllSigned to prevent unauthorized script execution"
+        }
+      ]
+    },
+    "windows_server": {
+      "checks": [
+        {
+          "check_type": "command",
+          "name": "Insecure Protocols are Disabled",
+          "sub_control": "a",
+          "command": "cs_f(configuration_management.insecure_protocols_disabled_ws)",
+          "expected_result": "True",
+          "purpose": "Verify insecure protocols (SMBv1, TLS 1.0, TLS 1.1, LMv1, NTLMv1) are disabled via registry settings"
+        },
+        {
+          "check_type": "command",
+          "name": "Unused Ports are Blocked by Firewall",
+          "sub_control": "b",
+          "command": "cs_f(configuration_management.unused_ports_blocked_ws)",
+          "expected_result": "True",
+          "purpose": "Confirm Windows Defender Firewall blocks inbound traffic on non-approved ports for this server's role"
+        },
+        {
+          "check_type": "command",
+          "name": "Remote Desktop Protocol Access is Controlled",
+          "sub_control": "c",
+          "command": "cs_f(configuration_management.rdp_controlled_ws)",
+          "expected_result": "True",
+          "purpose": "Verify RDP is either disabled or restricted to authorized IP ranges and requires NLA authentication"
+        },
+        {
+          "check_type": "command",
+          "name": "PowerShell Execution Policy is Restricted",
+          "sub_control": "d",
+          "command": "cs_f(configuration_management.ps_execution_policy_ws)",
+          "expected_result": "True",
+          "purpose": "Confirm PowerShell execution policy is set to RemoteSigned or AllSigned"
+        },
+        {
+          "check_type": "command",
+          "name": "Telnet and FTP Services are Disabled",
+          "sub_control": "e",
+          "command": "cs_f(configuration_management.telnet_ftp_disabled_ws)",
+          "expected_result": "True",
+          "purpose": "Verify Telnet Server and FTP services are not installed or are disabled on this server"
+        }
+      ]
+    },
+    "linux": {
+      "checks": [
+        {
+          "check_type": "command",
+          "name": "Insecure Services are Disabled",
+          "sub_control": "a",
+          "command": "cs_f(configuration_management.insecure_services_disabled_lx)",
+          "expected_result": "True",
+          "purpose": "Verify telnet, rsh, rlogin, rexec, tftp, and other insecure legacy services are not installed or are disabled"
+        },
+        {
+          "check_type": "command",
+          "name": "Only Authorized Ports are Open",
+          "sub_control": "b",
+          "command": "cs_f(configuration_management.authorized_ports_only_lx)",
+          "expected_result": "True",
+          "purpose": "Confirm only authorized ports are listening by comparing ss -tlnp output against the approved port list"
+        },
+        {
+          "check_type": "command",
+          "name": "IPv6 is Disabled if Not Required",
+          "sub_control": "c",
+          "command": "cs_f(configuration_management.ipv6_disabled_if_unused_lx)",
+          "expected_result": "True",
+          "purpose": "Verify IPv6 is disabled via sysctl if it is not required for system operation, reducing unnecessary attack surface"
+        },
+        {
+          "check_type": "command",
+          "name": "Weak SSH Ciphers and Algorithms are Disabled",
+          "sub_control": "d",
+          "command": "cs_f(configuration_management.ssh_weak_ciphers_disabled_lx)",
+          "expected_result": "True",
+          "purpose": "Confirm sshd_config restricts Ciphers, MACs, and KexAlgorithms to only approved strong algorithms"
+        }
+      ]
+    },
+    "debian": {
+      "checks": [
+        {
+          "check_type": "command",
+          "name": "Insecure Services are Disabled",
+          "sub_control": "a",
+          "command": "cs_f(configuration_management.insecure_services_disabled_lx)",
+          "expected_result": "True",
+          "purpose": "Verify telnet, rsh, rlogin, tftp, and other insecure services are not installed or are disabled on Debian"
+        },
+        {
+          "check_type": "command",
+          "name": "Only Authorized Ports are Open",
+          "sub_control": "b",
+          "command": "cs_f(configuration_management.authorized_ports_only_lx)",
+          "expected_result": "True",
+          "purpose": "Confirm only authorized ports are listening by comparing ss -tlnp output against the approved port list"
+        },
+        {
+          "check_type": "command",
+          "name": "IPv6 is Disabled if Not Required",
+          "sub_control": "c",
+          "command": "cs_f(configuration_management.ipv6_disabled_if_unused_lx)",
+          "expected_result": "True",
+          "purpose": "Verify IPv6 is disabled via sysctl if not required, reducing unnecessary attack surface"
+        },
+        {
+          "check_type": "command",
+          "name": "Weak SSH Ciphers and Algorithms are Disabled",
+          "sub_control": "d",
+          "command": "cs_f(configuration_management.ssh_weak_ciphers_disabled_lx)",
+          "expected_result": "True",
+          "purpose": "Confirm sshd_config restricts Ciphers, MACs, and KexAlgorithms to only approved strong algorithms"
+        }
+      ]
+    }
+  },
+  "severity": "High",
+  "remediation": "Disable SMBv1, TLS 1.0/1.1, NTLMv1 via registry. Block non-approved ports via Windows Firewall. Restrict RDP to authorized IPs with NLA. On Linux, remove or disable telnet, rsh, and other insecure services. Restrict SSH ciphers to approved algorithms. Disable IPv6 where not required.",
+  "tags": [
+    "CM",
+    "CM.L2-3.4.7"
+  ]
+}

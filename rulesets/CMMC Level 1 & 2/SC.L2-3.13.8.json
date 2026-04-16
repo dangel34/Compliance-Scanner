@@ -1,0 +1,157 @@
+{
+  "id": "SC.L2-3.13.8",
+  "control_number": "SC.L2-3.13.8",
+  "title": "Implement Cryptographic Mechanisms to Prevent Unauthorized Disclosure in Transit",
+  "description": "Implement cryptographic mechanisms to prevent unauthorized disclosure of CUI during transmission unless otherwise protected by alternative physical safeguards.",
+  "category": "SC",
+  "target_os": [
+    "debian",
+    "linux",
+    "windows_client",
+    "windows_server"
+  ],
+  "check_details": {
+    "windows_client": {
+      "checks": [
+        {
+          "check_type": "command",
+          "name": "TLS 1.2 is Enabled",
+          "sub_control": "a",
+          "command": "cs_f(system_communications_protection.tls12_enabled_wc)",
+          "expected_result": "True",
+          "purpose": "Verify TLS 1.2 is enabled in the SCHANNEL registry to ensure strong encryption is available for all communications"
+        },
+        {
+          "check_type": "command",
+          "name": "TLS 1.0 is Disabled",
+          "sub_control": "b",
+          "command": "cs_f(system_communications_protection.tls10_disabled_wc)",
+          "expected_result": "True",
+          "purpose": "Confirm TLS 1.0 is disabled for both client and server roles in SCHANNEL, removing weak encryption from the allowed cipher suite list"
+        },
+        {
+          "check_type": "command",
+          "name": "SMB Signing is Required",
+          "sub_control": "c",
+          "command": "cs_f(system_communications_protection.smb_signing_required_wc)",
+          "expected_result": "True",
+          "purpose": "Verify LanmanWorkstation RequireSecuritySignature = 1 to protect SMB communications from tampering and relay attacks"
+        },
+        {
+          "check_type": "command",
+          "name": "RDP Encryption Level is High or FIPS",
+          "sub_control": "d",
+          "command": "cs_f(system_communications_protection.rdp_encryption_wc)",
+          "expected_result": "True",
+          "purpose": "Confirm RDP MinEncryptionLevel is 3 (High) or 4 (FIPS) to encrypt all Remote Desktop sessions protecting CUI in transit"
+        }
+      ]
+    },
+    "windows_server": {
+      "checks": [
+        {
+          "check_type": "command",
+          "name": "TLS 1.2 is Enabled",
+          "sub_control": "a",
+          "command": "cs_f(system_communications_protection.tls12_enabled_ws)",
+          "expected_result": "True",
+          "purpose": "Verify TLS 1.2 is enabled in SCHANNEL on the server to ensure strong encryption for all server communications"
+        },
+        {
+          "check_type": "command",
+          "name": "TLS 1.0 is Disabled",
+          "sub_control": "b",
+          "command": "cs_f(system_communications_protection.tls10_disabled_ws)",
+          "expected_result": "True",
+          "purpose": "Confirm TLS 1.0 is disabled on the server for both client and server roles, removing weak ciphers"
+        },
+        {
+          "check_type": "command",
+          "name": "SMB Server Signing is Required",
+          "sub_control": "c",
+          "command": "cs_f(system_communications_protection.smb_signing_required_ws)",
+          "expected_result": "True",
+          "purpose": "Verify LanmanServer RequireSecuritySignature = 1 to mandate SMB signing for all server-side file sharing connections"
+        },
+        {
+          "check_type": "command",
+          "name": "RDP Encryption Level is High or FIPS",
+          "sub_control": "d",
+          "command": "cs_f(system_communications_protection.rdp_encryption_ws)",
+          "expected_result": "True",
+          "purpose": "Confirm RDP encryption is set to High or FIPS on the server to protect remote management sessions"
+        },
+        {
+          "check_type": "command",
+          "name": "LDAP Signing is Required",
+          "sub_control": "e",
+          "command": "cs_f(system_communications_protection.ldap_signing_ws)",
+          "expected_result": "True",
+          "purpose": "Verify LDAP server signing requirements enforce signed LDAP communications to prevent credential relay attacks over directory services"
+        }
+      ]
+    },
+    "linux": {
+      "checks": [
+        {
+          "check_type": "command",
+          "name": "SSH Uses Strong Ciphers and MACs",
+          "sub_control": "a",
+          "command": "cs_f(system_communications_protection.ssh_strong_ciphers_lx)",
+          "expected_result": "True",
+          "purpose": "Verify sshd is configured with modern ciphers (e.g., chacha20-poly1305, aes256-gcm) and strong MACs, excluding weak algorithms like arcfour and hmac-md5"
+        },
+        {
+          "check_type": "command",
+          "name": "OpenSSL Supports TLS 1.2 or Higher",
+          "sub_control": "b",
+          "command": "cs_f(system_communications_protection.tls_version_lx)",
+          "expected_result": "True",
+          "purpose": "Verify the installed OpenSSL version is at least 1.0.1 to support TLS 1.2, ensuring cryptographic mechanisms are available for application-level encryption"
+        },
+        {
+          "check_type": "policy",
+          "name": "Encryption in Transit Policy Documented",
+          "sub_control": "c",
+          "command": "NA",
+          "expected_result": "NA",
+          "purpose": "Verify organizational policy mandates encryption for all CUI in transit across all protocols â€” policy review only"
+        }
+      ]
+    },
+    "debian": {
+      "checks": [
+        {
+          "check_type": "command",
+          "name": "SSH Uses Strong Ciphers and MACs",
+          "sub_control": "a",
+          "command": "cs_f(system_communications_protection.ssh_strong_ciphers_lx)",
+          "expected_result": "True",
+          "purpose": "Verify sshd is configured with modern ciphers (e.g., chacha20-poly1305, aes256-gcm) and strong MACs, excluding weak algorithms like arcfour and hmac-md5"
+        },
+        {
+          "check_type": "command",
+          "name": "OpenSSL Supports TLS 1.2 or Higher",
+          "sub_control": "b",
+          "command": "cs_f(system_communications_protection.tls_version_lx)",
+          "expected_result": "True",
+          "purpose": "Verify the installed OpenSSL version is at least 1.0.1 to support TLS 1.2, ensuring cryptographic mechanisms are available for application-level encryption"
+        },
+        {
+          "check_type": "policy",
+          "name": "Encryption in Transit Policy Documented",
+          "sub_control": "c",
+          "command": "NA",
+          "expected_result": "NA",
+          "purpose": "Verify organizational policy mandates encryption for all CUI in transit across all protocols â€” policy review only"
+        }
+      ]
+    }
+  },
+  "severity": "High",
+  "remediation": "Enable TLS 1.2 and TLS 1.3 via SCHANNEL registry settings and disable TLS 1.0/1.1. Require SMB signing via GPO. Set RDP MinEncryptionLevel to 3 or 4. On Linux, configure /etc/ssh/sshd_config with modern Ciphers, MACs, and KexAlgorithms and reload sshd.",
+  "tags": [
+    "SC",
+    "SC.L2-3.13.8"
+  ]
+}

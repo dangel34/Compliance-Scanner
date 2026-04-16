@@ -1,0 +1,165 @@
+{
+  "id": "SI.L2-3.14.2",
+  "control_number": "SI.L2-3.14.2",
+  "title": "Provide Protection from Malicious Code",
+  "description": "Provide protection from malicious code at appropriate locations within organizational systems.",
+  "category": "SI",
+  "target_os": [
+    "debian",
+    "linux",
+    "windows_client",
+    "windows_server"
+  ],
+  "check_details": {
+    "windows_client": {
+      "checks": [
+        {
+          "check_type": "command",
+          "name": "Antivirus or EDR Solution is Installed and Running",
+          "sub_control": "a",
+          "command": "cs_f(system_information_integrity.av_installed_running_wc)",
+          "expected_result": "True",
+          "purpose": "Verify an antivirus or endpoint detection and response (EDR) solution is installed, running, and its service is active"
+        },
+        {
+          "check_type": "command",
+          "name": "Real-Time Protection is Enabled",
+          "sub_control": "b",
+          "command": "cs_f(system_information_integrity.realtime_protection_enabled_wc)",
+          "expected_result": "True",
+          "purpose": "Confirm real-time or on-access scanning is enabled to detect and block malicious code as files are accessed"
+        },
+        {
+          "check_type": "command",
+          "name": "Antivirus Definitions are Current",
+          "sub_control": "c",
+          "command": "cs_f(system_information_integrity.av_definitions_current_wc)",
+          "expected_result": "True",
+          "purpose": "Verify antivirus/EDR signature definitions are up to date and were last updated within the defined window (typically 24-48 hours)"
+        },
+        {
+          "check_type": "command",
+          "name": "Antivirus Covers All Required Scan Locations",
+          "sub_control": "d",
+          "command": "cs_f(system_information_integrity.av_scan_coverage_wc)",
+          "expected_result": "True",
+          "purpose": "Confirm the antivirus solution is configured to scan all critical paths including system directories, user profiles, and removable media"
+        }
+      ]
+    },
+    "windows_server": {
+      "checks": [
+        {
+          "check_type": "command",
+          "name": "Antivirus or EDR Solution is Installed and Running",
+          "sub_control": "a",
+          "command": "cs_f(system_information_integrity.av_installed_running_ws)",
+          "expected_result": "True",
+          "purpose": "Verify an antivirus or EDR solution is installed, running, and its service is active on the server"
+        },
+        {
+          "check_type": "command",
+          "name": "Real-Time Protection is Enabled",
+          "sub_control": "b",
+          "command": "cs_f(system_information_integrity.realtime_protection_enabled_ws)",
+          "expected_result": "True",
+          "purpose": "Confirm real-time or on-access scanning is enabled on the server"
+        },
+        {
+          "check_type": "command",
+          "name": "Antivirus Definitions are Current",
+          "sub_control": "c",
+          "command": "cs_f(system_information_integrity.av_definitions_current_ws)",
+          "expected_result": "True",
+          "purpose": "Verify antivirus/EDR signature definitions are up to date on the server"
+        },
+        {
+          "check_type": "command",
+          "name": "Antivirus Exclusions are Documented and Minimal",
+          "sub_control": "d",
+          "command": "cs_f(system_information_integrity.av_exclusions_minimal_ws)",
+          "expected_result": "True",
+          "purpose": "Confirm antivirus exclusions are limited to vendor-required paths and are not overly broad, which would create protection gaps"
+        }
+      ]
+    },
+    "linux": {
+      "checks": [
+        {
+          "check_type": "command",
+          "name": "Antivirus or Malware Detection Tool is Installed",
+          "sub_control": "a",
+          "command": "cs_f(system_information_integrity.av_installed_running_lx)",
+          "expected_result": "True",
+          "purpose": "Verify ClamAV, ESET, Sophos, or an equivalent antimalware tool is installed on the Linux system"
+        },
+        {
+          "check_type": "command",
+          "name": "Malware Scanner is Active or Scheduled",
+          "sub_control": "b",
+          "command": "cs_f(system_information_integrity.av_scan_scheduled_lx)",
+          "expected_result": "True",
+          "purpose": "Confirm the antimalware tool is running as a daemon or has a scheduled scan configured via cron or systemd timer"
+        },
+        {
+          "check_type": "command",
+          "name": "Malware Definitions are Current",
+          "sub_control": "c",
+          "command": "cs_f(system_information_integrity.av_definitions_current_lx)",
+          "expected_result": "True",
+          "purpose": "Verify malware detection signatures or databases are up to date and were last updated within the defined window"
+        },
+        {
+          "check_type": "command",
+          "name": "Rootkit Detection is Configured",
+          "sub_control": "d",
+          "command": "cs_f(system_information_integrity.rootkit_detection_lx)",
+          "expected_result": "True",
+          "purpose": "Confirm rkhunter or chkrootkit is installed and scheduled to run periodically to detect rootkits and backdoors"
+        }
+      ]
+    },
+    "debian": {
+      "checks": [
+        {
+          "check_type": "command",
+          "name": "Antivirus or Malware Detection Tool is Installed",
+          "sub_control": "a",
+          "command": "cs_f(system_information_integrity.av_installed_running_lx)",
+          "expected_result": "True",
+          "purpose": "Verify ClamAV or equivalent antimalware tool is installed on this Debian system"
+        },
+        {
+          "check_type": "command",
+          "name": "Malware Scanner is Active or Scheduled",
+          "sub_control": "b",
+          "command": "cs_f(system_information_integrity.av_scan_scheduled_lx)",
+          "expected_result": "True",
+          "purpose": "Confirm the antimalware tool has a scheduled scan configured via cron or systemd timer on Debian"
+        },
+        {
+          "check_type": "command",
+          "name": "Malware Definitions are Current",
+          "sub_control": "c",
+          "command": "cs_f(system_information_integrity.av_definitions_current_lx)",
+          "expected_result": "True",
+          "purpose": "Verify ClamAV or equivalent signatures are up to date on Debian"
+        },
+        {
+          "check_type": "command",
+          "name": "Rootkit Detection is Configured",
+          "sub_control": "d",
+          "command": "cs_f(system_information_integrity.rootkit_detection_lx)",
+          "expected_result": "True",
+          "purpose": "Confirm rkhunter or chkrootkit is installed and scheduled to run periodically on Debian"
+        }
+      ]
+    }
+  },
+  "severity": "High",
+  "remediation": "Deploy and configure Windows Defender or an approved EDR solution. Enable real-time protection. Ensure definitions update automatically at least daily. Minimize antivirus exclusions and document any required exclusions. On Linux, install ClamAV with freshclam and configure rkhunter or chkrootkit with scheduled scans.",
+  "tags": [
+    "SI",
+    "SI.L2-3.14.2"
+  ]
+}

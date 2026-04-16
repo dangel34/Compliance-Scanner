@@ -1,0 +1,101 @@
+{
+  "id": "CA.L2-3.12.1",
+  "control_number": "CA.L2-3.12.1",
+  "title": "Periodically Assess Security Controls in Organizational Systems",
+  "description": "periodically assess the security controls in organizational systems to determine if the controls are effective in their application",
+  "category": "CA",
+  "target_os": [
+    "debian",
+    "linux",
+    "windows_client",
+    "windows_server"
+  ],
+  "check_details": {
+    "windows_client": {
+      "checks": [
+        {
+          "check_type": "policy",
+          "name": "The Frequency of Security Control Assessments is Defined",
+          "sub_control": "a",
+          "command": "NA",
+          "expected_result": "NA",
+          "purpose": "Definition of the frequency for security control assessments is an organizational GRC documentation concern documented in the security assessment plan and is not technically verifiable via automated check on Windows Client"
+        },
+        {
+          "check_type": "policy",
+          "name": "Security Controls are Assessed with the Defined Frequency",
+          "sub_control": "b",
+          "command": "NA",
+          "expected_result": "NA",
+          "purpose": "Performance of periodic security control assessments is an organizational GRC documentation concern requiring assessment records and findings documentation and is not technically verifiable via automated check on Windows Client"
+        }
+      ]
+    },
+    "windows_server": {
+      "checks": [
+        {
+          "check_type": "policy",
+          "name": "The Frequency of Security Control Assessments is Defined",
+          "sub_control": "a",
+          "command": "NA",
+          "expected_result": "NA",
+          "purpose": "Definition of assessment frequency is an organizational GRC documentation concern and is not technically verifiable via automated check on Windows Server"
+        },
+        {
+          "check_type": "policy",
+          "name": "Security Controls are Assessed with the Defined Frequency",
+          "sub_control": "b",
+          "command": "NA",
+          "expected_result": "NA",
+          "purpose": "Performance of periodic security control assessments is an organizational GRC documentation concern and is not technically verifiable via automated check on Windows Server"
+        }
+      ]
+    },
+    "linux": {
+      "checks": [
+        {
+          "check_type": "policy",
+          "name": "The Frequency of Security Control Assessments is Defined",
+          "sub_control": "a",
+          "command": "NA",
+          "expected_result": "NA",
+          "purpose": "Definition of assessment frequency is an organizational GRC documentation concern and is not technically verifiable via automated check on Linux"
+        },
+        {
+          "check_type": "policy",
+          "name": "Security Controls are Assessed with the Defined Frequency",
+          "sub_control": "b",
+          "command": "NA",
+          "expected_result": "NA",
+          "purpose": "Performance of periodic security control assessments is an organizational GRC documentation concern and is not technically verifiable via automated check on Linux"
+        }
+      ]
+    },
+    "debian": {
+      "checks": [
+        {
+          "check_type": "policy",
+          "name": "The Frequency of Security Control Assessments is Defined",
+          "sub_control": "a",
+          "command": "NA",
+          "expected_result": "NA",
+          "purpose": "Definition of assessment frequency is an organizational GRC documentation concern and is not technically verifiable via automated check on Debian"
+        },
+        {
+          "check_type": "policy",
+          "name": "Security Controls are Assessed with the Defined Frequency",
+          "sub_control": "b",
+          "command": "NA",
+          "expected_result": "NA",
+          "purpose": "Performance of periodic security control assessments is an organizational GRC documentation concern and is not technically verifiable via automated check on Debian"
+        }
+      ]
+    }
+  },
+  "severity": "High",
+  "remediation": "Establish and document a security assessment plan defining the frequency of security control assessments. Conduct assessments at the defined frequency using approved assessment procedures and document findings, evidence, and results. Retain assessment records to demonstrate compliance during CMMC assessments.",
+  "tags": [
+    "CA",
+    "CA.L2-3.12.1"
+  ]
+}

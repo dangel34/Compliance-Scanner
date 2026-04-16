@@ -1,0 +1,149 @@
+{
+  "id": "IA.L2-3.5.3",
+  "control_number": "IA.L2-3.5.3",
+  "title": "Use Multi-Factor Authentication",
+  "description": "Use multifactor authentication for local and network access to privileged accounts and for network access to non-privileged accounts.",
+  "category": "IA",
+  "target_os": [
+    "debian",
+    "linux",
+    "windows_client",
+    "windows_server"
+  ],
+  "check_details": {
+    "windows_client": {
+      "checks": [
+        {
+          "check_type": "command",
+          "name": "MFA is Enforced for Privileged Account Local Access",
+          "sub_control": "a",
+          "command": "cs_f(identification_authentication.mfa_privileged_local_wc)",
+          "expected_result": "True",
+          "purpose": "Verify MFA is required for local logon to privileged accounts via Windows Hello for Business, smart card, or equivalent"
+        },
+        {
+          "check_type": "command",
+          "name": "MFA is Enforced for Privileged Account Network Access",
+          "sub_control": "b",
+          "command": "cs_f(identification_authentication.mfa_privileged_network_wc)",
+          "expected_result": "True",
+          "purpose": "Confirm MFA is required for remote or network access to privileged accounts via Conditional Access, RADIUS, or equivalent"
+        },
+        {
+          "check_type": "command",
+          "name": "MFA is Enforced for Non-Privileged Network Access",
+          "sub_control": "c",
+          "command": "cs_f(identification_authentication.mfa_nonprivileged_network_wc)",
+          "expected_result": "True",
+          "purpose": "Verify MFA is required for network access by non-privileged accounts via Conditional Access or equivalent policy"
+        },
+        {
+          "check_type": "command",
+          "name": "Smart Card or Windows Hello for Business is Configured",
+          "sub_control": "d",
+          "command": "cs_f(identification_authentication.smartcard_or_whfb_wc)",
+          "expected_result": "True",
+          "purpose": "Confirm the system supports and enforces a FIPS-compliant MFA mechanism such as smart card or Windows Hello for Business"
+        }
+      ]
+    },
+    "windows_server": {
+      "checks": [
+        {
+          "check_type": "command",
+          "name": "MFA is Enforced for Privileged Account Local Access",
+          "sub_control": "a",
+          "command": "cs_f(identification_authentication.mfa_privileged_local_ws)",
+          "expected_result": "True",
+          "purpose": "Verify MFA is required for local logon to privileged accounts via smart card or Windows Hello for Business"
+        },
+        {
+          "check_type": "command",
+          "name": "MFA is Enforced for Privileged Account Network Access",
+          "sub_control": "b",
+          "command": "cs_f(identification_authentication.mfa_privileged_network_ws)",
+          "expected_result": "True",
+          "purpose": "Confirm MFA is required for RDP and other remote access by privileged accounts via NLA and Conditional Access or equivalent"
+        },
+        {
+          "check_type": "command",
+          "name": "MFA is Enforced for Non-Privileged Network Access",
+          "sub_control": "c",
+          "command": "cs_f(identification_authentication.mfa_nonprivileged_network_ws)",
+          "expected_result": "True",
+          "purpose": "Verify MFA is required for all network logons including non-privileged accounts"
+        },
+        {
+          "check_type": "command",
+          "name": "Smart Card Required for Interactive Logon is Configured",
+          "sub_control": "d",
+          "command": "cs_f(identification_authentication.smartcard_required_ws)",
+          "expected_result": "True",
+          "purpose": "Confirm the Interactive logon: Require smart card Group Policy setting is enabled for privileged accounts or all accounts"
+        }
+      ]
+    },
+    "linux": {
+      "checks": [
+        {
+          "check_type": "command",
+          "name": "MFA PAM Module is Installed and Configured",
+          "sub_control": "a",
+          "command": "cs_f(identification_authentication.mfa_pam_configured_lx)",
+          "expected_result": "True",
+          "purpose": "Verify a PAM MFA module (e.g., pam_google_authenticator, pam_duo, pam_radius) is installed and configured for SSH and console login"
+        },
+        {
+          "check_type": "command",
+          "name": "SSH MFA Challenge-Response is Enabled",
+          "sub_control": "b",
+          "command": "cs_f(identification_authentication.ssh_mfa_enabled_lx)",
+          "expected_result": "True",
+          "purpose": "Confirm sshd_config enables ChallengeResponseAuthentication or AuthenticationMethods to enforce MFA for SSH sessions"
+        },
+        {
+          "check_type": "command",
+          "name": "MFA is Enforced for Privileged sudo Access",
+          "sub_control": "c",
+          "command": "cs_f(identification_authentication.mfa_sudo_lx)",
+          "expected_result": "True",
+          "purpose": "Verify sudo is configured to require MFA re-authentication via PAM before granting elevated privileges"
+        }
+      ]
+    },
+    "debian": {
+      "checks": [
+        {
+          "check_type": "command",
+          "name": "MFA PAM Module is Installed and Configured",
+          "sub_control": "a",
+          "command": "cs_f(identification_authentication.mfa_pam_configured_lx)",
+          "expected_result": "True",
+          "purpose": "Verify a PAM MFA module (e.g., pam_google_authenticator, pam_duo) is installed and configured for SSH and console login on Debian"
+        },
+        {
+          "check_type": "command",
+          "name": "SSH MFA Challenge-Response is Enabled",
+          "sub_control": "b",
+          "command": "cs_f(identification_authentication.ssh_mfa_enabled_lx)",
+          "expected_result": "True",
+          "purpose": "Confirm sshd_config enables ChallengeResponseAuthentication or AuthenticationMethods to enforce MFA for SSH sessions"
+        },
+        {
+          "check_type": "command",
+          "name": "MFA is Enforced for Privileged sudo Access",
+          "sub_control": "c",
+          "command": "cs_f(identification_authentication.mfa_sudo_lx)",
+          "expected_result": "True",
+          "purpose": "Verify sudo is configured to require MFA re-authentication via PAM before granting elevated privileges on Debian"
+        }
+      ]
+    }
+  },
+  "severity": "High",
+  "remediation": "Enable Windows Hello for Business or enforce smart card logon for privileged accounts. Configure Conditional Access policies to require MFA for all network access. On Linux, install and configure a PAM MFA module (pam_google_authenticator, pam_duo) and enable ChallengeResponseAuthentication in sshd_config.",
+  "tags": [
+    "IA",
+    "IA.L2-3.5.3"
+  ]
+}

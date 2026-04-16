@@ -1,0 +1,141 @@
+{
+  "id": "SC.L2-3.13.3",
+  "control_number": "SC.L2-3.13.3",
+  "title": "Separate User Functionality from System Management Functionality",
+  "description": "Separate user functionality from system management functionality.",
+  "category": "SC",
+  "target_os": [
+    "debian",
+    "linux",
+    "windows_client",
+    "windows_server"
+  ],
+  "check_details": {
+    "windows_client": {
+      "checks": [
+        {
+          "check_type": "command",
+          "name": "Standard Users Are Not Local Administrators",
+          "sub_control": "a",
+          "command": "cs_f(system_communications_protection.no_standard_user_is_admin_wc)",
+          "expected_result": "True",
+          "purpose": "Verify no standard daily-use accounts are members of the local Administrators group, enforcing separation between user and admin roles"
+        },
+        {
+          "check_type": "command",
+          "name": "UAC is Enabled",
+          "sub_control": "b",
+          "command": "cs_f(system_communications_protection.uac_enabled_wc)",
+          "expected_result": "True",
+          "purpose": "Confirm User Account Control is enabled to prompt for elevation when administrative actions are attempted, creating a functional boundary between user and management functions"
+        },
+        {
+          "check_type": "command",
+          "name": "Admin Accounts Follow Separate Naming Convention",
+          "sub_control": "c",
+          "command": "cs_f(system_communications_protection.separate_admin_accounts_wc)",
+          "expected_result": "True",
+          "purpose": "Verify administrative accounts are named distinctly from standard user accounts, ensuring admins use separate accounts for privileged operations"
+        }
+      ]
+    },
+    "windows_server": {
+      "checks": [
+        {
+          "check_type": "command",
+          "name": "Standard Users Are Not Local Administrators",
+          "sub_control": "a",
+          "command": "cs_f(system_communications_protection.no_standard_user_is_admin_ws)",
+          "expected_result": "True",
+          "purpose": "Verify no standard user accounts hold local administrator rights on the server"
+        },
+        {
+          "check_type": "command",
+          "name": "UAC is Enabled",
+          "sub_control": "b",
+          "command": "cs_f(system_communications_protection.uac_enabled_ws)",
+          "expected_result": "True",
+          "purpose": "Confirm UAC is enabled on the server to require elevation for management functions"
+        },
+        {
+          "check_type": "command",
+          "name": "Admin Accounts Follow Separate Naming Convention",
+          "sub_control": "c",
+          "command": "cs_f(system_communications_protection.separate_admin_accounts_ws)",
+          "expected_result": "True",
+          "purpose": "Verify server administrator accounts are distinct from standard user accounts by naming convention"
+        },
+        {
+          "check_type": "command",
+          "name": "Domain Admins Group Membership is Controlled",
+          "sub_control": "d",
+          "command": "cs_f(system_communications_protection.ldap_admin_check_ws)",
+          "expected_result": "True",
+          "purpose": "Verify Domain Admins group has limited, documented membership to prevent privilege creep in the domain management boundary"
+        }
+      ]
+    },
+    "linux": {
+      "checks": [
+        {
+          "check_type": "command",
+          "name": "SSH Root Login Disabled",
+          "sub_control": "a",
+          "command": "cs_f(system_communications_protection.root_login_disabled_lx)",
+          "expected_result": "True",
+          "purpose": "Verify PermitRootLogin is set to no in sshd_config, preventing direct remote access to the root management account"
+        },
+        {
+          "check_type": "command",
+          "name": "No Regular Users Have UID 0",
+          "sub_control": "b",
+          "command": "cs_f(system_communications_protection.no_uid0_regular_users_lx)",
+          "expected_result": "True",
+          "purpose": "Confirm no non-root accounts have UID 0, which would grant unrestricted system management privileges to a user account"
+        },
+        {
+          "check_type": "command",
+          "name": "Sudo Not Configured for Unrestricted Passwordless Access",
+          "sub_control": "c",
+          "command": "cs_f(system_communications_protection.sudo_restricted_lx)",
+          "expected_result": "True",
+          "purpose": "Verify sudoers does not grant NOPASSWD ALL to non-root users, ensuring a challenge is required when users invoke system management functions"
+        }
+      ]
+    },
+    "debian": {
+      "checks": [
+        {
+          "check_type": "command",
+          "name": "SSH Root Login Disabled",
+          "sub_control": "a",
+          "command": "cs_f(system_communications_protection.root_login_disabled_lx)",
+          "expected_result": "True",
+          "purpose": "Verify PermitRootLogin is set to no in sshd_config, preventing direct remote access to the root management account"
+        },
+        {
+          "check_type": "command",
+          "name": "No Regular Users Have UID 0",
+          "sub_control": "b",
+          "command": "cs_f(system_communications_protection.no_uid0_regular_users_lx)",
+          "expected_result": "True",
+          "purpose": "Confirm no non-root accounts have UID 0, which would grant unrestricted system management privileges to a user account"
+        },
+        {
+          "check_type": "command",
+          "name": "Sudo Not Configured for Unrestricted Passwordless Access",
+          "sub_control": "c",
+          "command": "cs_f(system_communications_protection.sudo_restricted_lx)",
+          "expected_result": "True",
+          "purpose": "Verify sudoers does not grant NOPASSWD ALL to non-root users, ensuring a challenge is required when users invoke system management functions"
+        }
+      ]
+    }
+  },
+  "severity": "Medium",
+  "remediation": "Remove standard user accounts from the local Administrators group. Enable UAC. Create separate admin accounts (e.g., adm_username) for administrative tasks. On Linux, set PermitRootLogin no in /etc/ssh/sshd_config and restrict sudo access to only required commands for each user.",
+  "tags": [
+    "SC",
+    "SC.L2-3.13.3"
+  ]
+}

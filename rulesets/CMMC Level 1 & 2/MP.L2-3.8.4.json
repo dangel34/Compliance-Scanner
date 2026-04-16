@@ -1,0 +1,101 @@
+{
+  "id": "MP.L2-3.8.4",
+  "control_number": "MP.L2-3.8.4",
+  "title": "Mark Media with Necessary CUI Markings and Distribution Limitations",
+  "description": "mark media with necessary CUI markings and distribution limitations",
+  "category": "MP",
+  "target_os": [
+    "debian",
+    "linux",
+    "windows_client",
+    "windows_server"
+  ],
+  "check_details": {
+    "windows_client": {
+      "checks": [
+        {
+          "check_type": "policy",
+          "name": "Media Containing CUI is Marked with Applicable CUI Markings",
+          "sub_control": "a",
+          "command": "NA",
+          "expected_result": "NA",
+          "purpose": "Marking of media with CUI designations per the CUI Registry and organizational marking policies is an organizational GRC documentation concern and is not technically verifiable via automated check on Windows Client"
+        },
+        {
+          "check_type": "policy",
+          "name": "Media Containing CUI is Marked with Distribution Limitations",
+          "sub_control": "b",
+          "command": "NA",
+          "expected_result": "NA",
+          "purpose": "Marking of media with distribution limitation statements such as DISTRIBUTION STATEMENT D or NOFORN is an organizational GRC documentation concern and is not technically verifiable via automated check on Windows Client"
+        }
+      ]
+    },
+    "windows_server": {
+      "checks": [
+        {
+          "check_type": "policy",
+          "name": "Media Containing CUI is Marked with Applicable CUI Markings",
+          "sub_control": "a",
+          "command": "NA",
+          "expected_result": "NA",
+          "purpose": "Marking of media with CUI designations is an organizational GRC documentation concern and is not technically verifiable via automated check on Windows Server"
+        },
+        {
+          "check_type": "policy",
+          "name": "Media Containing CUI is Marked with Distribution Limitations",
+          "sub_control": "b",
+          "command": "NA",
+          "expected_result": "NA",
+          "purpose": "Marking of media with distribution limitations is an organizational GRC documentation concern and is not technically verifiable via automated check on Windows Server"
+        }
+      ]
+    },
+    "linux": {
+      "checks": [
+        {
+          "check_type": "policy",
+          "name": "Media Containing CUI is Marked with Applicable CUI Markings",
+          "sub_control": "a",
+          "command": "NA",
+          "expected_result": "NA",
+          "purpose": "Marking of media with CUI designations is an organizational GRC documentation concern and is not technically verifiable via automated check on Linux"
+        },
+        {
+          "check_type": "policy",
+          "name": "Media Containing CUI is Marked with Distribution Limitations",
+          "sub_control": "b",
+          "command": "NA",
+          "expected_result": "NA",
+          "purpose": "Marking of media with distribution limitations is an organizational GRC documentation concern and is not technically verifiable via automated check on Linux"
+        }
+      ]
+    },
+    "debian": {
+      "checks": [
+        {
+          "check_type": "policy",
+          "name": "Media Containing CUI is Marked with Applicable CUI Markings",
+          "sub_control": "a",
+          "command": "NA",
+          "expected_result": "NA",
+          "purpose": "Marking of media with CUI designations is an organizational GRC documentation concern and is not technically verifiable via automated check on Debian"
+        },
+        {
+          "check_type": "policy",
+          "name": "Media Containing CUI is Marked with Distribution Limitations",
+          "sub_control": "b",
+          "command": "NA",
+          "expected_result": "NA",
+          "purpose": "Marking of media with distribution limitations is an organizational GRC documentation concern and is not technically verifiable via automated check on Debian"
+        }
+      ]
+    }
+  },
+  "severity": "Medium",
+  "remediation": "Establish and document a media marking policy aligned with the CUI Registry and applicable CUI category markings. Ensure all physical and digital media containing CUI is labeled with the appropriate CUI designation and distribution limitation statements prior to use or distribution. Train personnel on CUI marking requirements.",
+  "tags": [
+    "MP",
+    "MP.L2-3.8.4"
+  ]
+}

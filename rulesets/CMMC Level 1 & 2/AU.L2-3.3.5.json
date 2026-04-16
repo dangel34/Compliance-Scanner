@@ -1,0 +1,125 @@
+{
+  "id": "AU.L2-3.3.5",
+  "control_number": "AU.L2-3.3.5",
+  "title": "Correlate Audit Record Review, Analysis, and Reporting",
+  "description": "Correlate audit record review, analysis, and reporting processes for investigation and response to indications of unlawful, unauthorized, suspicious, or unusual activity.",
+  "category": "AU",
+  "target_os": [
+    "debian",
+    "linux",
+    "windows_client",
+    "windows_server"
+  ],
+  "check_details": {
+    "windows_client": {
+      "checks": [
+        {
+          "check_type": "command",
+          "name": "Log Forwarding to Centralized System is Configured",
+          "sub_control": "a",
+          "command": "cs_f(audit_accountability.log_forwarding_wc)",
+          "expected_result": "True",
+          "purpose": "Verify Windows Event Forwarding (WEF) or a SIEM agent is configured to send logs to a central correlation platform"
+        },
+        {
+          "check_type": "command",
+          "name": "Audit Logs Include Sufficient Detail for Correlation",
+          "sub_control": "b",
+          "command": "cs_f(audit_accountability.log_detail_wc)",
+          "expected_result": "True",
+          "purpose": "Confirm log entries include timestamp, user, source IP, event type, and outcome fields required for cross-system correlation"
+        }
+      ]
+    },
+    "windows_server": {
+      "checks": [
+        {
+          "check_type": "command",
+          "name": "Log Forwarding to Centralized System is Configured",
+          "sub_control": "a",
+          "command": "cs_f(audit_accountability.log_forwarding_ws)",
+          "expected_result": "True",
+          "purpose": "Verify Windows Event Forwarding (WEF) or a SIEM agent is configured to send logs to a central correlation platform"
+        },
+        {
+          "check_type": "command",
+          "name": "Audit Logs Include Sufficient Detail for Correlation",
+          "sub_control": "b",
+          "command": "cs_f(audit_accountability.log_detail_ws)",
+          "expected_result": "True",
+          "purpose": "Confirm log entries include timestamp, user, source IP, event type, and outcome fields required for cross-system correlation"
+        },
+        {
+          "check_type": "command",
+          "name": "SIEM or Log Aggregation Tool is Present and Active",
+          "sub_control": "c",
+          "command": "cs_f(audit_accountability.siem_agent_active_ws)",
+          "expected_result": "True",
+          "purpose": "Verify a SIEM agent (e.g., Splunk UF, Elastic Agent, NXLog) is installed, running, and communicating with the central log server"
+        }
+      ]
+    },
+    "linux": {
+      "checks": [
+        {
+          "check_type": "command",
+          "name": "Log Forwarding to Centralized System is Configured",
+          "sub_control": "a",
+          "command": "cs_f(audit_accountability.log_forwarding_lx)",
+          "expected_result": "True",
+          "purpose": "Verify rsyslog, syslog-ng, or audisp-remote is configured to forward logs to a central SIEM or log aggregator"
+        },
+        {
+          "check_type": "command",
+          "name": "Audit Logs Include Sufficient Detail for Correlation",
+          "sub_control": "b",
+          "command": "cs_f(audit_accountability.log_detail_lx)",
+          "expected_result": "True",
+          "purpose": "Confirm auditd records include auid, uid, gid, pid, timestamp, syscall, and result fields to support cross-system correlation"
+        },
+        {
+          "check_type": "command",
+          "name": "SIEM or Log Aggregation Agent is Present and Active",
+          "sub_control": "c",
+          "command": "cs_f(audit_accountability.siem_agent_active_lx)",
+          "expected_result": "True",
+          "purpose": "Verify a SIEM agent (e.g., Filebeat, Splunk UF, Elastic Agent) is installed, running, and shipping logs to the central platform"
+        }
+      ]
+    },
+    "debian": {
+      "checks": [
+        {
+          "check_type": "command",
+          "name": "Log Forwarding to Centralized System is Configured",
+          "sub_control": "a",
+          "command": "cs_f(audit_accountability.log_forwarding_lx)",
+          "expected_result": "True",
+          "purpose": "Verify rsyslog, syslog-ng, or audisp-remote is configured to forward logs to a central SIEM or log aggregator"
+        },
+        {
+          "check_type": "command",
+          "name": "Audit Logs Include Sufficient Detail for Correlation",
+          "sub_control": "b",
+          "command": "cs_f(audit_accountability.log_detail_lx)",
+          "expected_result": "True",
+          "purpose": "Confirm auditd records include auid, uid, gid, pid, timestamp, syscall, and result fields to support cross-system correlation"
+        },
+        {
+          "check_type": "command",
+          "name": "SIEM or Log Aggregation Agent is Present and Active",
+          "sub_control": "c",
+          "command": "cs_f(audit_accountability.siem_agent_active_lx)",
+          "expected_result": "True",
+          "purpose": "Verify a SIEM agent (e.g., Filebeat, Splunk UF, Elastic Agent) is installed, running, and shipping logs to the central platform"
+        }
+      ]
+    }
+  },
+  "severity": "Medium",
+  "remediation": "Deploy and configure a SIEM or centralized log aggregation platform. Configure Windows Event Forwarding and Linux rsyslog/audisp-remote to ship logs. Ensure all log records contain the fields needed for cross-system correlation (user, timestamp, source, event type, result).",
+  "tags": [
+    "AU",
+    "AU.L2-3.3.5"
+  ]
+}

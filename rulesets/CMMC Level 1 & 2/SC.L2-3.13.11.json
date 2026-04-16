@@ -1,0 +1,125 @@
+{
+  "id": "SC.L2-3.13.11",
+  "control_number": "SC.L2-3.13.11",
+  "title": "Employ FIPS-Validated Cryptography",
+  "description": "Employ FIPS-validated cryptography when used to protect the confidentiality of CUI.",
+  "category": "SC",
+  "target_os": [
+    "debian",
+    "linux",
+    "windows_client",
+    "windows_server"
+  ],
+  "check_details": {
+    "windows_client": {
+      "checks": [
+        {
+          "check_type": "command",
+          "name": "FIPS Mode is Enabled via Registry",
+          "sub_control": "a",
+          "command": "cs_f(system_communications_protection.fips_mode_wc)",
+          "expected_result": "True",
+          "purpose": "Verify FipsAlgorithmPolicy Enabled = 1 in the LSA registry, placing Windows in FIPS-compliant mode that restricts all cryptographic operations to FIPS 140-2 validated algorithms"
+        },
+        {
+          "check_type": "policy",
+          "name": "FIPS Mode Enforcement Policy Documented",
+          "sub_control": "b",
+          "command": "NA",
+          "expected_result": "NA",
+          "purpose": "Verify organizational policy requires FIPS-validated cryptography for all CUI protection â€” policy review only"
+        }
+      ]
+    },
+    "windows_server": {
+      "checks": [
+        {
+          "check_type": "command",
+          "name": "FIPS Mode is Enabled via Registry",
+          "sub_control": "a",
+          "command": "cs_f(system_communications_protection.fips_mode_ws)",
+          "expected_result": "True",
+          "purpose": "Verify FipsAlgorithmPolicy Enabled = 1 on the server, restricting all cryptographic operations to FIPS 140-2 validated modules"
+        },
+        {
+          "check_type": "policy",
+          "name": "FIPS Mode Enforcement Policy Documented",
+          "sub_control": "b",
+          "command": "NA",
+          "expected_result": "NA",
+          "purpose": "Verify organizational policy mandates FIPS-validated cryptography â€” policy review only"
+        },
+        {
+          "check_type": "command",
+          "name": "FIPS Validated Cryptography Used by Applications",
+          "sub_control": "c",
+          "command": "NA",
+          "expected_result": "NA",
+          "purpose": "Verify that all applications handling CUI use FIPS-validated cryptographic modules â€” application-level review required"
+        }
+      ]
+    },
+    "linux": {
+      "checks": [
+        {
+          "check_type": "command",
+          "name": "Kernel FIPS Mode is Enabled",
+          "sub_control": "a",
+          "command": "cs_f(system_communications_protection.fips_enabled_lx)",
+          "expected_result": "True",
+          "purpose": "Verify /proc/sys/crypto/fips_enabled = 1, confirming the kernel is running in FIPS mode and only validated cryptographic algorithms are permitted"
+        },
+        {
+          "check_type": "command",
+          "name": "FIPS Boot Parameter is Set",
+          "sub_control": "b",
+          "command": "cs_f(system_communications_protection.openssl_fips_lx)",
+          "expected_result": "True",
+          "purpose": "Verify the kernel command line includes fips=1 to ensure FIPS mode persists across reboots"
+        },
+        {
+          "check_type": "policy",
+          "name": "FIPS Policy Documented",
+          "sub_control": "c",
+          "command": "NA",
+          "expected_result": "NA",
+          "purpose": "Verify the organization documents which FIPS 140-2 validated modules are used for CUI protection â€” policy review only"
+        }
+      ]
+    },
+    "debian": {
+      "checks": [
+        {
+          "check_type": "command",
+          "name": "Kernel FIPS Mode is Enabled",
+          "sub_control": "a",
+          "command": "cs_f(system_communications_protection.fips_enabled_lx)",
+          "expected_result": "True",
+          "purpose": "Verify /proc/sys/crypto/fips_enabled = 1, confirming the kernel is running in FIPS mode and only validated cryptographic algorithms are permitted"
+        },
+        {
+          "check_type": "command",
+          "name": "FIPS Boot Parameter is Set",
+          "sub_control": "b",
+          "command": "cs_f(system_communications_protection.openssl_fips_lx)",
+          "expected_result": "True",
+          "purpose": "Verify the kernel command line includes fips=1 to ensure FIPS mode persists across reboots"
+        },
+        {
+          "check_type": "policy",
+          "name": "FIPS Policy Documented",
+          "sub_control": "c",
+          "command": "NA",
+          "expected_result": "NA",
+          "purpose": "Verify the organization documents which FIPS 140-2 validated modules are used for CUI protection â€” policy review only"
+        }
+      ]
+    }
+  },
+  "severity": "High",
+  "remediation": "Enable FIPS mode via GPO (Security Settings > Local Policies > Security Options > System Cryptography: Use FIPS-compliant algorithms) or directly in registry (FipsAlgorithmPolicy Enabled = 1). On Linux, install the FIPS-enabled kernel package and add fips=1 to GRUB_CMDLINE_LINUX in /etc/default/grub then run update-grub.",
+  "tags": [
+    "SC",
+    "SC.L2-3.13.11"
+  ]
+}

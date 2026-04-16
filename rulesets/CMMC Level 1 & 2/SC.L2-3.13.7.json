@@ -1,0 +1,117 @@
+{
+  "id": "SC.L2-3.13.7",
+  "control_number": "SC.L2-3.13.7",
+  "title": "Prevent Remote Devices from Using Split Tunneling",
+  "description": "Prevent remote devices from simultaneously establishing non-remote connections with the system and communicating via some other connection to resources in external networks (i.e., split tunneling).",
+  "category": "SC",
+  "target_os": [
+    "debian",
+    "linux",
+    "windows_client",
+    "windows_server"
+  ],
+  "check_details": {
+    "windows_client": {
+      "checks": [
+        {
+          "check_type": "command",
+          "name": "VPN Split Tunneling is Disabled",
+          "sub_control": "a",
+          "command": "cs_f(system_communications_protection.rasman_no_split_tunnel_wc)",
+          "expected_result": "True",
+          "purpose": "Verify VPN client configurations have SplitTunneling set to False, ensuring all traffic routes through the corporate VPN when connected"
+        },
+        {
+          "check_type": "command",
+          "name": "Default Route Passes Through VPN Interface",
+          "sub_control": "b",
+          "command": "cs_f(system_communications_protection.routing_via_vpn_wc)",
+          "expected_result": "True",
+          "purpose": "Confirm the routing table shows the default route (0.0.0.0/0) directs all traffic through the VPN interface when VPN is connected"
+        },
+        {
+          "check_type": "policy",
+          "name": "Split Tunneling Policy Documented",
+          "sub_control": "c",
+          "command": "NA",
+          "expected_result": "NA",
+          "purpose": "Verify organizational policy prohibits split tunneling for remote access connections — policy review only"
+        }
+      ]
+    },
+    "windows_server": {
+      "checks": [
+        {
+          "check_type": "command",
+          "name": "VPN Split Tunneling is Disabled",
+          "sub_control": "a",
+          "command": "cs_f(system_communications_protection.rasman_no_split_tunnel_ws)",
+          "expected_result": "True",
+          "purpose": "Verify VPN configurations on the server disable split tunneling, routing all traffic through the corporate tunnel"
+        },
+        {
+          "check_type": "command",
+          "name": "Default Route Passes Through VPN Interface",
+          "sub_control": "b",
+          "command": "cs_f(system_communications_protection.routing_via_vpn_ws)",
+          "expected_result": "True",
+          "purpose": "Confirm default routes are directed through the VPN tunnel interface on the server"
+        },
+        {
+          "check_type": "policy",
+          "name": "Split Tunneling Policy Enforced via GPO",
+          "sub_control": "c",
+          "command": "NA",
+          "expected_result": "NA",
+          "purpose": "Verify GPO enforces split tunneling prohibition for all remote access connections — policy review only"
+        }
+      ]
+    },
+    "linux": {
+      "checks": [
+        {
+          "check_type": "command",
+          "name": "VPN Configuration Routes All Traffic Through Tunnel",
+          "sub_control": "a",
+          "command": "cs_f(system_communications_protection.vpn_no_split_tunnel_lx)",
+          "expected_result": "True",
+          "purpose": "Verify OpenVPN configs include redirect-gateway def1 or WireGuard configs use AllowedIPs = 0.0.0.0/0 to prevent split tunneling"
+        },
+        {
+          "check_type": "policy",
+          "name": "Split Tunneling Policy Documented",
+          "sub_control": "b",
+          "command": "NA",
+          "expected_result": "NA",
+          "purpose": "Verify organizational policy prohibits split tunneling for remote access — policy review only"
+        }
+      ]
+    },
+    "debian": {
+      "checks": [
+        {
+          "check_type": "command",
+          "name": "VPN Configuration Routes All Traffic Through Tunnel",
+          "sub_control": "a",
+          "command": "cs_f(system_communications_protection.vpn_no_split_tunnel_lx)",
+          "expected_result": "True",
+          "purpose": "Verify OpenVPN configs include redirect-gateway def1 or WireGuard configs use AllowedIPs = 0.0.0.0/0 to prevent split tunneling"
+        },
+        {
+          "check_type": "policy",
+          "name": "Split Tunneling Policy Documented",
+          "sub_control": "b",
+          "command": "NA",
+          "expected_result": "NA",
+          "purpose": "Verify organizational policy prohibits split tunneling for remote access — policy review only"
+        }
+      ]
+    }
+  },
+  "severity": "Medium",
+  "remediation": "Configure all VPN client profiles to disable split tunneling (SplitTunneling = False in PowerShell VPN profile). Enforce via GPO. On Linux, add 'redirect-gateway def1' to OpenVPN .conf files or set 'AllowedIPs = 0.0.0.0/0, ::/0' in WireGuard peer configurations.",
+  "tags": [
+    "SC",
+    "SC.L2-3.13.7"
+  ]
+}

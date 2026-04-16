@@ -1,0 +1,165 @@
+{
+  "id": "SC.L2-3.13.2",
+  "control_number": "SC.L2-3.13.2",
+  "title": "Employ Security Engineering Principles",
+  "description": "Employ security engineering principles in the specification, design, development, implementation, and modification of the system.",
+  "category": "SC",
+  "target_os": [
+    "debian",
+    "linux",
+    "windows_client",
+    "windows_server"
+  ],
+  "check_details": {
+    "windows_client": {
+      "checks": [
+        {
+          "check_type": "policy",
+          "name": "Security Engineering Principles Policy Exists",
+          "sub_control": "a",
+          "command": "NA",
+          "expected_result": "NA",
+          "purpose": "Verify the organization has documented security engineering principles applied to system design and development — policy review only, not automatable"
+        },
+        {
+          "check_type": "command",
+          "name": "Secure Boot Enabled",
+          "sub_control": "b",
+          "command": "cs_f(system_communications_protection.secure_boot_wc)",
+          "expected_result": "True",
+          "purpose": "Verify Secure Boot is enabled via UEFI, a foundational security engineering control preventing unauthorized boot-time code"
+        },
+        {
+          "check_type": "command",
+          "name": "DEP/NX Memory Protection Enabled",
+          "sub_control": "c",
+          "command": "cs_f(system_communications_protection.dep_nx_wc)",
+          "expected_result": "True",
+          "purpose": "Confirm Data Execution Prevention is set to OptIn or AlwaysOn via bcdedit to prevent code execution from data pages"
+        },
+        {
+          "check_type": "command",
+          "name": "ASLR Enabled",
+          "sub_control": "d",
+          "command": "cs_f(system_communications_protection.aslr_wc)",
+          "expected_result": "True",
+          "purpose": "Verify Address Space Layout Randomization is enabled in the registry to mitigate memory-based exploits"
+        }
+      ]
+    },
+    "windows_server": {
+      "checks": [
+        {
+          "check_type": "policy",
+          "name": "Security Engineering Principles Policy Exists",
+          "sub_control": "a",
+          "command": "NA",
+          "expected_result": "NA",
+          "purpose": "Verify documented security engineering principles are applied to server system design — policy review only"
+        },
+        {
+          "check_type": "command",
+          "name": "Secure Boot Enabled",
+          "sub_control": "b",
+          "command": "cs_f(system_communications_protection.secure_boot_ws)",
+          "expected_result": "True",
+          "purpose": "Verify Secure Boot is enabled on the server, preventing unauthorized firmware and boot-time code execution"
+        },
+        {
+          "check_type": "command",
+          "name": "DEP/NX Memory Protection Enabled",
+          "sub_control": "c",
+          "command": "cs_f(system_communications_protection.dep_nx_ws)",
+          "expected_result": "True",
+          "purpose": "Confirm DEP/NX is enabled on the server to block exploitation of memory vulnerabilities"
+        },
+        {
+          "check_type": "command",
+          "name": "ASLR Enabled",
+          "sub_control": "d",
+          "command": "cs_f(system_communications_protection.aslr_ws)",
+          "expected_result": "True",
+          "purpose": "Verify ASLR is enabled on the server to randomize memory layout and reduce exploit reliability"
+        }
+      ]
+    },
+    "linux": {
+      "checks": [
+        {
+          "check_type": "policy",
+          "name": "Security Engineering Principles Policy Exists",
+          "sub_control": "a",
+          "command": "NA",
+          "expected_result": "NA",
+          "purpose": "Verify the organization has documented security engineering principles — policy review only, not automatable"
+        },
+        {
+          "check_type": "command",
+          "name": "ASLR Enabled",
+          "sub_control": "b",
+          "command": "cs_f(system_communications_protection.aslr_lx)",
+          "expected_result": "True",
+          "purpose": "Verify kernel.randomize_va_space = 2 to ensure full ASLR is active, randomizing heap, stack, and library addresses"
+        },
+        {
+          "check_type": "command",
+          "name": "SELinux or AppArmor Enforcing",
+          "sub_control": "c",
+          "command": "cs_f(system_communications_protection.selinux_apparmor_lx)",
+          "expected_result": "True",
+          "purpose": "Confirm mandatory access control is enforcing to implement least-privilege security engineering at the kernel level"
+        },
+        {
+          "check_type": "command",
+          "name": "Secure Boot Enabled",
+          "sub_control": "d",
+          "command": "cs_f(system_communications_protection.secure_boot_lx)",
+          "expected_result": "True",
+          "purpose": "Verify Secure Boot is active via mokutil to enforce trusted boot chain integrity"
+        }
+      ]
+    },
+    "debian": {
+      "checks": [
+        {
+          "check_type": "policy",
+          "name": "Security Engineering Principles Policy Exists",
+          "sub_control": "a",
+          "command": "NA",
+          "expected_result": "NA",
+          "purpose": "Verify the organization has documented security engineering principles — policy review only, not automatable"
+        },
+        {
+          "check_type": "command",
+          "name": "ASLR Enabled",
+          "sub_control": "b",
+          "command": "cs_f(system_communications_protection.aslr_lx)",
+          "expected_result": "True",
+          "purpose": "Verify kernel.randomize_va_space = 2 to ensure full ASLR is active, randomizing heap, stack, and library addresses"
+        },
+        {
+          "check_type": "command",
+          "name": "SELinux or AppArmor Enforcing",
+          "sub_control": "c",
+          "command": "cs_f(system_communications_protection.selinux_apparmor_lx)",
+          "expected_result": "True",
+          "purpose": "Confirm mandatory access control is enforcing to implement least-privilege security engineering at the kernel level"
+        },
+        {
+          "check_type": "command",
+          "name": "Secure Boot Enabled",
+          "sub_control": "d",
+          "command": "cs_f(system_communications_protection.secure_boot_lx)",
+          "expected_result": "True",
+          "purpose": "Verify Secure Boot is active via mokutil to enforce trusted boot chain integrity"
+        }
+      ]
+    }
+  },
+  "severity": "Medium",
+  "remediation": "Enable Secure Boot in UEFI firmware settings. Enable DEP via bcdedit /set nx OptIn. Ensure ASLR is active in Windows registry. On Linux, set kernel.randomize_va_space=2 in /etc/sysctl.conf, enable AppArmor or SELinux in enforcing mode, and add fips=1 to GRUB kernel parameters if required.",
+  "tags": [
+    "SC",
+    "SC.L2-3.13.2"
+  ]
+}

@@ -1,0 +1,173 @@
+{
+  "id": "CM.L2-3.4.1",
+  "control_number": "CM.L2-3.4.1",
+  "title": "Establish and Maintain Baseline Configurations and Inventories",
+  "description": "Establish and maintain baseline configurations and inventories of organizational systems (including hardware, software, firmware, and documentation) throughout the respective system development life cycles.",
+  "category": "CM",
+  "target_os": [
+    "debian",
+    "linux",
+    "windows_client",
+    "windows_server"
+  ],
+  "check_details": {
+    "windows_client": {
+      "checks": [
+        {
+          "check_type": "command",
+          "name": "Hardware Inventory is Documented",
+          "sub_control": "a",
+          "command": "cs_f(configuration_management.hardware_inventory_wc)",
+          "expected_result": "True",
+          "purpose": "Verify system hardware components (CPU, RAM, NIC, storage) are enumerable and match an authorized inventory baseline"
+        },
+        {
+          "check_type": "command",
+          "name": "Installed Software Inventory is Captured",
+          "sub_control": "b",
+          "command": "cs_f(configuration_management.software_inventory_wc)",
+          "expected_result": "True",
+          "purpose": "Enumerate all installed applications and confirm they are documented in the authorized software inventory"
+        },
+        {
+          "check_type": "command",
+          "name": "Firmware Versions are Documented",
+          "sub_control": "c",
+          "command": "cs_f(configuration_management.firmware_inventory_wc)",
+          "expected_result": "True",
+          "purpose": "Retrieve BIOS/UEFI version and verify it is documented and within an approved firmware baseline"
+        },
+        {
+          "check_type": "command",
+          "name": "Baseline Configuration Document Exists",
+          "sub_control": "d",
+          "command": "cs_f(configuration_management.baseline_config_exists_wc)",
+          "expected_result": "True",
+          "purpose": "Verify a documented configuration baseline (e.g., GPO export, DSC configuration, or CIS benchmark profile) exists and is applied to this system"
+        }
+      ]
+    },
+    "windows_server": {
+      "checks": [
+        {
+          "check_type": "command",
+          "name": "Hardware Inventory is Documented",
+          "sub_control": "a",
+          "command": "cs_f(configuration_management.hardware_inventory_ws)",
+          "expected_result": "True",
+          "purpose": "Verify system hardware components are enumerable and match an authorized inventory baseline"
+        },
+        {
+          "check_type": "command",
+          "name": "Installed Software Inventory is Captured",
+          "sub_control": "b",
+          "command": "cs_f(configuration_management.software_inventory_ws)",
+          "expected_result": "True",
+          "purpose": "Enumerate all installed applications and roles and confirm they are documented in the authorized software inventory"
+        },
+        {
+          "check_type": "command",
+          "name": "Firmware Versions are Documented",
+          "sub_control": "c",
+          "command": "cs_f(configuration_management.firmware_inventory_ws)",
+          "expected_result": "True",
+          "purpose": "Retrieve BIOS/UEFI version and verify it is documented and within an approved firmware baseline"
+        },
+        {
+          "check_type": "command",
+          "name": "Baseline Configuration Document Exists",
+          "sub_control": "d",
+          "command": "cs_f(configuration_management.baseline_config_exists_ws)",
+          "expected_result": "True",
+          "purpose": "Verify a documented server configuration baseline (e.g., GPO export, DSC, or STIG profile) exists and is applied to this system"
+        },
+        {
+          "check_type": "command",
+          "name": "Installed Server Roles and Features are Inventoried",
+          "sub_control": "e",
+          "command": "cs_f(configuration_management.server_roles_inventory_ws)",
+          "expected_result": "True",
+          "purpose": "Enumerate all installed Windows Server roles and features and confirm only authorized roles are present"
+        }
+      ]
+    },
+    "linux": {
+      "checks": [
+        {
+          "check_type": "command",
+          "name": "Hardware Inventory is Documented",
+          "sub_control": "a",
+          "command": "cs_f(configuration_management.hardware_inventory_lx)",
+          "expected_result": "True",
+          "purpose": "Use lshw or dmidecode to enumerate hardware and verify it matches an authorized inventory record"
+        },
+        {
+          "check_type": "command",
+          "name": "Installed Package Inventory is Captured",
+          "sub_control": "b",
+          "command": "cs_f(configuration_management.software_inventory_lx)",
+          "expected_result": "True",
+          "purpose": "Enumerate all installed packages via rpm or dpkg and confirm they are documented in the authorized software baseline"
+        },
+        {
+          "check_type": "command",
+          "name": "Firmware Versions are Documented",
+          "sub_control": "c",
+          "command": "cs_f(configuration_management.firmware_inventory_lx)",
+          "expected_result": "True",
+          "purpose": "Retrieve BIOS/UEFI version via dmidecode and verify it is documented in the approved firmware baseline"
+        },
+        {
+          "check_type": "command",
+          "name": "Baseline Configuration Document Exists",
+          "sub_control": "d",
+          "command": "cs_f(configuration_management.baseline_config_exists_lx)",
+          "expected_result": "True",
+          "purpose": "Verify a documented configuration baseline (e.g., Ansible playbook, CIS hardening script, or OSCAP profile) has been applied to this system"
+        }
+      ]
+    },
+    "debian": {
+      "checks": [
+        {
+          "check_type": "command",
+          "name": "Hardware Inventory is Documented",
+          "sub_control": "a",
+          "command": "cs_f(configuration_management.hardware_inventory_lx)",
+          "expected_result": "True",
+          "purpose": "Use lshw or dmidecode to enumerate hardware and verify it matches an authorized inventory record"
+        },
+        {
+          "check_type": "command",
+          "name": "Installed Package Inventory is Captured",
+          "sub_control": "b",
+          "command": "cs_f(configuration_management.software_inventory_lx)",
+          "expected_result": "True",
+          "purpose": "Enumerate all installed packages via dpkg and confirm they are documented in the authorized software baseline"
+        },
+        {
+          "check_type": "command",
+          "name": "Firmware Versions are Documented",
+          "sub_control": "c",
+          "command": "cs_f(configuration_management.firmware_inventory_lx)",
+          "expected_result": "True",
+          "purpose": "Retrieve BIOS/UEFI version via dmidecode and verify it is documented in the approved firmware baseline"
+        },
+        {
+          "check_type": "command",
+          "name": "Baseline Configuration Document Exists",
+          "sub_control": "d",
+          "command": "cs_f(configuration_management.baseline_config_exists_lx)",
+          "expected_result": "True",
+          "purpose": "Verify a documented configuration baseline (e.g., Ansible playbook, CIS hardening script, or OSCAP profile) has been applied to this system"
+        }
+      ]
+    }
+  },
+  "severity": "High",
+  "remediation": "Create and maintain a hardware and software inventory using SCCM, Lansweeper, or equivalent. Document approved BIOS/firmware versions. Establish a formal configuration baseline using GPO exports, DSC, Ansible, or CIS benchmark profiles and apply them consistently across all systems.",
+  "tags": [
+    "CM",
+    "CM.L2-3.4.1"
+  ]
+}

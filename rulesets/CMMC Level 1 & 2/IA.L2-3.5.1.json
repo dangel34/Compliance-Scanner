@@ -1,0 +1,141 @@
+{
+  "id": "IA.L2-3.5.1",
+  "control_number": "IA.L2-3.5.1",
+  "title": "Identify System Users, Processes, and Devices",
+  "description": "Identify information system users, processes acting on behalf of users, and devices.",
+  "category": "IA",
+  "target_os": [
+    "debian",
+    "linux",
+    "windows_client",
+    "windows_server"
+  ],
+  "check_details": {
+    "windows_client": {
+      "checks": [
+        {
+          "check_type": "command",
+          "name": "All User Accounts Have Unique Identifiers",
+          "sub_control": "a",
+          "command": "cs_f(identification_authentication.unique_user_ids_wc)",
+          "expected_result": "True",
+          "purpose": "Verify all local and domain user accounts have unique SIDs and usernames with no shared or generic accounts present"
+        },
+        {
+          "check_type": "command",
+          "name": "Service Accounts Have Named Identities",
+          "sub_control": "b",
+          "command": "cs_f(identification_authentication.named_service_accounts_wc)",
+          "expected_result": "True",
+          "purpose": "Confirm all services and scheduled tasks run under named service accounts rather than SYSTEM, NetworkService, or anonymous identities"
+        },
+        {
+          "check_type": "command",
+          "name": "Device Identity is Established",
+          "sub_control": "c",
+          "command": "cs_f(identification_authentication.device_identity_wc)",
+          "expected_result": "True",
+          "purpose": "Verify the system has a unique computer account and is domain joined or registered with an identity management system"
+        }
+      ]
+    },
+    "windows_server": {
+      "checks": [
+        {
+          "check_type": "command",
+          "name": "All User Accounts Have Unique Identifiers",
+          "sub_control": "a",
+          "command": "cs_f(identification_authentication.unique_user_ids_ws)",
+          "expected_result": "True",
+          "purpose": "Verify all local and domain user accounts have unique SIDs and usernames with no shared or generic accounts present"
+        },
+        {
+          "check_type": "command",
+          "name": "Service Accounts Have Named Identities",
+          "sub_control": "b",
+          "command": "cs_f(identification_authentication.named_service_accounts_ws)",
+          "expected_result": "True",
+          "purpose": "Confirm all services and scheduled tasks run under named service accounts or gMSAs rather than SYSTEM or anonymous identities"
+        },
+        {
+          "check_type": "command",
+          "name": "Device Identity is Established",
+          "sub_control": "c",
+          "command": "cs_f(identification_authentication.device_identity_ws)",
+          "expected_result": "True",
+          "purpose": "Verify the server has a unique computer account in Active Directory and is domain joined"
+        },
+        {
+          "check_type": "command",
+          "name": "No Duplicate or Orphaned Accounts Exist",
+          "sub_control": "d",
+          "command": "cs_f(identification_authentication.no_orphaned_accounts_ws)",
+          "expected_result": "True",
+          "purpose": "Confirm no orphaned accounts exist for departed users and all accounts are traceable to an authorized identity record"
+        }
+      ]
+    },
+    "linux": {
+      "checks": [
+        {
+          "check_type": "command",
+          "name": "All User Accounts Have Unique UIDs",
+          "sub_control": "a",
+          "command": "cs_f(identification_authentication.unique_user_ids_lx)",
+          "expected_result": "True",
+          "purpose": "Verify no duplicate UIDs exist in /etc/passwd and all accounts have unique named identifiers"
+        },
+        {
+          "check_type": "command",
+          "name": "Service Accounts Have Named Identities",
+          "sub_control": "b",
+          "command": "cs_f(identification_authentication.named_service_accounts_lx)",
+          "expected_result": "True",
+          "purpose": "Confirm all systemd services declare a User= directive and no daemons run as root unnecessarily"
+        },
+        {
+          "check_type": "command",
+          "name": "No Generic or Anonymous Accounts Exist",
+          "sub_control": "c",
+          "command": "cs_f(identification_authentication.no_generic_accounts_lx)",
+          "expected_result": "True",
+          "purpose": "Verify no accounts named guest, temp, test, or shared exist with login shells in /etc/passwd"
+        }
+      ]
+    },
+    "debian": {
+      "checks": [
+        {
+          "check_type": "command",
+          "name": "All User Accounts Have Unique UIDs",
+          "sub_control": "a",
+          "command": "cs_f(identification_authentication.unique_user_ids_lx)",
+          "expected_result": "True",
+          "purpose": "Verify no duplicate UIDs exist in /etc/passwd and all accounts have unique named identifiers"
+        },
+        {
+          "check_type": "command",
+          "name": "Service Accounts Have Named Identities",
+          "sub_control": "b",
+          "command": "cs_f(identification_authentication.named_service_accounts_lx)",
+          "expected_result": "True",
+          "purpose": "Confirm all systemd services declare a User= directive and no daemons run as root unnecessarily"
+        },
+        {
+          "check_type": "command",
+          "name": "No Generic or Anonymous Accounts Exist",
+          "sub_control": "c",
+          "command": "cs_f(identification_authentication.no_generic_accounts_lx)",
+          "expected_result": "True",
+          "purpose": "Verify no accounts named guest, temp, test, or shared exist with login shells in /etc/passwd"
+        }
+      ]
+    }
+  },
+  "severity": "High",
+  "remediation": "Assign unique usernames and identifiers to all users. Rename or disable generic accounts. Assign named service accounts to all services and scheduled tasks. Domain-join all managed systems. On Linux, remove or lock accounts with generic names and assign User= directives to all systemd services.",
+  "tags": [
+    "IA",
+    "IA.L2-3.5.1"
+  ]
+}

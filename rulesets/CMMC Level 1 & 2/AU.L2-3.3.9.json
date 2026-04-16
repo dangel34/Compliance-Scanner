@@ -1,0 +1,133 @@
+{
+  "id": "AU.L2-3.3.9",
+  "control_number": "AU.L2-3.3.9",
+  "title": "Limit Management of Audit Logging to a Subset of Privileged Users",
+  "description": "Limit management of audit logging to a subset of privileged users.",
+  "category": "AU",
+  "target_os": [
+    "debian",
+    "linux",
+    "windows_client",
+    "windows_server"
+  ],
+  "check_details": {
+    "windows_client": {
+      "checks": [
+        {
+          "check_type": "command",
+          "name": "Manage Auditing and Security Log Right is Restricted",
+          "sub_control": "a",
+          "command": "cs_f(audit_accountability.manage_audit_right_wc)",
+          "expected_result": "True",
+          "purpose": "Verify the 'Manage auditing and security log' user right (SeSecurityPrivilege) is assigned only to Administrators and not to standard users"
+        },
+        {
+          "check_type": "command",
+          "name": "Audit Policy Cannot Be Modified by Standard Users",
+          "sub_control": "b",
+          "command": "cs_f(audit_accountability.audit_policy_modify_restricted_wc)",
+          "expected_result": "True",
+          "purpose": "Confirm standard user accounts do not have rights to modify audit policy via auditpol or Group Policy"
+        }
+      ]
+    },
+    "windows_server": {
+      "checks": [
+        {
+          "check_type": "command",
+          "name": "Manage Auditing and Security Log Right is Restricted",
+          "sub_control": "a",
+          "command": "cs_f(audit_accountability.manage_audit_right_ws)",
+          "expected_result": "True",
+          "purpose": "Verify the 'Manage auditing and security log' user right (SeSecurityPrivilege) is assigned only to Administrators or a dedicated audit management group"
+        },
+        {
+          "check_type": "command",
+          "name": "Audit Policy Cannot Be Modified by Standard Users",
+          "sub_control": "b",
+          "command": "cs_f(audit_accountability.audit_policy_modify_restricted_ws)",
+          "expected_result": "True",
+          "purpose": "Confirm standard user accounts do not have rights to modify audit policy via auditpol or Group Policy"
+        },
+        {
+          "check_type": "command",
+          "name": "Event Log Readers Group Membership is Controlled",
+          "sub_control": "c",
+          "command": "cs_f(audit_accountability.event_log_readers_membership_ws)",
+          "expected_result": "True",
+          "purpose": "Verify the Event Log Readers group contains only authorized accounts and does not include standard users or unauthorized service accounts"
+        },
+        {
+          "check_type": "command",
+          "name": "SIEM Access is Restricted to Authorized Personnel",
+          "sub_control": "d",
+          "command": "cs_f(audit_accountability.siem_access_restricted_ws)",
+          "expected_result": "True",
+          "purpose": "Confirm access to the centralized SIEM or log management platform is limited to authorized security and audit personnel"
+        }
+      ]
+    },
+    "linux": {
+      "checks": [
+        {
+          "check_type": "command",
+          "name": "Only Root Can Manage Auditd",
+          "sub_control": "a",
+          "command": "cs_f(audit_accountability.auditd_management_restricted_lx)",
+          "expected_result": "True",
+          "purpose": "Verify that auditctl, auditd service management, and audit configuration files in /etc/audit/ are accessible only by root"
+        },
+        {
+          "check_type": "command",
+          "name": "Sudo Rights for Audit Management are Restricted",
+          "sub_control": "b",
+          "command": "cs_f(audit_accountability.audit_sudo_rights_lx)",
+          "expected_result": "True",
+          "purpose": "Confirm /etc/sudoers does not grant unrestricted sudo for auditctl or auditd commands to non-administrative accounts"
+        },
+        {
+          "check_type": "command",
+          "name": "Audit Log Directory is Not Accessible to Standard Users",
+          "sub_control": "c",
+          "command": "cs_f(audit_accountability.audit_log_dir_access_lx)",
+          "expected_result": "True",
+          "purpose": "Verify /var/log/audit/ directory permissions are 700 (root only) so standard users cannot read, modify, or delete audit logs"
+        }
+      ]
+    },
+    "debian": {
+      "checks": [
+        {
+          "check_type": "command",
+          "name": "Only Root Can Manage Auditd",
+          "sub_control": "a",
+          "command": "cs_f(audit_accountability.auditd_management_restricted_lx)",
+          "expected_result": "True",
+          "purpose": "Verify that auditctl, auditd service management, and audit configuration files in /etc/audit/ are accessible only by root"
+        },
+        {
+          "check_type": "command",
+          "name": "Sudo Rights for Audit Management are Restricted",
+          "sub_control": "b",
+          "command": "cs_f(audit_accountability.audit_sudo_rights_lx)",
+          "expected_result": "True",
+          "purpose": "Confirm /etc/sudoers does not grant unrestricted sudo for auditctl or auditd commands to non-administrative accounts"
+        },
+        {
+          "check_type": "command",
+          "name": "Audit Log Directory is Not Accessible to Standard Users",
+          "sub_control": "c",
+          "command": "cs_f(audit_accountability.audit_log_dir_access_lx)",
+          "expected_result": "True",
+          "purpose": "Verify /var/log/audit/ directory permissions are 700 (root only) so standard users cannot read, modify, or delete audit logs"
+        }
+      ]
+    }
+  },
+  "severity": "High",
+  "remediation": "Restrict SeSecurityPrivilege to Administrators only via Group Policy. Control Event Log Readers group membership. On Linux, ensure /etc/audit/ and /var/log/audit/ are root-only. Review sudoers for unrestricted audit tool access. Restrict SIEM access to authorized security personnel only.",
+  "tags": [
+    "AU",
+    "AU.L2-3.3.9"
+  ]
+}

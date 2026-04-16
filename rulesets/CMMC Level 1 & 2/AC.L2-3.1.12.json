@@ -1,0 +1,165 @@
+{
+  "id": "AC.L2-3.1.12",
+  "control_number": "AC.L2-3.1.12",
+  "title": "Monitor and Control Remote Access Sessions",
+  "description": "monitor and control remote access sessions",
+  "category": "AC",
+  "target_os": [
+    "debian",
+    "linux",
+    "windows_client",
+    "windows_server"
+  ],
+  "check_details": {
+    "windows_client": {
+      "checks": [
+        {
+          "check_type": "policy",
+          "name": "Remote Access Sessions are Permitted",
+          "sub_control": "a",
+          "command": "NA",
+          "expected_result": "NA",
+          "purpose": "Whether remote access is permitted is an organizational GRC documentation concern and is not technically verifiable via automated check on Windows Client"
+        },
+        {
+          "check_type": "policy",
+          "name": "Types of Permitted Remote Access are Identified",
+          "sub_control": "b",
+          "command": "NA",
+          "expected_result": "NA",
+          "purpose": "Identification of permitted remote access types is an organizational GRC documentation concern and is not technically verifiable via automated check on Windows Client"
+        },
+        {
+          "check_type": "command",
+          "name": "Remote Access Sessions are Controlled",
+          "sub_control": "c",
+          "command": "cs_f(access_control.remote_access_control_wc)",
+          "expected_result": "True",
+          "purpose": "Verify that RDP access is restricted to named groups, NLA is enforced, Windows Defender Firewall restricts RDP to approved subnets, and remote access requires MFA or certificate-based authentication"
+        },
+        {
+          "check_type": "command",
+          "name": "Remote Access Sessions are Monitored",
+          "sub_control": "d",
+          "command": "cs_f(access_control.remote_access_monitoring_wc)",
+          "expected_result": "True",
+          "purpose": "Verify that Windows audit policy captures logon and logoff events for remote sessions and that RDP session audit logging is active"
+        }
+      ]
+    },
+    "windows_server": {
+      "checks": [
+        {
+          "check_type": "policy",
+          "name": "Remote Access Sessions are Permitted",
+          "sub_control": "a",
+          "command": "NA",
+          "expected_result": "NA",
+          "purpose": "Whether remote access is permitted is an organizational GRC documentation concern and is not technically verifiable via automated check on Windows Server"
+        },
+        {
+          "check_type": "policy",
+          "name": "Types of Permitted Remote Access are Identified",
+          "sub_control": "b",
+          "command": "NA",
+          "expected_result": "NA",
+          "purpose": "Identification of permitted remote access types is an organizational GRC documentation concern and is not technically verifiable via automated check on Windows Server"
+        },
+        {
+          "check_type": "command",
+          "name": "Remote Access Sessions are Controlled",
+          "sub_control": "c",
+          "command": "cs_f(access_control.remote_access_control_ws)",
+          "expected_result": "True",
+          "purpose": "Verify that RDP access is restricted to named AD groups, NLA is enforced, Windows Defender Firewall restricts RDP to approved subnets, and RDP session limits are configured"
+        },
+        {
+          "check_type": "command",
+          "name": "Remote Access Sessions are Monitored",
+          "sub_control": "d",
+          "command": "cs_f(access_control.remote_access_monitoring_ws)",
+          "expected_result": "True",
+          "purpose": "Verify that Windows advanced audit policy captures logon, logoff, and account logon events for remote sessions and that RDP audit logging is active with sufficient log retention"
+        }
+      ]
+    },
+    "linux": {
+      "checks": [
+        {
+          "check_type": "policy",
+          "name": "Remote Access Sessions are Permitted",
+          "sub_control": "a",
+          "command": "NA",
+          "expected_result": "NA",
+          "purpose": "Whether remote access is permitted is an organizational GRC documentation concern and is not technically verifiable via automated check on Linux"
+        },
+        {
+          "check_type": "policy",
+          "name": "Types of Permitted Remote Access are Identified",
+          "sub_control": "b",
+          "command": "NA",
+          "expected_result": "NA",
+          "purpose": "Identification of permitted remote access types is an organizational GRC documentation concern and is not technically verifiable via automated check on Linux"
+        },
+        {
+          "check_type": "command",
+          "name": "Remote Access Sessions are Controlled",
+          "sub_control": "c",
+          "command": "cs_f(access_control.remote_access_control_lx)",
+          "expected_result": "True",
+          "purpose": "Verify that SSH is restricted to named users or groups, root login is disabled, key-based authentication is enforced, and firewall rules limit SSH to approved source IPs"
+        },
+        {
+          "check_type": "command",
+          "name": "Remote Access Sessions are Monitored",
+          "sub_control": "d",
+          "command": "cs_f(access_control.remote_access_monitoring_lx)",
+          "expected_result": "True",
+          "purpose": "Verify that auditd captures SSH session events, auth log is active and non-empty, and PAM session logging is configured to record remote access activity"
+        }
+      ]
+    },
+    "debian": {
+      "checks": [
+        {
+          "check_type": "policy",
+          "name": "Remote Access Sessions are Permitted",
+          "sub_control": "a",
+          "command": "NA",
+          "expected_result": "NA",
+          "purpose": "Whether remote access is permitted is an organizational GRC documentation concern and is not technically verifiable via automated check on Debian"
+        },
+        {
+          "check_type": "policy",
+          "name": "Types of Permitted Remote Access are Identified",
+          "sub_control": "b",
+          "command": "NA",
+          "expected_result": "NA",
+          "purpose": "Identification of permitted remote access types is an organizational GRC documentation concern and is not technically verifiable via automated check on Debian"
+        },
+        {
+          "check_type": "command",
+          "name": "Remote Access Sessions are Controlled",
+          "sub_control": "c",
+          "command": "cs_f(access_control.remote_access_control_lx)",
+          "expected_result": "True",
+          "purpose": "Verify that SSH is restricted to named users or groups, root login is disabled, key-based authentication is enforced, and firewall rules limit SSH to approved source IPs"
+        },
+        {
+          "check_type": "command",
+          "name": "Remote Access Sessions are Monitored",
+          "sub_control": "d",
+          "command": "cs_f(access_control.remote_access_monitoring_lx)",
+          "expected_result": "True",
+          "purpose": "Verify that auditd captures SSH session events, auth log is active and non-empty, and PAM session logging is configured to record remote access activity"
+        }
+      ]
+    }
+  },
+  "severity": "High",
+  "remediation": "Require all remote access to use a VPN with multi-factor authentication rather than exposing RDP or SSH directly to the internet. On Windows, restrict RDP access to named Active Directory groups and enforce Network Level Authentication via Group Policy under Computer Configuration > Administrative Templates > Windows Components > Remote Desktop Services. Configure Windows Defender Firewall to block inbound RDP from non-approved source addresses. Enable audit logging for logon and logoff events so all remote sessions are recorded. On Linux, restrict SSH access via AllowUsers or AllowGroups in /etc/ssh/sshd_config, disable root login, and review auth log regularly.",
+  "tags": [
+    "AC",
+    "AC.L2-3.1.12"
+  ]
+}

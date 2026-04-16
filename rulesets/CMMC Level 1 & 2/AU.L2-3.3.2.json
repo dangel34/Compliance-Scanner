@@ -1,0 +1,173 @@
+{
+  "id": "AU.L2-3.3.2",
+  "control_number": "AU.L2-3.3.2",
+  "title": "Ensure Actions of Individual Users Can Be Traced",
+  "description": "Ensure that the actions of individual system users can be uniquely traced to those users so they can be held accountable for their actions.",
+  "category": "AU",
+  "target_os": [
+    "debian",
+    "linux",
+    "windows_client",
+    "windows_server"
+  ],
+  "check_details": {
+    "windows_client": {
+      "checks": [
+        {
+          "check_type": "command",
+          "name": "Unique User Accounts Exist for All Users",
+          "sub_control": "a",
+          "command": "cs_f(audit_accountability.unique_user_accounts_wc)",
+          "expected_result": "True",
+          "purpose": "Verify no shared or generic accounts exist and every user has a unique named account"
+        },
+        {
+          "check_type": "command",
+          "name": "Logon and Logoff Events are Audited",
+          "sub_control": "b",
+          "command": "cs_f(audit_accountability.logon_audit_wc)",
+          "expected_result": "True",
+          "purpose": "Confirm audit policy captures logon, logoff, and account logon events (Event IDs 4624, 4625, 4634, 4647)"
+        },
+        {
+          "check_type": "command",
+          "name": "Privileged Actions are Audited",
+          "sub_control": "c",
+          "command": "cs_f(audit_accountability.privilege_use_audit_wc)",
+          "expected_result": "True",
+          "purpose": "Ensure privilege use and sensitive privilege use subcategories are enabled in the audit policy"
+        },
+        {
+          "check_type": "command",
+          "name": "Process Creation Events are Audited",
+          "sub_control": "d",
+          "command": "cs_f(audit_accountability.process_creation_audit_wc)",
+          "expected_result": "True",
+          "purpose": "Verify process creation auditing is enabled so command-line activity can be traced per user (Event ID 4688)"
+        }
+      ]
+    },
+    "windows_server": {
+      "checks": [
+        {
+          "check_type": "command",
+          "name": "Unique User Accounts Exist for All Users",
+          "sub_control": "a",
+          "command": "cs_f(audit_accountability.unique_user_accounts_ws)",
+          "expected_result": "True",
+          "purpose": "Verify no shared or generic accounts exist and every user has a unique named AD or local account"
+        },
+        {
+          "check_type": "command",
+          "name": "Logon and Logoff Events are Audited",
+          "sub_control": "b",
+          "command": "cs_f(audit_accountability.logon_audit_ws)",
+          "expected_result": "True",
+          "purpose": "Confirm audit policy captures logon, logoff, and account logon events (Event IDs 4624, 4625, 4634, 4647, 4768, 4769)"
+        },
+        {
+          "check_type": "command",
+          "name": "Privileged Actions are Audited",
+          "sub_control": "c",
+          "command": "cs_f(audit_accountability.privilege_use_audit_ws)",
+          "expected_result": "True",
+          "purpose": "Ensure privilege use and sensitive privilege use subcategories are enabled in the audit policy"
+        },
+        {
+          "check_type": "command",
+          "name": "Process Creation Events are Audited",
+          "sub_control": "d",
+          "command": "cs_f(audit_accountability.process_creation_audit_ws)",
+          "expected_result": "True",
+          "purpose": "Verify process creation auditing is enabled so command-line activity can be traced per user (Event ID 4688)"
+        },
+        {
+          "check_type": "command",
+          "name": "Object Access Events are Audited",
+          "sub_control": "e",
+          "command": "cs_f(audit_accountability.object_access_audit_ws)",
+          "expected_result": "True",
+          "purpose": "Confirm file system and object access auditing is enabled to trace user access to sensitive resources"
+        }
+      ]
+    },
+    "linux": {
+      "checks": [
+        {
+          "check_type": "command",
+          "name": "Unique User Accounts Exist for All Users",
+          "sub_control": "a",
+          "command": "cs_f(audit_accountability.unique_user_accounts_lx)",
+          "expected_result": "True",
+          "purpose": "Verify no duplicate UIDs and no shared accounts exist in /etc/passwd"
+        },
+        {
+          "check_type": "command",
+          "name": "User Login and Logout Events are Captured",
+          "sub_control": "b",
+          "command": "cs_f(audit_accountability.logon_audit_lx)",
+          "expected_result": "True",
+          "purpose": "Confirm auditd rules capture login/logout events via -w /var/log/lastlog and PAM session rules"
+        },
+        {
+          "check_type": "command",
+          "name": "Privileged Command Execution is Audited",
+          "sub_control": "c",
+          "command": "cs_f(audit_accountability.privilege_use_audit_lx)",
+          "expected_result": "True",
+          "purpose": "Verify auditd rules exist for sudo, su, and setuid/setgid binaries to trace privilege escalation per user"
+        },
+        {
+          "check_type": "command",
+          "name": "User Identity is Preserved in Audit Records",
+          "sub_control": "d",
+          "command": "cs_f(audit_accountability.auid_preserved_lx)",
+          "expected_result": "True",
+          "purpose": "Confirm auid (audit user ID) is recorded in audit events and is not -1 or 4294967295 (unset) for user actions"
+        }
+      ]
+    },
+    "debian": {
+      "checks": [
+        {
+          "check_type": "command",
+          "name": "Unique User Accounts Exist for All Users",
+          "sub_control": "a",
+          "command": "cs_f(audit_accountability.unique_user_accounts_lx)",
+          "expected_result": "True",
+          "purpose": "Verify no duplicate UIDs and no shared accounts exist in /etc/passwd"
+        },
+        {
+          "check_type": "command",
+          "name": "User Login and Logout Events are Captured",
+          "sub_control": "b",
+          "command": "cs_f(audit_accountability.logon_audit_lx)",
+          "expected_result": "True",
+          "purpose": "Confirm auditd rules capture login/logout events via -w /var/log/lastlog and PAM session rules"
+        },
+        {
+          "check_type": "command",
+          "name": "Privileged Command Execution is Audited",
+          "sub_control": "c",
+          "command": "cs_f(audit_accountability.privilege_use_audit_lx)",
+          "expected_result": "True",
+          "purpose": "Verify auditd rules exist for sudo, su, and setuid/setgid binaries to trace privilege escalation per user"
+        },
+        {
+          "check_type": "command",
+          "name": "User Identity is Preserved in Audit Records",
+          "sub_control": "d",
+          "command": "cs_f(audit_accountability.auid_preserved_lx)",
+          "expected_result": "True",
+          "purpose": "Confirm auid (audit user ID) is recorded in audit events and is not -1 or 4294967295 (unset) for user actions"
+        }
+      ]
+    }
+  },
+  "severity": "High",
+  "remediation": "Eliminate shared accounts and assign unique identities to all users. Enable logon, privilege use, and process creation audit subcategories via Group Policy or auditpol. On Linux, add auditd rules for sudo, su, and PAM session events. Confirm auid is set for all audit records.",
+  "tags": [
+    "AU",
+    "AU.L2-3.3.2"
+  ]
+}

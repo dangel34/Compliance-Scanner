@@ -1,0 +1,293 @@
+{
+  "id": "CA.L2-3.12.4",
+  "control_number": "CA.L2-3.12.4",
+  "title": "Develop Document and Periodically Update System Security Plans",
+  "description": "develop, document, and periodically update system security plans that describe system boundaries, system environments of operation, how security requirements are implemented, and the relationships with or connections to other systems",
+  "category": "CA",
+  "target_os": [
+    "debian",
+    "linux",
+    "windows_client",
+    "windows_server"
+  ],
+  "check_details": {
+    "windows_client": {
+      "checks": [
+        {
+          "check_type": "policy",
+          "name": "A System Security Plan is Developed",
+          "sub_control": "a",
+          "command": "NA",
+          "expected_result": "NA",
+          "purpose": "Development of a system security plan is an organizational GRC documentation concern and is not technically verifiable via automated check on Windows Client"
+        },
+        {
+          "check_type": "policy",
+          "name": "The System Boundary is Described and Documented in the SSP",
+          "sub_control": "b",
+          "command": "NA",
+          "expected_result": "NA",
+          "purpose": "Description and documentation of the system boundary in the SSP is an organizational GRC documentation concern and is not technically verifiable via automated check on Windows Client"
+        },
+        {
+          "check_type": "policy",
+          "name": "The System Environment of Operation is Described and Documented in the SSP",
+          "sub_control": "c",
+          "command": "NA",
+          "expected_result": "NA",
+          "purpose": "Description and documentation of the system environment of operation in the SSP is an organizational GRC documentation concern and is not technically verifiable via automated check on Windows Client"
+        },
+        {
+          "check_type": "policy",
+          "name": "Non-Applicable Security Requirements are Identified in the SSP",
+          "sub_control": "d",
+          "command": "NA",
+          "expected_result": "NA",
+          "purpose": "Identification of security requirements designated as non-applicable by the designated authority is an organizational GRC documentation concern and is not technically verifiable via automated check on Windows Client"
+        },
+        {
+          "check_type": "policy",
+          "name": "The Method of Security Requirement Implementation is Described in the SSP",
+          "sub_control": "e",
+          "command": "NA",
+          "expected_result": "NA",
+          "purpose": "Description of how each security requirement is implemented in the SSP is an organizational GRC documentation concern and is not technically verifiable via automated check on Windows Client"
+        },
+        {
+          "check_type": "policy",
+          "name": "Relationships and Connections to Other Systems are Described in the SSP",
+          "sub_control": "f",
+          "command": "NA",
+          "expected_result": "NA",
+          "purpose": "Description of interconnections and relationships with other systems including ISAs and MOUs in the SSP is an organizational GRC documentation concern and is not technically verifiable via automated check on Windows Client"
+        },
+        {
+          "check_type": "policy",
+          "name": "The Frequency to Update the SSP is Defined",
+          "sub_control": "g",
+          "command": "NA",
+          "expected_result": "NA",
+          "purpose": "Definition of the SSP update frequency is an organizational GRC documentation concern and is not technically verifiable via automated check on Windows Client"
+        },
+        {
+          "check_type": "policy",
+          "name": "The System Security Plan is Updated with the Defined Frequency",
+          "sub_control": "h",
+          "command": "NA",
+          "expected_result": "NA",
+          "purpose": "Periodic update of the SSP at the defined frequency is an organizational GRC documentation concern and is not technically verifiable via automated check on Windows Client"
+        }
+      ]
+    },
+    "windows_server": {
+      "checks": [
+        {
+          "check_type": "policy",
+          "name": "A System Security Plan is Developed",
+          "sub_control": "a",
+          "command": "NA",
+          "expected_result": "NA",
+          "purpose": "Development of a system security plan is an organizational GRC documentation concern and is not technically verifiable via automated check on Windows Server"
+        },
+        {
+          "check_type": "policy",
+          "name": "The System Boundary is Described and Documented in the SSP",
+          "sub_control": "b",
+          "command": "NA",
+          "expected_result": "NA",
+          "purpose": "Description of the system boundary in the SSP is an organizational GRC documentation concern and is not technically verifiable via automated check on Windows Server"
+        },
+        {
+          "check_type": "policy",
+          "name": "The System Environment of Operation is Described and Documented in the SSP",
+          "sub_control": "c",
+          "command": "NA",
+          "expected_result": "NA",
+          "purpose": "Description of the system environment of operation in the SSP is an organizational GRC documentation concern and is not technically verifiable via automated check on Windows Server"
+        },
+        {
+          "check_type": "policy",
+          "name": "Non-Applicable Security Requirements are Identified in the SSP",
+          "sub_control": "d",
+          "command": "NA",
+          "expected_result": "NA",
+          "purpose": "Identification of non-applicable security requirements in the SSP is an organizational GRC documentation concern and is not technically verifiable via automated check on Windows Server"
+        },
+        {
+          "check_type": "policy",
+          "name": "The Method of Security Requirement Implementation is Described in the SSP",
+          "sub_control": "e",
+          "command": "NA",
+          "expected_result": "NA",
+          "purpose": "Description of security requirement implementation methods in the SSP is an organizational GRC documentation concern and is not technically verifiable via automated check on Windows Server"
+        },
+        {
+          "check_type": "policy",
+          "name": "Relationships and Connections to Other Systems are Described in the SSP",
+          "sub_control": "f",
+          "command": "NA",
+          "expected_result": "NA",
+          "purpose": "Description of system interconnections in the SSP is an organizational GRC documentation concern and is not technically verifiable via automated check on Windows Server"
+        },
+        {
+          "check_type": "policy",
+          "name": "The Frequency to Update the SSP is Defined",
+          "sub_control": "g",
+          "command": "NA",
+          "expected_result": "NA",
+          "purpose": "Definition of the SSP update frequency is an organizational GRC documentation concern and is not technically verifiable via automated check on Windows Server"
+        },
+        {
+          "check_type": "policy",
+          "name": "The System Security Plan is Updated with the Defined Frequency",
+          "sub_control": "h",
+          "command": "NA",
+          "expected_result": "NA",
+          "purpose": "Periodic update of the SSP is an organizational GRC documentation concern and is not technically verifiable via automated check on Windows Server"
+        }
+      ]
+    },
+    "linux": {
+      "checks": [
+        {
+          "check_type": "policy",
+          "name": "A System Security Plan is Developed",
+          "sub_control": "a",
+          "command": "NA",
+          "expected_result": "NA",
+          "purpose": "Development of a system security plan is an organizational GRC documentation concern and is not technically verifiable via automated check on Linux"
+        },
+        {
+          "check_type": "policy",
+          "name": "The System Boundary is Described and Documented in the SSP",
+          "sub_control": "b",
+          "command": "NA",
+          "expected_result": "NA",
+          "purpose": "Description of the system boundary in the SSP is an organizational GRC documentation concern and is not technically verifiable via automated check on Linux"
+        },
+        {
+          "check_type": "policy",
+          "name": "The System Environment of Operation is Described and Documented in the SSP",
+          "sub_control": "c",
+          "command": "NA",
+          "expected_result": "NA",
+          "purpose": "Description of the system environment of operation in the SSP is an organizational GRC documentation concern and is not technically verifiable via automated check on Linux"
+        },
+        {
+          "check_type": "policy",
+          "name": "Non-Applicable Security Requirements are Identified in the SSP",
+          "sub_control": "d",
+          "command": "NA",
+          "expected_result": "NA",
+          "purpose": "Identification of non-applicable security requirements in the SSP is an organizational GRC documentation concern and is not technically verifiable via automated check on Linux"
+        },
+        {
+          "check_type": "policy",
+          "name": "The Method of Security Requirement Implementation is Described in the SSP",
+          "sub_control": "e",
+          "command": "NA",
+          "expected_result": "NA",
+          "purpose": "Description of security requirement implementation methods in the SSP is an organizational GRC documentation concern and is not technically verifiable via automated check on Linux"
+        },
+        {
+          "check_type": "policy",
+          "name": "Relationships and Connections to Other Systems are Described in the SSP",
+          "sub_control": "f",
+          "command": "NA",
+          "expected_result": "NA",
+          "purpose": "Description of system interconnections in the SSP is an organizational GRC documentation concern and is not technically verifiable via automated check on Linux"
+        },
+        {
+          "check_type": "policy",
+          "name": "The Frequency to Update the SSP is Defined",
+          "sub_control": "g",
+          "command": "NA",
+          "expected_result": "NA",
+          "purpose": "Definition of the SSP update frequency is an organizational GRC documentation concern and is not technically verifiable via automated check on Linux"
+        },
+        {
+          "check_type": "policy",
+          "name": "The System Security Plan is Updated with the Defined Frequency",
+          "sub_control": "h",
+          "command": "NA",
+          "expected_result": "NA",
+          "purpose": "Periodic update of the SSP is an organizational GRC documentation concern and is not technically verifiable via automated check on Linux"
+        }
+      ]
+    },
+    "debian": {
+      "checks": [
+        {
+          "check_type": "policy",
+          "name": "A System Security Plan is Developed",
+          "sub_control": "a",
+          "command": "NA",
+          "expected_result": "NA",
+          "purpose": "Development of a system security plan is an organizational GRC documentation concern and is not technically verifiable via automated check on Debian"
+        },
+        {
+          "check_type": "policy",
+          "name": "The System Boundary is Described and Documented in the SSP",
+          "sub_control": "b",
+          "command": "NA",
+          "expected_result": "NA",
+          "purpose": "Description of the system boundary in the SSP is an organizational GRC documentation concern and is not technically verifiable via automated check on Debian"
+        },
+        {
+          "check_type": "policy",
+          "name": "The System Environment of Operation is Described and Documented in the SSP",
+          "sub_control": "c",
+          "command": "NA",
+          "expected_result": "NA",
+          "purpose": "Description of the system environment of operation in the SSP is an organizational GRC documentation concern and is not technically verifiable via automated check on Debian"
+        },
+        {
+          "check_type": "policy",
+          "name": "Non-Applicable Security Requirements are Identified in the SSP",
+          "sub_control": "d",
+          "command": "NA",
+          "expected_result": "NA",
+          "purpose": "Identification of non-applicable security requirements in the SSP is an organizational GRC documentation concern and is not technically verifiable via automated check on Debian"
+        },
+        {
+          "check_type": "policy",
+          "name": "The Method of Security Requirement Implementation is Described in the SSP",
+          "sub_control": "e",
+          "command": "NA",
+          "expected_result": "NA",
+          "purpose": "Description of security requirement implementation methods in the SSP is an organizational GRC documentation concern and is not technically verifiable via automated check on Debian"
+        },
+        {
+          "check_type": "policy",
+          "name": "Relationships and Connections to Other Systems are Described in the SSP",
+          "sub_control": "f",
+          "command": "NA",
+          "expected_result": "NA",
+          "purpose": "Description of system interconnections in the SSP is an organizational GRC documentation concern and is not technically verifiable via automated check on Debian"
+        },
+        {
+          "check_type": "policy",
+          "name": "The Frequency to Update the SSP is Defined",
+          "sub_control": "g",
+          "command": "NA",
+          "expected_result": "NA",
+          "purpose": "Definition of the SSP update frequency is an organizational GRC documentation concern and is not technically verifiable via automated check on Debian"
+        },
+        {
+          "check_type": "policy",
+          "name": "The System Security Plan is Updated with the Defined Frequency",
+          "sub_control": "h",
+          "command": "NA",
+          "expected_result": "NA",
+          "purpose": "Periodic update of the SSP is an organizational GRC documentation concern and is not technically verifiable via automated check on Debian"
+        }
+      ]
+    }
+  },
+  "severity": "High",
+  "remediation": "Develop and maintain a comprehensive System Security Plan covering all required elements including system boundary, environment of operation, security requirement implementation descriptions, non-applicable requirements with justification, and system interconnections. Define an update frequency of at least annually or upon significant system changes. Ensure the SSP is reviewed and approved by organizational leadership and retained as evidence for CMMC assessments.",
+  "tags": [
+    "CA",
+    "CA.L2-3.12.4"
+  ]
+}

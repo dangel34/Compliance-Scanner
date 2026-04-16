@@ -1,0 +1,141 @@
+{
+  "id": "SC.L2-3.13.4",
+  "control_number": "SC.L2-3.13.4",
+  "title": "Prevent Unauthorized and Unintended Information Transfer",
+  "description": "Prevent unauthorized and unintended information transfer via shared system resources.",
+  "category": "SC",
+  "target_os": [
+    "debian",
+    "linux",
+    "windows_client",
+    "windows_server"
+  ],
+  "check_details": {
+    "windows_client": {
+      "checks": [
+        {
+          "check_type": "command",
+          "name": "DLP Agent is Present and Running",
+          "sub_control": "a",
+          "command": "cs_f(system_communications_protection.dlp_agent_present_wc)",
+          "expected_result": "True",
+          "purpose": "Verify a Data Loss Prevention agent (Microsoft Defender for Endpoint / Purview) is running to monitor and prevent unauthorized data transfer"
+        },
+        {
+          "check_type": "command",
+          "name": "USB/Removable Storage is Disabled",
+          "sub_control": "b",
+          "command": "cs_f(system_communications_protection.usb_storage_blocked_wc)",
+          "expected_result": "True",
+          "purpose": "Verify the USBSTOR service Start value is 4 (disabled), preventing removable storage from being used as an unauthorized information transfer channel"
+        },
+        {
+          "check_type": "command",
+          "name": "Outbound Firewall Block Rules Exist",
+          "sub_control": "c",
+          "command": "cs_f(system_communications_protection.outbound_firewall_rules_wc)",
+          "expected_result": "True",
+          "purpose": "Confirm outbound firewall Block rules are configured to restrict unauthorized data exfiltration paths"
+        }
+      ]
+    },
+    "windows_server": {
+      "checks": [
+        {
+          "check_type": "command",
+          "name": "DLP Agent is Present and Running",
+          "sub_control": "a",
+          "command": "cs_f(system_communications_protection.dlp_agent_present_ws)",
+          "expected_result": "True",
+          "purpose": "Verify a DLP agent is running on the server to detect and prevent unauthorized data transfers"
+        },
+        {
+          "check_type": "command",
+          "name": "USB/Removable Storage is Disabled",
+          "sub_control": "b",
+          "command": "cs_f(system_communications_protection.usb_storage_blocked_ws)",
+          "expected_result": "True",
+          "purpose": "Verify removable storage is disabled via the USBSTOR registry key on the server to prevent physical data exfiltration"
+        },
+        {
+          "check_type": "command",
+          "name": "Outbound Firewall Block Rules Exist",
+          "sub_control": "c",
+          "command": "cs_f(system_communications_protection.outbound_firewall_rules_ws)",
+          "expected_result": "True",
+          "purpose": "Confirm outbound firewall Block rules restrict unauthorized data exfiltration channels from the server"
+        },
+        {
+          "check_type": "policy",
+          "name": "Information Transfer Policy Documented",
+          "sub_control": "d",
+          "command": "NA",
+          "expected_result": "NA",
+          "purpose": "Verify a documented policy controls authorized information transfer channels and prohibits unauthorized sharing — policy review only"
+        }
+      ]
+    },
+    "linux": {
+      "checks": [
+        {
+          "check_type": "command",
+          "name": "USB Storage Module is Blacklisted",
+          "sub_control": "a",
+          "command": "cs_f(system_communications_protection.usb_storage_blocked_lx)",
+          "expected_result": "True",
+          "purpose": "Verify the usb-storage kernel module is blacklisted in /etc/modprobe.d/ or not currently loaded, preventing removable storage as a data transfer channel"
+        },
+        {
+          "check_type": "command",
+          "name": "Outbound Firewall Rules Are Configured",
+          "sub_control": "b",
+          "command": "cs_f(system_communications_protection.outbound_firewall_lx)",
+          "expected_result": "True",
+          "purpose": "Verify iptables OUTPUT or firewalld rules are configured to restrict unauthorized outbound data transfer paths"
+        },
+        {
+          "check_type": "command",
+          "name": "DLP or Auditing Solution Present",
+          "sub_control": "c",
+          "command": "NA",
+          "expected_result": "NA",
+          "purpose": "Verify a DLP or comprehensive audit logging solution is deployed to monitor information transfers — requires manual verification"
+        }
+      ]
+    },
+    "debian": {
+      "checks": [
+        {
+          "check_type": "command",
+          "name": "USB Storage Module is Blacklisted",
+          "sub_control": "a",
+          "command": "cs_f(system_communications_protection.usb_storage_blocked_lx)",
+          "expected_result": "True",
+          "purpose": "Verify the usb-storage kernel module is blacklisted in /etc/modprobe.d/ or not currently loaded, preventing removable storage as a data transfer channel"
+        },
+        {
+          "check_type": "command",
+          "name": "Outbound Firewall Rules Are Configured",
+          "sub_control": "b",
+          "command": "cs_f(system_communications_protection.outbound_firewall_lx)",
+          "expected_result": "True",
+          "purpose": "Verify iptables OUTPUT or firewalld rules are configured to restrict unauthorized outbound data transfer paths"
+        },
+        {
+          "check_type": "command",
+          "name": "DLP or Auditing Solution Present",
+          "sub_control": "c",
+          "command": "NA",
+          "expected_result": "NA",
+          "purpose": "Verify a DLP or comprehensive audit logging solution is deployed to monitor information transfers — requires manual verification"
+        }
+      ]
+    }
+  },
+  "severity": "High",
+  "remediation": "Deploy a DLP solution such as Microsoft Purview Endpoint DLP. Disable USB storage via GPO (set USBSTOR Start to 4). Configure outbound firewall rules to block unauthorized data transfer destinations. On Linux, blacklist usb-storage in /etc/modprobe.d/blacklist.conf and configure iptables OUTPUT rules.",
+  "tags": [
+    "SC",
+    "SC.L2-3.13.4"
+  ]
+}

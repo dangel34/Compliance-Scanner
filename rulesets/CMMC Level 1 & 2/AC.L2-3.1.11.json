@@ -1,0 +1,101 @@
+{
+  "id": "AC.L2-3.1.11",
+  "control_number": "AC.L2-3.1.11",
+  "title": "Terminate Automatically a User Session After a Defined Condition",
+  "description": "terminate (automatically) a user session after a defined condition",
+  "category": "AC",
+  "target_os": [
+    "debian",
+    "linux",
+    "windows_client",
+    "windows_server"
+  ],
+  "check_details": {
+    "windows_client": {
+      "checks": [
+        {
+          "check_type": "policy",
+          "name": "Conditions Requiring Session Termination are Defined",
+          "sub_control": "a",
+          "command": "NA",
+          "expected_result": "NA",
+          "purpose": "Definition of conditions requiring automatic session termination is an organizational GRC documentation concern and is not technically verifiable via automated check on Windows Client"
+        },
+        {
+          "check_type": "command",
+          "name": "User Session is Automatically Terminated After Defined Conditions",
+          "sub_control": "b",
+          "command": "cs_f(access_control.session_termination_wc)",
+          "expected_result": "True",
+          "purpose": "Verify that automatic session termination is enforced via screen saver timeout with password requirement, interactive logon machine inactivity limit, and logon hours restrictions where applicable"
+        }
+      ]
+    },
+    "windows_server": {
+      "checks": [
+        {
+          "check_type": "policy",
+          "name": "Conditions Requiring Session Termination are Defined",
+          "sub_control": "a",
+          "command": "NA",
+          "expected_result": "NA",
+          "purpose": "Definition of conditions requiring automatic session termination is an organizational GRC documentation concern and is not technically verifiable via automated check on Windows Server"
+        },
+        {
+          "check_type": "command",
+          "name": "User Session is Automatically Terminated After Defined Conditions",
+          "sub_control": "b",
+          "command": "cs_f(access_control.session_termination_ws)",
+          "expected_result": "True",
+          "purpose": "Verify that RDP idle session timeout disconnects and terminates sessions, interactive logon machine inactivity limit is configured, and session time limits are enforced via Group Policy"
+        }
+      ]
+    },
+    "linux": {
+      "checks": [
+        {
+          "check_type": "policy",
+          "name": "Conditions Requiring Session Termination are Defined",
+          "sub_control": "a",
+          "command": "NA",
+          "expected_result": "NA",
+          "purpose": "Definition of conditions requiring automatic session termination is an organizational GRC documentation concern and is not technically verifiable via automated check on Linux"
+        },
+        {
+          "check_type": "command",
+          "name": "User Session is Automatically Terminated After Defined Conditions",
+          "sub_control": "b",
+          "command": "cs_f(access_control.session_termination_lx)",
+          "expected_result": "True",
+          "purpose": "Verify that SSH sessions are terminated via ClientAliveInterval and ClientAliveCountMax, TMOUT is set as readonly for shell sessions, and PAM session limits are configured"
+        }
+      ]
+    },
+    "debian": {
+      "checks": [
+        {
+          "check_type": "policy",
+          "name": "Conditions Requiring Session Termination are Defined",
+          "sub_control": "a",
+          "command": "NA",
+          "expected_result": "NA",
+          "purpose": "Definition of conditions requiring automatic session termination is an organizational GRC documentation concern and is not technically verifiable via automated check on Debian"
+        },
+        {
+          "check_type": "command",
+          "name": "User Session is Automatically Terminated After Defined Conditions",
+          "sub_control": "b",
+          "command": "cs_f(access_control.session_termination_lx)",
+          "expected_result": "True",
+          "purpose": "Verify that SSH sessions are terminated via ClientAliveInterval and ClientAliveCountMax, TMOUT is set as readonly for shell sessions, and PAM session limits are configured"
+        }
+      ]
+    }
+  },
+  "severity": "Medium",
+  "remediation": "On Windows, configure automatic session termination via Group Policy under Computer Configuration > Administrative Templates > Windows Components > Remote Desktop Services > RDP Session Host > Session Time Limits. Set the idle session time limit and disconnected session time limit to 15 minutes. Also configure the Interactive Logon machine inactivity limit under Security Options. On Linux, set TMOUT as a readonly export in /etc/profile to terminate idle shell sessions and configure SSH ClientAliveInterval and ClientAliveCountMax in /etc/ssh/sshd_config. Document the defined conditions that trigger automatic session termination in organizational policy.",
+  "tags": [
+    "AC",
+    "AC.L2-3.1.11"
+  ]
+}

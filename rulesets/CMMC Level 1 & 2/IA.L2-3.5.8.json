@@ -1,0 +1,77 @@
+{
+  "id": "IA.L2-3.5.8",
+  "control_number": "IA.L2-3.5.8",
+  "title": "Prohibit Password Reuse",
+  "description": "Prohibit password reuse for a specified number of generations.",
+  "category": "IA",
+  "target_os": [
+    "debian",
+    "linux",
+    "windows_client",
+    "windows_server"
+  ],
+  "check_details": {
+    "windows_client": {
+      "checks": [
+        {
+          "check_type": "command",
+          "name": "Password History is Enforced",
+          "sub_control": "a",
+          "command": "cs_f(identification_authentication.password_history_wc)",
+          "expected_result": "True",
+          "purpose": "Verify Enforce password history is set to at least 24 passwords in the local or domain password policy"
+        }
+      ]
+    },
+    "windows_server": {
+      "checks": [
+        {
+          "check_type": "command",
+          "name": "Password History is Enforced",
+          "sub_control": "a",
+          "command": "cs_f(identification_authentication.password_history_ws)",
+          "expected_result": "True",
+          "purpose": "Verify Enforce password history is set to at least 24 passwords in the domain password policy"
+        },
+        {
+          "check_type": "command",
+          "name": "Fine-Grained Password Policy Enforces History for Privileged Accounts",
+          "sub_control": "b",
+          "command": "cs_f(identification_authentication.fgpp_history_ws)",
+          "expected_result": "True",
+          "purpose": "Confirm the Fine-Grained Password Policy for privileged accounts enforces at least 24 password history generations"
+        }
+      ]
+    },
+    "linux": {
+      "checks": [
+        {
+          "check_type": "command",
+          "name": "PAM Password History is Enforced",
+          "sub_control": "a",
+          "command": "cs_f(identification_authentication.password_history_lx)",
+          "expected_result": "True",
+          "purpose": "Verify pam_pwhistory is configured in /etc/pam.d/common-password with remember=24 or higher to prevent password reuse"
+        }
+      ]
+    },
+    "debian": {
+      "checks": [
+        {
+          "check_type": "command",
+          "name": "PAM Password History is Enforced",
+          "sub_control": "a",
+          "command": "cs_f(identification_authentication.password_history_lx)",
+          "expected_result": "True",
+          "purpose": "Verify pam_pwhistory is configured in /etc/pam.d/common-password with remember=24 or higher on Debian"
+        }
+      ]
+    }
+  },
+  "severity": "Medium",
+  "remediation": "Set Enforce password history to 24 passwords via GPO or domain password policy. On Linux, add pam_pwhistory.so remember=24 to /etc/pam.d/common-password. Configure Fine-Grained Password Policies to enforce the same history requirement for privileged accounts.",
+  "tags": [
+    "IA",
+    "IA.L2-3.5.8"
+  ]
+}

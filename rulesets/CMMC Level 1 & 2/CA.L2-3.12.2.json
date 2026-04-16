@@ -1,0 +1,133 @@
+{
+  "id": "CA.L2-3.12.2",
+  "control_number": "CA.L2-3.12.2",
+  "title": "Develop and Implement Plans of Action to Correct Deficiencies and Reduce Vulnerabilities",
+  "description": "develop and implement plans of action designed to correct deficiencies and reduce or eliminate vulnerabilities in organizational systems",
+  "category": "CA",
+  "target_os": [
+    "debian",
+    "linux",
+    "windows_client",
+    "windows_server"
+  ],
+  "check_details": {
+    "windows_client": {
+      "checks": [
+        {
+          "check_type": "policy",
+          "name": "Deficiencies and Vulnerabilities to be Addressed are Identified",
+          "sub_control": "a",
+          "command": "NA",
+          "expected_result": "NA",
+          "purpose": "Identification of deficiencies and vulnerabilities to be addressed in the plan of action is an organizational GRC documentation concern requiring assessment findings and vulnerability scan results and is not technically verifiable via automated check on Windows Client"
+        },
+        {
+          "check_type": "policy",
+          "name": "A Plan of Action is Developed to Correct Identified Deficiencies and Vulnerabilities",
+          "sub_control": "b",
+          "command": "NA",
+          "expected_result": "NA",
+          "purpose": "Development of a plan of action and milestones documenting corrective actions, responsible parties, and completion dates is an organizational GRC documentation concern and is not technically verifiable via automated check on Windows Client"
+        },
+        {
+          "check_type": "policy",
+          "name": "The Plan of Action is Implemented to Correct Deficiencies and Reduce Vulnerabilities",
+          "sub_control": "c",
+          "command": "NA",
+          "expected_result": "NA",
+          "purpose": "Implementation of the plan of action and tracking of remediation progress is an organizational GRC documentation concern and is not technically verifiable via automated check on Windows Client"
+        }
+      ]
+    },
+    "windows_server": {
+      "checks": [
+        {
+          "check_type": "policy",
+          "name": "Deficiencies and Vulnerabilities to be Addressed are Identified",
+          "sub_control": "a",
+          "command": "NA",
+          "expected_result": "NA",
+          "purpose": "Identification of deficiencies and vulnerabilities is an organizational GRC documentation concern and is not technically verifiable via automated check on Windows Server"
+        },
+        {
+          "check_type": "policy",
+          "name": "A Plan of Action is Developed to Correct Identified Deficiencies and Vulnerabilities",
+          "sub_control": "b",
+          "command": "NA",
+          "expected_result": "NA",
+          "purpose": "Development of a plan of action and milestones is an organizational GRC documentation concern and is not technically verifiable via automated check on Windows Server"
+        },
+        {
+          "check_type": "policy",
+          "name": "The Plan of Action is Implemented to Correct Deficiencies and Reduce Vulnerabilities",
+          "sub_control": "c",
+          "command": "NA",
+          "expected_result": "NA",
+          "purpose": "Implementation of the plan of action is an organizational GRC documentation concern and is not technically verifiable via automated check on Windows Server"
+        }
+      ]
+    },
+    "linux": {
+      "checks": [
+        {
+          "check_type": "policy",
+          "name": "Deficiencies and Vulnerabilities to be Addressed are Identified",
+          "sub_control": "a",
+          "command": "NA",
+          "expected_result": "NA",
+          "purpose": "Identification of deficiencies and vulnerabilities is an organizational GRC documentation concern and is not technically verifiable via automated check on Linux"
+        },
+        {
+          "check_type": "policy",
+          "name": "A Plan of Action is Developed to Correct Identified Deficiencies and Vulnerabilities",
+          "sub_control": "b",
+          "command": "NA",
+          "expected_result": "NA",
+          "purpose": "Development of a plan of action and milestones is an organizational GRC documentation concern and is not technically verifiable via automated check on Linux"
+        },
+        {
+          "check_type": "policy",
+          "name": "The Plan of Action is Implemented to Correct Deficiencies and Reduce Vulnerabilities",
+          "sub_control": "c",
+          "command": "NA",
+          "expected_result": "NA",
+          "purpose": "Implementation of the plan of action is an organizational GRC documentation concern and is not technically verifiable via automated check on Linux"
+        }
+      ]
+    },
+    "debian": {
+      "checks": [
+        {
+          "check_type": "policy",
+          "name": "Deficiencies and Vulnerabilities to be Addressed are Identified",
+          "sub_control": "a",
+          "command": "NA",
+          "expected_result": "NA",
+          "purpose": "Identification of deficiencies and vulnerabilities is an organizational GRC documentation concern and is not technically verifiable via automated check on Debian"
+        },
+        {
+          "check_type": "policy",
+          "name": "A Plan of Action is Developed to Correct Identified Deficiencies and Vulnerabilities",
+          "sub_control": "b",
+          "command": "NA",
+          "expected_result": "NA",
+          "purpose": "Development of a plan of action and milestones is an organizational GRC documentation concern and is not technically verifiable via automated check on Debian"
+        },
+        {
+          "check_type": "policy",
+          "name": "The Plan of Action is Implemented to Correct Deficiencies and Reduce Vulnerabilities",
+          "sub_control": "c",
+          "command": "NA",
+          "expected_result": "NA",
+          "purpose": "Implementation of the plan of action is an organizational GRC documentation concern and is not technically verifiable via automated check on Debian"
+        }
+      ]
+    }
+  },
+  "severity": "High",
+  "remediation": "Establish and maintain a Plan of Action and Milestones (POA&M) documenting all identified deficiencies and vulnerabilities, assigned owners, planned corrective actions, and target completion dates. Update the POA&M regularly as findings are identified and remediated. Ensure the POA&M is reviewed by leadership and used to drive security improvement activities.",
+  "tags": [
+    "CA",
+    "CA.L2-3.12.2"
+  ]
+}
