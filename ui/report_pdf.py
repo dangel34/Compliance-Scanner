@@ -5,11 +5,11 @@ from __future__ import annotations
 
 import datetime
 from collections import Counter
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Optional
 
 from reportlab.lib import colors
 from reportlab.lib.enums import TA_CENTER
-from reportlab.lib.pagesizes import A4
+from reportlab.lib.pagesizes import A4, LETTER
 from reportlab.lib.styles import ParagraphStyle, getSampleStyleSheet
 from reportlab.lib.units import mm
 from reportlab.platypus import (
@@ -126,6 +126,7 @@ def generate_report_pdf(
     save_path: str,
     results_by_path: Dict[str, RunResult],
     rules_by_category: Dict[str, List[Dict[str, str]]],
+    page_size: str = "A4",
 ) -> None:
     now         = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     detected_os = _escape_xml(format_os_name(os_scan()))
@@ -141,7 +142,8 @@ def generate_report_pdf(
     policy_count  = counts["POLICY"]
 
     S              = _get_styles()
-    page_w, page_h = A4
+    psize          = LETTER if page_size == "Letter" else A4
+    page_w, page_h = psize
     margin         = 18 * mm
     content_w      = page_w - 2 * margin
     story: List[Any] = []
@@ -461,7 +463,7 @@ def generate_report_pdf(
         story.extend(cat_block)
 
     doc = SimpleDocTemplate(
-        save_path, pagesize=A4,
+        save_path, pagesize=psize,
         leftMargin=margin, rightMargin=margin,
         topMargin=margin, bottomMargin=margin,
         title="Compliance Scan Report",

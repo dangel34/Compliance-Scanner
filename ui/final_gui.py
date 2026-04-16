@@ -397,30 +397,14 @@ class AccordionSection:
         Uses grid_remove/grid so positions are preserved when rules reappear.
         Returns True if at least one button is visible.
         """
-        cat_filter = self._filter_category
-        sev_filter = self._filter_severity
-
-        visible: set = set()
-        for meta in self.rules:
-            if (cat_filter == "All" or meta.get("category", "") == cat_filter) and \
-                    (sev_filter == "All" or meta.get("severity", "") == sev_filter):
-                visible.add(meta["path"])
-
-        # Re-pack folder wrappers in order, hiding any that have no visible rules
-        for fs in self.folder_sections.values():
-            fs.wrapper.pack_forget()
-
-        for fs in self.folder_sections.values():
-            has_visible = fs.apply_filter(visible)
-            if has_visible:
-                fs.wrapper.pack(fill="x", pady=(8, 0), padx=2)
-
-        visible_count = len(visible)
-        total_count = len(self.rules)
-        if visible_count == total_count:
-            self.set_status("Idle")
-        else:
-            self.set_status(f"Filter active: {visible_count} of {total_count} rules shown")
+        any_visible = False
+        for path, btn in self.rule_buttons.items():
+            if path in visible_paths:
+                btn.grid()
+                any_visible = True
+            else:
+                btn.grid_remove()
+        return any_visible
 
     def highlight_selected(self, selected_path: str, results_by_path: Dict[str, RunResult]):
         for path, btn in self.rule_buttons.items():
@@ -437,6 +421,18 @@ class AccordionSection:
 
 
 # ---------------------------------------------------------------------------
+# Settings defaults
+# ---------------------------------------------------------------------------
+
+_SETTINGS_DEFAULTS: Dict[str, Any] = {
+    "theme":                   "dark",
+    "default_export_dir":      "",
+    "auto_expand_categories":  False,
+    "pdf_page_size":           "A4",
+}
+
+
+# ---------------------------------------------------------------------------
 # Main application
 # ---------------------------------------------------------------------------
 
@@ -446,10 +442,11 @@ class ComplianceDebugApp(ctk.CTk):
         super().__init__()
 
         self.title("RuleForge")
-        self.geometry("1000x750")
-        self.minsize(900, 650)
+        self.geometry("1200x820")
+        self.minsize(1000, 720)
 
-        ctk.set_appearance_mode("dark")
+        self._settings: Dict[str, Any] = self._load_settings()
+        ctk.set_appearance_mode(self._settings["theme"])
         ctk.set_default_color_theme("blue")
 
         self.rules_by_category:  Dict[str, List[Dict[str, str]]] = {}
@@ -458,9 +455,13 @@ class ComplianceDebugApp(ctk.CTk):
         self.selected_rule_path: Optional[str]                    = None
         self.accordion_sections: Dict[str, AccordionSection]      = {}
         self._path_to_section:   Dict[str, AccordionSection]      = {}
-        self.folder_sections: Dict[str, FolderSection]            = {}
+        self.folder_sections:      Dict[str, FolderSection]      = {}
+        self._results_frame:       Optional[ctk.CTkFrame]        = None
+        self._settings_frame:      Optional[ctk.CTkFrame]        = None
+        self._results_tab_btn:     Optional[ctk.CTkButton]       = None
+        self._settings_tab_btn:    Optional[ctk.CTkButton]       = None
 
-        self.theme:         str  = "dark"
+        self.theme:         str  = self._settings["theme"]
         self.running:       bool = False
         self.all_rules_run: bool = False
 
@@ -503,12 +504,6 @@ class ComplianceDebugApp(ctk.CTk):
         )
         self.os_label.pack(side="left", padx=10, pady=8)
 
-        self.theme_button = ctk.CTkButton(
-            top, text="☽", command=self.toggle_theme,
-            width=36, height=36, font=ctk.CTkFont(size=16),
-        )
-        self.theme_button.pack(side="right", padx=10, pady=8)
-
         self.refresh_btn = ctk.CTkButton(top, text="Refresh Rules (F5)", command=self.refresh_rules)
         self.refresh_btn.pack(side="right", padx=10, pady=8)
 
@@ -521,6 +516,11 @@ class ComplianceDebugApp(ctk.CTk):
             hover_color=("#d0d0d0", "#3a3a3a"),
         ).pack(side="right", padx=(0, 4), pady=8)
 
+        # Pack bottom BEFORE main so Tkinter reserves its space first.
+        # If main (expand=True) is packed first it consumes all remaining height.
+        bottom = ctk.CTkFrame(self)
+        bottom.pack(side="bottom", fill="x", padx=10, pady=(6, 10))
+
         main = ctk.CTkFrame(self)
         main.pack(fill="both", expand=True, padx=10, pady=6)
 
@@ -529,6 +529,34 @@ class ComplianceDebugApp(ctk.CTk):
 
         right = ctk.CTkFrame(main)
         right.pack(side="right", fill="both", expand=True, padx=(6, 10), pady=10)
+
+        # Manual tab bar — two styled buttons that show/hide content frames
+        _tab_bar = ctk.CTkFrame(right, fg_color=("#d8dde2", "#2b2b2b"), height=40)
+        _tab_bar.pack(fill="x", padx=0, pady=(0, 0))
+        _tab_bar.pack_propagate(False)
+
+        self._results_tab_btn = ctk.CTkButton(
+            _tab_bar, text="Results", command=self._show_results_tab,
+            width=110, height=30, corner_radius=6,
+            fg_color=("#3b8ed0", "#1f6aa5"), text_color="white",
+            hover_color=("#3b8ed0", "#1f6aa5"),
+        )
+        self._results_tab_btn.pack(side="left", padx=(8, 4), pady=5)
+
+        self._settings_tab_btn = ctk.CTkButton(
+            _tab_bar, text="Settings", command=self._show_settings_tab,
+            width=110, height=30, corner_radius=6,
+            fg_color="transparent", text_color=("#444444", "#cccccc"),
+            hover_color=("#c0c8d0", "#3a3a3a"),
+        )
+        self._settings_tab_btn.pack(side="left", padx=(0, 4), pady=5)
+
+        # Two content frames — only one is packed at a time
+        self._results_frame = ctk.CTkFrame(right, fg_color="transparent")
+        self._results_frame.pack(fill="both", expand=True)
+
+        self._settings_frame = ctk.CTkFrame(right, fg_color="transparent")
+        # _settings_frame is NOT packed here; _show_settings_tab packs it
 
         ctk.CTkLabel(left, text="Rules", font=ctk.CTkFont(size=14, weight="bold")).pack(
             anchor="w", padx=10, pady=(10, 4)
@@ -562,17 +590,19 @@ class ComplianceDebugApp(ctk.CTk):
         self.rules_scroll = ctk.CTkScrollableFrame(left)
         self.rules_scroll.pack(fill="both", expand=True, padx=10, pady=(0, 10))
 
-        self._build_summary_panel(right)
+        self._build_summary_panel(self._results_frame)
 
-        details_frame = ctk.CTkFrame(right, fg_color="transparent")
+        details_frame = ctk.CTkFrame(self._results_frame, fg_color="transparent")
         details_frame.pack(fill="both", expand=True, padx=10, pady=(0, 10))
 
+        _text_bg = "#1e1e1e" if self.theme == "dark" else "#f5f5f5"
+        _text_fg = "#e8e8e8" if self.theme == "dark" else "#1a1a1a"
         self.details_text = tk.Text(
             details_frame,
             wrap="word",
-            bg="#1e1e1e",
-            fg="#e8e8e8",
-            insertbackground="#e8e8e8",
+            bg=_text_bg,
+            fg=_text_fg,
+            insertbackground=_text_fg,
             selectbackground="#264f78",
             relief="flat",
             bd=0,
@@ -582,7 +612,7 @@ class ComplianceDebugApp(ctk.CTk):
             cursor="arrow",
             state="disabled",
         )
-        _configure_tags(self.details_text)
+        _configure_tags(self.details_text, mode=self.theme)
 
         details_scroll = ctk.CTkScrollbar(details_frame, command=self.details_text.yview)
         self.details_text.configure(yscrollcommand=details_scroll.set)
@@ -591,10 +621,7 @@ class ComplianceDebugApp(ctk.CTk):
 
         render_placeholder(self.details_text, "Run rules to view results.")
 
-        bottom = ctk.CTkFrame(self)
-        bottom.pack(fill="x", padx=10, pady=(6, 10))
-
-        # Row 1: run buttons (left) — status label (centre, expands) — export buttons (right)
+        # Row 1: run buttons (bottom frame already created and packed above main) (left) — status label (centre, expands) — export buttons (right)
         btn_row = ctk.CTkFrame(bottom, fg_color="transparent")
         btn_row.pack(fill="x", padx=10, pady=(8, 4))
 
@@ -633,6 +660,8 @@ class ComplianceDebugApp(ctk.CTk):
         self.progress_bar = ctk.CTkProgressBar(progress_row, height=14)
         self.progress_bar.pack(side="left", fill="x", expand=True, padx=(0, 6))
         self.progress_bar.set(0.0)
+
+        self._build_settings_panel(self._settings_frame)
 
     # ------------------------------------------------------------------
     def _build_summary_panel(self, parent: ctk.CTkFrame) -> None:
@@ -712,6 +741,134 @@ class ComplianceDebugApp(ctk.CTk):
         self._score_bar.pack(fill="x", pady=(4, 6))
         self._score_bar.set(0.0)
 
+    # ------------------------------------------------------------------
+    def _load_settings(self) -> Dict[str, Any]:
+        path = os.path.join(PROJECT_ROOT, "settings.json")
+        result = dict(_SETTINGS_DEFAULTS)
+        try:
+            with open(path, "r", encoding="utf-8") as f:
+                data = json.load(f)
+            for k, v in data.items():
+                if k in result:
+                    result[k] = v
+        except (OSError, json.JSONDecodeError):
+            pass
+        return result
+
+    def _save_settings(self) -> None:
+        path = os.path.join(PROJECT_ROOT, "settings.json")
+        try:
+            with open(path, "w", encoding="utf-8") as f:
+                json.dump(self._settings, f, indent=2)
+        except OSError as exc:
+            _log.warning("Could not save settings: %s", exc)
+
+    # ------------------------------------------------------------------
+    def _build_settings_panel(self, parent: ctk.CTkFrame) -> None:
+        scroll = ctk.CTkScrollableFrame(parent, fg_color="transparent")
+        scroll.pack(fill="both", expand=True, padx=4, pady=(4, 0))
+
+        def section_header(text: str) -> None:
+            ctk.CTkLabel(
+                scroll, text=text,
+                font=ctk.CTkFont(size=13, weight="bold"),
+                anchor="w",
+            ).pack(anchor="w", padx=8, pady=(18, 2))
+            ctk.CTkFrame(scroll, height=1, fg_color=("#cccccc", "#444444")).pack(
+                fill="x", padx=8, pady=(0, 8)
+            )
+
+        def setting_row(label_text: str) -> ctk.CTkFrame:
+            row = ctk.CTkFrame(scroll, fg_color="transparent")
+            row.pack(fill="x", padx=8, pady=6)
+            ctk.CTkLabel(row, text=label_text, anchor="w", width=220,
+                         font=ctk.CTkFont(size=12)).pack(side="left")
+            return row
+
+        # ── Appearance ────────────────────────────────────────────────
+        section_header("Appearance")
+
+        row = setting_row("Theme")
+        self._settings_theme_menu = ctk.CTkOptionMenu(
+            row, values=["Dark", "Light"], width=120,
+        )
+        self._settings_theme_menu.set("Dark" if self.theme == "dark" else "Light")
+        self._settings_theme_menu.pack(side="left")
+
+        # ── Export ────────────────────────────────────────────────────
+        section_header("Export")
+
+        row = setting_row("Default export folder")
+        self._settings_export_entry = ctk.CTkEntry(
+            row, width=220, placeholder_text="(same as last save location)",
+        )
+        if self._settings.get("default_export_dir"):
+            self._settings_export_entry.insert(0, self._settings["default_export_dir"])
+        self._settings_export_entry.pack(side="left", padx=(0, 6))
+        ctk.CTkButton(
+            row, text="Browse", width=75,
+            command=self._browse_export_dir,
+        ).pack(side="left")
+
+        # ── Display ───────────────────────────────────────────────────
+        section_header("Display")
+
+        row = setting_row("Auto-expand categories on load")
+        self._settings_auto_expand = ctk.CTkSwitch(row, text="", width=46)
+        if self._settings.get("auto_expand_categories"):
+            self._settings_auto_expand.select()
+        self._settings_auto_expand.pack(side="left")
+
+        # ── Reports ───────────────────────────────────────────────────
+        section_header("Reports")
+
+        row = setting_row("PDF page size")
+        self._settings_pdf_size = ctk.CTkSegmentedButton(
+            row, values=["A4", "Letter"], width=160,
+        )
+        self._settings_pdf_size.set(self._settings.get("pdf_page_size", "A4"))
+        self._settings_pdf_size.pack(side="left")
+
+        # ── Apply button ──────────────────────────────────────────────
+        ctk.CTkButton(
+            parent, text="Apply", width=120, height=34,
+            command=self._apply_settings,
+        ).pack(anchor="e", padx=12, pady=(6, 10))
+
+    def _browse_export_dir(self) -> None:
+        from tkinter import filedialog as _fd
+        directory = _fd.askdirectory(
+            title="Select Default Export Folder",
+            initialdir=self._settings.get("default_export_dir") or PROJECT_ROOT,
+        )
+        if directory:
+            self._settings_export_entry.delete(0, "end")
+            self._settings_export_entry.insert(0, directory)
+
+    def _apply_settings(self) -> None:
+        new_theme  = "dark" if self._settings_theme_menu.get() == "Dark" else "light"
+        export_dir = self._settings_export_entry.get().strip()
+        auto_exp   = bool(self._settings_auto_expand.get())
+        pdf_size   = self._settings_pdf_size.get()
+
+        # Apply theme if it changed
+        if new_theme != self.theme:
+            self.theme = new_theme
+            ctk.set_appearance_mode(new_theme)
+            self.details_text.configure(
+                bg="#1e1e1e" if new_theme == "dark" else "#f5f5f5",
+                fg="#e8e8e8" if new_theme == "dark" else "#1a1a1a",
+            )
+            _configure_tags(self.details_text, mode=new_theme)
+
+        self._settings["theme"]                  = new_theme
+        self._settings["default_export_dir"]     = export_dir
+        self._settings["auto_expand_categories"] = auto_exp
+        self._settings["pdf_page_size"]          = pdf_size
+        self._save_settings()
+        self.set_status("Settings saved.")
+
+    # ------------------------------------------------------------------
     def _update_summary_display(
         self,
         total: int          = 0,
@@ -799,23 +956,41 @@ class ComplianceDebugApp(ctk.CTk):
         self._summary_counts["checks_passed"] += curr_passed
         self._summary_counts["checks_total"] += curr_total
 
-    # ------------------------------------------------------------------
-    def toggle_theme(self):
-        if self.theme == "dark":
-            self.theme = "light"
-            ctk.set_appearance_mode("light")
-            self.theme_button.configure(text="☀")
-            self.details_text.configure(bg="#f5f5f5", fg="#1a1a1a")
-            _configure_tags(self.details_text, mode="light")
-        else:
-            self.theme = "dark"
-            ctk.set_appearance_mode("dark")
-            self.theme_button.configure(text="☽")
-            self.details_text.configure(bg="#1e1e1e", fg="#e8e8e8")
-            _configure_tags(self.details_text, mode="dark")
-
     def set_status(self, text: str):
         self.status_label.configure(text=f"Status: {text}")
+
+    # ------------------------------------------------------------------
+    def _show_results_tab(self) -> None:
+        if self._settings_frame:
+            self._settings_frame.pack_forget()
+        if self._results_frame:
+            self._results_frame.pack(fill="both", expand=True)
+        if self._results_tab_btn:
+            self._results_tab_btn.configure(
+                fg_color=("#3b8ed0", "#1f6aa5"), text_color="white",
+                hover_color=("#3b8ed0", "#1f6aa5"),
+            )
+        if self._settings_tab_btn:
+            self._settings_tab_btn.configure(
+                fg_color="transparent", text_color=("#444444", "#cccccc"),
+                hover_color=("#c0c8d0", "#3a3a3a"),
+            )
+
+    def _show_settings_tab(self) -> None:
+        if self._results_frame:
+            self._results_frame.pack_forget()
+        if self._settings_frame:
+            self._settings_frame.pack(fill="both", expand=True)
+        if self._settings_tab_btn:
+            self._settings_tab_btn.configure(
+                fg_color=("#3b8ed0", "#1f6aa5"), text_color="white",
+                hover_color=("#3b8ed0", "#1f6aa5"),
+            )
+        if self._results_tab_btn:
+            self._results_tab_btn.configure(
+                fg_color="transparent", text_color=("#444444", "#cccccc"),
+                hover_color=("#c0c8d0", "#3a3a3a"),
+            )
 
     def _update_progress(self, value: float):
         if self.progress_bar is not None:
@@ -875,6 +1050,8 @@ class ComplianceDebugApp(ctk.CTk):
                 self.accordion_sections[category] = section
                 for meta in metas:
                     self._path_to_section[meta["path"]] = section
+                if self._settings.get("auto_expand_categories"):
+                    section.toggle()
 
         # Rebuild category dropdown
         cat_names = ["All"] + sorted(self.rules_by_category.keys())
@@ -924,14 +1101,14 @@ class ComplianceDebugApp(ctk.CTk):
             if cat_match and sev_match:
                 visible.add(meta["path"])
 
-        # Re-pack all section wrappers in insertion order, hiding empty ones
-        for section in self.accordion_sections.values():
-            section.wrapper.pack_forget()
+        # Re-pack folder wrappers in order, hiding any that have no visible rules
+        for fs in self.folder_sections.values():
+            fs.wrapper.pack_forget()
 
-        for section in self.accordion_sections.values():
-            has_visible = section.apply_filter(visible)
+        for fs in self.folder_sections.values():
+            has_visible = fs.apply_filter(visible)
             if has_visible:
-                section.wrapper.pack(fill="x", pady=(4, 0), padx=2)
+                fs.wrapper.pack(fill="x", pady=(8, 0), padx=2)
 
         visible_count = len(visible)
         total_count   = len(self.rules)
@@ -1121,10 +1298,12 @@ class ComplianceDebugApp(ctk.CTk):
             return
 
         default_name = f"compliance_report_{datetime.datetime.now().strftime('%Y%m%d_%H%M%S')}{ext}"
+        initial_dir  = self._settings.get("default_export_dir") or None
         save_path = filedialog.asksaveasfilename(
             defaultextension=ext,
             filetypes=filetypes,
             initialfile=default_name,
+            initialdir=initial_dir,
             title=dialog_title,
         )
         if not save_path:
@@ -1166,13 +1345,14 @@ class ComplianceDebugApp(ctk.CTk):
     def export_report(self):
         results_snapshot  = dict(self.results_by_path)
         category_snapshot = dict(self.rules_by_category)
+        page_size         = self._settings.get("pdf_page_size", "A4")
         self._run_export(
             ext=".pdf",
             filetypes=[("PDF Report", "*.pdf"), ("All Files", "*.*")],
             dialog_title="Save Compliance Report",
             busy_status="Generating PDF…",
             success_prefix="Report saved",
-            worker_fn=lambda p: generate_report_pdf(p, results_snapshot, category_snapshot),
+            worker_fn=lambda p: generate_report_pdf(p, results_snapshot, category_snapshot, page_size),
         )
 
     # ------------------------------------------------------------------
@@ -1281,8 +1461,6 @@ class ComplianceDebugApp(ctk.CTk):
             self.run_all_btn.configure(state=state)
         if self.refresh_btn:
             self.refresh_btn.configure(state=state)
-        if hasattr(self, "theme_button") and self.theme_button:
-            self.theme_button.configure(state=state)
         if enabled:
             self.run_selected_btn.configure(
                 state="normal" if self.selected_rule_path else "disabled")
