@@ -34,6 +34,62 @@ The application must be run from the project root directory so that it can locat
 
 On Windows, some checks execute PowerShell commands and may require the terminal to be run as Administrator to return accurate results. On Linux and Debian, certain checks require root privileges for the same reason.
 
+## Headless / CLI Mode
+
+For servers and CI pipelines that have no graphical display, use the CLI entry point instead:
+
+```
+python cli.py [options]
+```
+
+The CLI runs the same rule checks and produces the same results as the GUI without requiring `tkinter` or a display.
+
+**Options:**
+
+| Flag | Default | Description |
+|------|---------|-------------|
+| `--ruleset DIR` | `rulesets/` | Directory to scan for rule files. Can point to a specific sub-folder. |
+| `--format text\|json\|csv\|pdf` | `text` | Output format. `text` prints a summary table to stdout. |
+| `--output FILE` | — | File path to write the report. Required for `json`, `csv`, and `pdf`. |
+| `--page-size A4\|LETTER` | `A4` | Page size for PDF reports. |
+| `--verbose` / `-v` | off | Print each rule's pass/fail status to stderr as the scan progresses. |
+| `--no-fail` | off | Always exit 0, even when checks fail. Useful for collecting results without blocking a CI pipeline. |
+
+**Exit codes:**
+
+| Code | Meaning |
+|------|---------|
+| `0` | All automated checks passed (policy and skip results are ignored) |
+| `1` | One or more checks failed, partially passed, or errored |
+| `2` | Bad arguments or no rule files found |
+
+**Examples:**
+
+```bash
+# Print a summary table to stdout (default)
+python cli.py
+
+# Scan a specific ruleset folder
+python cli.py --ruleset rulesets/cmmc-rules
+
+# Export a CSV report
+python cli.py --format csv --output report.csv
+
+# Export a PDF report
+python cli.py --format pdf --output report.pdf
+
+# Export a JSON report
+python cli.py --format json --output report.json
+
+# Verbose scan with PDF output (useful in CI logs)
+python cli.py --ruleset rulesets/cmmc-rules --format pdf --output out.pdf --verbose
+
+# Collect results in CI without failing the build
+python cli.py --format json --output results.json --no-fail
+```
+
+Progress lines (e.g. `[1/74] AC.L2-3.1.1.json`) are written to stderr so they do not pollute piped stdout or output files.
+
 ## Using the Interface
 
 The left panel lists all discovered rules grouped by control family. Click a category header to expand it and see the individual rules. Click a rule name to preview its metadata, including the checks it will run and the remediation guidance for that control.
@@ -107,6 +163,8 @@ The CSV report contains one row per check result with columns for rule ID, title
 ## Project Structure
 
 ```
+cli.py                    Headless CLI entry point (no display required)
+
 core/
   rule_runner.py          Loads rule files and executes checks
   scanner_init.py         OS detection and scanner factory
