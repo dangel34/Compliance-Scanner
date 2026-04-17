@@ -1,0 +1,197 @@
+{
+  "id": "AC.L2-3.1.3",
+  "control_number": "AC.L2-3.1.3",
+  "title": "no-title",
+  "description": "Control the flow of CUI in accordance with approved authorizations.",
+  "category": "AC",
+  "target_os": [
+    "debian",
+    "linux",
+    "windows-client",
+    "windows-server"
+  ],
+  "check_details": {
+    "windows-client": {
+      "checks": [
+        {
+          "check_type": "command",
+          "name": "TITLE OF CHECK",
+          "sub_control": "a",
+          "command": "NA",
+          "expected_result": "NA",
+          "purpose": "NA"
+        },
+        {
+          "check_type": "command",
+          "name": "TITLE OF CHECK",
+          "sub_control": "b",
+          "command": "NA",
+          "expected_result": "NA",
+          "purpose": "NA"
+        },
+        {
+          "check_type": "command",
+          "name": "TITLE OF CHECK",
+          "sub_control": "c",
+          "command": "NA",
+          "expected_result": "NA",
+          "purpose": "NA"
+        },
+        {
+          "check_type": "command",
+          "name": "TITLE OF CHECK",
+          "sub_control": "d",
+          "command": "NA",
+          "expected_result": "NA",
+          "purpose": "NA"
+        },
+        {
+          "check_type": "command",
+          "name": "TITLE OF CHECK",
+          "sub_control": "e",
+          "command": "NA",
+          "expected_result": "NA",
+          "purpose": "NA"
+        }
+      ]
+    },
+    "windows-server": {
+      "checks": [
+        {
+          "check_type": "command",
+          "name": "TITLE OF CHECK",
+          "sub_control": "a",
+          "command": "NA",
+          "expected_result": "NA",
+          "purpose": "NA"
+        },
+        {
+          "check_type": "command",
+          "name": "TITLE OF CHECK",
+          "sub_control": "b",
+          "command": "NA",
+          "expected_result": "NA",
+          "purpose": "NA"
+        },
+        {
+          "check_type": "command",
+          "name": "TITLE OF CHECK",
+          "sub_control": "c",
+          "command": "NA",
+          "expected_result": "NA",
+          "purpose": "NA"
+        },
+        {
+          "check_type": "command",
+          "name": "TITLE OF CHECK",
+          "sub_control": "d",
+          "command": "NA",
+          "expected_result": "NA",
+          "purpose": "NA"
+        },
+        {
+          "check_type": "command",
+          "name": "TITLE OF CHECK",
+          "sub_control": "e",
+          "command": "NA",
+          "expected_result": "NA",
+          "purpose": "NA"
+        }
+      ]
+    },
+    "linux": {
+      "checks": [
+        {
+          "check_type": "command",
+          "name": "TITLE OF CHECK",
+          "sub_control": "a",
+          "command": "NA",
+          "expected_result": "NA",
+          "purpose": "NA"
+        },
+        {
+          "check_type": "command",
+          "name": "TITLE OF CHECK",
+          "sub_control": "b",
+          "command": "NA",
+          "expected_result": "NA",
+          "purpose": "NA"
+        },
+        {
+          "check_type": "command",
+          "name": "TITLE OF CHECK",
+          "sub_control": "c",
+          "command": "NA",
+          "expected_result": "NA",
+          "purpose": "NA"
+        },
+        {
+          "check_type": "command",
+          "name": "TITLE OF CHECK",
+          "sub_control": "d",
+          "command": "NA",
+          "expected_result": "NA",
+          "purpose": "NA"
+        },
+        {
+          "check_type": "command",
+          "name": "TITLE OF CHECK",
+          "sub_control": "e",
+          "command": "NA",
+          "expected_result": "NA",
+          "purpose": "NA"
+        }
+      ]
+    },
+    "debian": {
+      "checks": [
+        {
+          "check_type": "command",
+          "name": "TITLE OF CHECK",
+          "sub_control": "a",
+          "command": "NA",
+          "expected_result": "NA",
+          "purpose": "NA"
+        },
+        {
+          "check_type": "command",
+          "name": "TITLE OF CHECK",
+          "sub_control": "b",
+          "command": "NA",
+          "expected_result": "NA",
+          "purpose": "NA"
+        },
+        {
+          "check_type": "command",
+          "name": "TITLE OF CHECK",
+          "sub_control": "c",
+          "command": "NA",
+          "expected_result": "NA",
+          "purpose": "NA"
+        },
+        {
+          "check_type": "command",
+          "name": "TITLE OF CHECK",
+          "sub_control": "d",
+          "command": "NA",
+          "expected_result": "NA",
+          "purpose": "NA"
+        },
+        {
+          "check_type": "command",
+          "name": "TITLE OF CHECK",
+          "sub_control": "e",
+          "command": "NA",
+          "expected_result": "NA",
+          "purpose": "NA"
+        }
+      ]
+    }
+  },
+  "severity": "High",
+  "remediation": "Instructions to remediate non-compliance",
+  "tags": [
+    "AC",
+    "AC.L2-3.1.3"
+  ]
+}
