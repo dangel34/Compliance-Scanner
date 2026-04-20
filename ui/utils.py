@@ -11,13 +11,29 @@ import logging
 import logging.handlers
 import os
 import re
+import subprocess
 import sys
 from typing import Any, Dict
 
 # ---------------------------------------------------------------------------
+# Suppress console windows for every subprocess.run call on Windows.
+# Applied once here so all modules (custom functions, scanners, rule_runner)
+# inherit the behaviour automatically.
+# ---------------------------------------------------------------------------
+if sys.platform == "win32":
+    _real_subprocess_run = subprocess.run
+    def _headless_run(*args, **kwargs):
+        kwargs.setdefault("creationflags", subprocess.CREATE_NO_WINDOW)
+        return _real_subprocess_run(*args, **kwargs)
+    subprocess.run = _headless_run  # type: ignore[assignment]
+
+# ---------------------------------------------------------------------------
 # Path setup — done once here, inherited by every module that imports utils
 # ---------------------------------------------------------------------------
-PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+if getattr(sys, 'frozen', False):
+    PROJECT_ROOT = sys._MEIPASS
+else:
+    PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 if PROJECT_ROOT not in sys.path:
     sys.path.append(PROJECT_ROOT)
 

@@ -1,4 +1,4 @@
-from base_scanner import ScannerTarget
+from core.scanners.base_scanner import ScannerTarget
 import subprocess
 
 

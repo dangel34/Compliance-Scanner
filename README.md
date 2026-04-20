@@ -6,7 +6,34 @@ A desktop application that scans Windows, Linux, and Debian systems against CMMC
 
 The scanner loads a set of JSON rule files, executes the checks defined in each rule against the local system, and displays pass/fail results in a graphical interface. Results can be exported as a PDF report or a CSV file. The tool detects the operating system at startup and runs only the checks relevant to that platform.
 
-The 74 included rules cover six CMMC Level 2 control families: Access Control (AC), Audit and Accountability (AU), Configuration Management (CM), Identification and Authentication (IA), System and Communications Protection (SC), and System and Information Integrity (SI).
+The 94 included rules cover six CMMC Level 2 control families across Windows Client and Windows Server: Access Control (AC), Audit and Accountability (AU), Configuration Management (CM), Identification and Authentication (IA), System and Communications Protection (SC), and System and Information Integrity (SI). SOC 2 rules are also included.
+
+## Installation (Windows — Recommended)
+
+A pre-built Windows installer is available. Download `ComplianceScannerSetup.exe` and run it. The installer places the application in `C:\Program Files\Compliance Scanner\`, creates a Start Menu shortcut, and registers an uninstaller.
+
+The application requests administrator privileges at launch — this is required for accurate compliance scanning on Windows.
+
+> **Note:** The installer is unsigned. Windows SmartScreen may show a warning on first run. Click **More info → Run anyway** to proceed.
+
+## Building from Source
+
+Requires Python 3.10+, [PyInstaller](https://pyinstaller.org), and [Inno Setup 6](https://jrsoftware.org/isinfo.php).
+
+```bat
+build.bat
+```
+
+This script installs PyInstaller if needed, runs it against `compliance_scanner.spec`, then (if Inno Setup is installed) compiles `installer.iss` to produce `dist\installer\ComplianceScannerSetup.exe`.
+
+## Running Without the Installer
+
+To run directly from source, install dependencies and launch the GUI:
+
+```
+pip install -r requirements.txt
+python ui/final_gui.py
+```
 
 ## Requirements
 
@@ -32,7 +59,7 @@ python ui/final_gui.py
 
 The application must be run from the project root directory so that it can locate the `rulesets/` and `core/` directories correctly.
 
-On Windows, some checks execute PowerShell commands and may require the terminal to be run as Administrator to return accurate results. On Linux and Debian, certain checks require root privileges for the same reason.
+On Windows, some checks execute PowerShell commands and require Administrator privileges to return accurate results. On Linux and Debian, certain checks require root privileges for the same reason. All PowerShell and subprocess calls run headlessly — no console windows appear during scanning.
 
 ## Headless / CLI Mode
 
@@ -97,6 +124,8 @@ The left panel lists all discovered rules grouped by control family. Click a cat
 The filter dropdowns above the rule list narrow the list by control family or severity (Critical, High, Medium, Low). The Run All Rules button and the compliance score only reflect the rules currently visible after filtering.
 
 The bottom bar shows scan progress with an estimated time remaining while a scan is running. When a scan completes, the summary dashboard at the top of the right panel updates with the total count of rules and a per-status breakdown. The compliance score is calculated as the number of passing rules divided by the total number of rules that produced a result, excluding skipped checks.
+
+A **Stop** button appears next to the run controls while a scan is in progress. Clicking it cancels the scan after the current rule finishes, preserving all results collected so far.
 
 **Keyboard shortcuts:**
 
@@ -163,25 +192,30 @@ The CSV report contains one row per check result with columns for rule ID, title
 ## Project Structure
 
 ```
-cli.py                    Headless CLI entry point (no display required)
+cli.py                      Headless CLI entry point (no display required)
+build.bat                   Build script — runs PyInstaller then Inno Setup
+compliance_scanner.spec     PyInstaller spec file
+installer.iss               Inno Setup installer script
 
 core/
-  rule_runner.py          Loads rule files and executes checks
-  scanner_init.py         OS detection and scanner factory
+  rule_runner.py            Loads rule files and executes checks
+  scanner_init.py           OS detection and scanner factory
   scanners/
-    windows.py            Windows check implementations (PowerShell)
-    debian.py             Linux and Debian check implementations
-  custom_functions/       Per-family Python check functions
+    base_scanner.py         Abstract scanner interface
+    windows.py              Windows check implementations (PowerShell)
+    debian.py               Linux and Debian check implementations
+  custom_functions/         Per-family Python check functions
 
 rulesets/
-  cmmc-rules/             74 JSON rule files
-  rule_schema.json        JSON Schema that all rule files must satisfy
-  rule_template.json      Starting point for new rules
+  CMMC Level 1 & 2/        94 JSON rule files
+  SOC 2/                   SOC 2 rule files
+  rule_schema.json          JSON Schema that all rule files must satisfy
+  rule_template.json        Starting point for new rules
 
 ui/
-  final_gui.py            Main application entry point and GUI
-  rule_display.py         Result and metadata rendering into the text widget
-  report_pdf.py           PDF report generation
-  report_csv.py           CSV report generation
-  utils.py                Shared helpers and status determination logic
+  final_gui.py              Main application entry point and GUI
+  rule_display.py           Result and metadata rendering into the text widget
+  report_pdf.py             PDF report generation
+  report_csv.py             CSV report generation
+  utils.py                  Shared helpers, path setup, and headless subprocess patch
 ```

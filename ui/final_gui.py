@@ -217,12 +217,15 @@ def discover_rule_files(rules_dir: str) -> Dict[str, List[Dict[str, str]]]:
 
 def run_rules_blocking(
     rule_paths: List[str],
-    progress_cb: Optional[callable] = None,
-    result_cb:   Optional[callable] = None,
+    progress_cb:  Optional[callable] = None,
+    result_cb:    Optional[callable] = None,
+    cancel_event: Optional[threading.Event] = None,
 ) -> Dict[str, RunResult]:
     results: Dict[str, RunResult] = {}
     total = len(rule_paths)
     for i, path in enumerate(rule_paths, start=1):
+        if cancel_event and cancel_event.is_set():
+            break
         if progress_cb:
             progress_cb(i, total, path)
         try:
@@ -472,8 +475,11 @@ class ComplianceDebugApp(ctk.CTk):
 
         self.refresh_btn:    Optional[ctk.CTkButton] = None
         self.run_all_btn:    Optional[ctk.CTkButton] = None
+        self.stop_btn:       Optional[ctk.CTkButton] = None
         self.export_btn:     Optional[ctk.CTkButton] = None
         self.export_csv_btn: Optional[ctk.CTkButton] = None
+
+        self._cancel_event = threading.Event()
 
         # Summary dashboard widgets — populated in _build_summary_panel()
         self._stat_count_labels: Dict[str, ctk.CTkLabel] = {}
@@ -632,6 +638,12 @@ class ComplianceDebugApp(ctk.CTk):
             btn_row, text="Run Selected Rule", command=self.run_selected_rule, state="disabled", width=140
         )
         self.run_selected_btn.pack(side="left", padx=(0, 6))
+
+        self.stop_btn = ctk.CTkButton(
+            btn_row, text="Stop", command=self._stop_scan, width=80,
+            fg_color="#8B0000", hover_color="#6B0000",
+        )
+        # Stop button is only shown while a scan is running
 
         self.export_csv_btn = ctk.CTkButton(
             btn_row, text="Export CSV", command=self.export_csv, state="disabled", width=120,
@@ -1219,12 +1231,19 @@ class ComplianceDebugApp(ctk.CTk):
         self._set_controls_enabled(True)
 
     # ------------------------------------------------------------------
+    def _stop_scan(self):
+        self._cancel_event.set()
+        self.set_status("Stopping…")
+        self.stop_btn.pack_forget()
+
     def run_all_rules(self):
         if self.running:
             self.set_status("Already running rules"); return
+        self._cancel_event.clear()
         self.running = True
         self.set_status("Running...")
         self._set_controls_enabled(False)
+        self.stop_btn.pack(side="left", padx=(0, 6))
         self._update_progress(0.0)
         rule_paths = self._all_rule_paths()
         _log.info("Scan started: %d rules (category=%s, severity=%s)",
@@ -1253,21 +1272,34 @@ class ComplianceDebugApp(ctk.CTk):
             self.after(0, lambda p=path, r=result: self._on_rule_result(p, r))
 
         def worker():
-            results = run_rules_blocking(rule_paths, progress_cb=progress_cb, result_cb=result_cb)
+            results = run_rules_blocking(
+                rule_paths,
+                progress_cb=progress_cb,
+                result_cb=result_cb,
+                cancel_event=self._cancel_event,
+            )
             elapsed = time.monotonic() - _scan_start[0]
-            self.after(0, lambda r=results, e=elapsed: self._on_all_rules_done(r, e))
+            cancelled = self._cancel_event.is_set()
+            self.after(0, lambda r=results, e=elapsed, c=cancelled: self._on_all_rules_done(r, e, c))
 
         threading.Thread(target=worker, daemon=True).start()
 
-    def _on_all_rules_done(self, results: Dict[str, RunResult], elapsed: float = 0.0):
+    def _on_all_rules_done(self, results: Dict[str, RunResult], elapsed: float = 0.0, cancelled: bool = False):
         self.running = False
+        self.stop_btn.pack_forget()
+        self._set_controls_enabled(True)
         # results_by_path and button colours were updated live by _on_rule_result;
         # do a final recompute to ensure the dashboard is fully in sync.
         self._recompute_summary()
-        _log.info("Scan complete in %s.", _fmt_duration(elapsed))
-        self._update_progress(1.0)
-        self.set_status(f"Done  ({_fmt_duration(elapsed)} total)")
-        self.all_rules_run = True
+        if cancelled:
+            _log.info("Scan cancelled after %s.", _fmt_duration(elapsed))
+            self._update_progress(0.0)
+            self.set_status(f"Stopped  ({_fmt_duration(elapsed)} elapsed)")
+        else:
+            _log.info("Scan complete in %s.", _fmt_duration(elapsed))
+            self._update_progress(1.0)
+            self.set_status(f"Done  ({_fmt_duration(elapsed)} total)")
+        self.all_rules_run = not cancelled
 
         result_to_show = (
             results.get(self.selected_rule_path)
@@ -1276,8 +1308,6 @@ class ComplianceDebugApp(ctk.CTk):
         )
         if result_to_show:
             render_rule_details(self.details_text, result_to_show)
-
-        self._set_controls_enabled(True)
 
     # ------------------------------------------------------------------
     def _run_export(
