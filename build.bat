@@ -36,7 +36,7 @@ REM    Obtain a certificate from DigiCert, Sectigo, or
 REM    Azure Trusted Signing. EV certs skip SmartScreen instantly;
 REM    OV/standard certs build reputation over time.
 REM ---------------------------------------------------------------
-set "EXE_PATH=dist\ComplianceScanner\ComplianceScanner.exe"
+set "EXE_PATH=dist\ComplianceScanner\RuleForge.exe"
 
 REM Locate signtool.exe (Windows SDK)
 set "SIGNTOOL="

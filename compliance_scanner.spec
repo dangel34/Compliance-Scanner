@@ -58,7 +58,7 @@ exe = EXE(
     a.scripts,
     [],
     exclude_binaries=True,
-    name='ComplianceScanner',
+    name='RuleForge',
     debug=False,
     bootloader_ignore_signals=False,
     strip=False,

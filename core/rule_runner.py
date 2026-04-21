@@ -194,7 +194,7 @@ class RuleRunner:
                 continue
 
             if check_type == "service" and scanner is not None:
-                service_name = check.get("service") or check.get("name")
+                service_name = check.get("command") or check.get("name")
                 try:
                     out = scanner.check_service(service_name)
                     results.append({

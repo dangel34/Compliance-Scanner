@@ -73,7 +73,7 @@ def _discover_rule_paths(rules_dir: str) -> list[str]:
             except OSError:
                 continue
             # Path-traversal guard
-            if not real.startswith(rules_dir_real + os.sep) and real != rules_dir_real:
+            if not real.startswith(rules_dir_real + os.sep):
                 continue
             paths.append(real)
 

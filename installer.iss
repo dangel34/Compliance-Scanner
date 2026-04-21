@@ -1,10 +1,10 @@
 ; Inno Setup script for Compliance Scanner
 ; Build with: ISCC.exe installer.iss  (or via build.bat)
 
-#define AppName      "Compliance Scanner"
+#define AppName      "RuleForge"
 #define AppVersion   "1.0.0"
 #define AppPublisher "Derek Angelini, Connor McBee, and Melanie Fox"
-#define AppExeName   "ComplianceScanner.exe"
+#define AppExeName   "RuleForge.exe"
 #define SourceDir    "dist\ComplianceScanner"
 
 [Setup]
