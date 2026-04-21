@@ -15,8 +15,12 @@ from typing import List, Dict, Any, Optional
 _log = logging.getLogger(__name__)
 
 # Project root (parent of core/)
-_core_dir = os.path.dirname(os.path.abspath(__file__))
-_project_root = os.path.dirname(_core_dir)
+if getattr(sys, 'frozen', False):
+    _project_root = sys._MEIPASS
+    _core_dir = os.path.join(sys._MEIPASS, "core")
+else:
+    _core_dir = os.path.dirname(os.path.abspath(__file__))
+    _project_root = os.path.dirname(_core_dir)
 
 from core.scanner_init import os_scan, get_scanner
 
@@ -51,12 +55,14 @@ class RuleRunner:
             args = ["powershell", "-NonInteractive", "-Command", cmd]
         else:
             args = ["bash", "-c", cmd]
+        creation_flags = subprocess.CREATE_NO_WINDOW if sys.platform == "win32" else 0
         try:
             result = subprocess.run(
                 args,
                 capture_output=True,
                 text=True,
-                timeout=60
+                timeout=60,
+                creationflags=creation_flags,
             )
             return {
                 "stdout": result.stdout.strip(),
@@ -188,7 +194,7 @@ class RuleRunner:
                 continue
 
             if check_type == "service" and scanner is not None:
-                service_name = check.get("service") or check.get("name")
+                service_name = check.get("command") or check.get("name")
                 try:
                     out = scanner.check_service(service_name)
                     results.append({

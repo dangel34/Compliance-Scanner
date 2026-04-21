@@ -217,12 +217,15 @@ def discover_rule_files(rules_dir: str) -> Dict[str, List[Dict[str, str]]]:
 
 def run_rules_blocking(
     rule_paths: List[str],
-    progress_cb: Optional[callable] = None,
-    result_cb:   Optional[callable] = None,
+    progress_cb:  Optional[callable] = None,
+    result_cb:    Optional[callable] = None,
+    cancel_event: Optional[threading.Event] = None,
 ) -> Dict[str, RunResult]:
     results: Dict[str, RunResult] = {}
     total = len(rule_paths)
     for i, path in enumerate(rule_paths, start=1):
+        if cancel_event and cancel_event.is_set():
+            break
         if progress_cb:
             progress_cb(i, total, path)
         try:
@@ -236,6 +239,7 @@ def run_rules_blocking(
                 "os":             os_scan(),
                 "checks_run":     0,
                 "checks_skipped": 0,
+                "checks_policy":  0,
                 "checks":         [],
                 "error":          error_msg,
             }
@@ -472,8 +476,12 @@ class ComplianceDebugApp(ctk.CTk):
 
         self.refresh_btn:    Optional[ctk.CTkButton] = None
         self.run_all_btn:    Optional[ctk.CTkButton] = None
+        self.stop_btn:       Optional[ctk.CTkButton] = None
         self.export_btn:     Optional[ctk.CTkButton] = None
         self.export_csv_btn: Optional[ctk.CTkButton] = None
+
+        self._cancel_event = threading.Event()
+        self._custom_rules_dirs: List[str] = []
 
         # Summary dashboard widgets — populated in _build_summary_panel()
         self._stat_count_labels: Dict[str, ctk.CTkLabel] = {}
@@ -510,6 +518,24 @@ class ComplianceDebugApp(ctk.CTk):
         ctk.CTkButton(
             top, text="About", command=self._show_about,
             width=70, fg_color="transparent",
+            border_width=1,
+            border_color=("#444444", "#888888"),
+            text_color=("#1a1a1a", "#e0e0e0"),
+            hover_color=("#d0d0d0", "#3a3a3a"),
+        ).pack(side="right", padx=(0, 4), pady=8)
+
+        ctk.CTkButton(
+            top, text="Rule Format", command=self._show_rule_format,
+            width=100, fg_color="transparent",
+            border_width=1,
+            border_color=("#444444", "#888888"),
+            text_color=("#1a1a1a", "#e0e0e0"),
+            hover_color=("#d0d0d0", "#3a3a3a"),
+        ).pack(side="right", padx=(0, 4), pady=8)
+
+        ctk.CTkButton(
+            top, text="Load Rules", command=self._load_custom_rules,
+            width=100, fg_color="transparent",
             border_width=1,
             border_color=("#444444", "#888888"),
             text_color=("#1a1a1a", "#e0e0e0"),
@@ -632,6 +658,12 @@ class ComplianceDebugApp(ctk.CTk):
             btn_row, text="Run Selected Rule", command=self.run_selected_rule, state="disabled", width=140
         )
         self.run_selected_btn.pack(side="left", padx=(0, 6))
+
+        self.stop_btn = ctk.CTkButton(
+            btn_row, text="Stop", command=self._stop_scan, width=80,
+            fg_color="#8B0000", hover_color="#6B0000",
+        )
+        # Stop button is only shown while a scan is running
 
         self.export_csv_btn = ctk.CTkButton(
             btn_row, text="Export CSV", command=self.export_csv, state="disabled", width=120,
@@ -1015,6 +1047,17 @@ class ComplianceDebugApp(ctk.CTk):
         rules_dir = os.path.join(PROJECT_ROOT, "rulesets")
         folders = discover_rule_files(rules_dir)  # folder → category → [metas]
 
+        # Merge any user-loaded custom rule directories
+        for custom_dir in self._custom_rules_dirs:
+            custom_folders = discover_rule_files(custom_dir)
+            for folder_label, categories in custom_folders.items():
+                if folder_label == "_root_":
+                    key = "Custom Rules"
+                else:
+                    key = f"Custom: {folder_label}"
+                for cat, metas in categories.items():
+                    folders.setdefault(key, {}).setdefault(cat, []).extend(metas)
+
         # Keep a flat category view for exports and the category filter dropdown
         self.rules_by_folder = folders
         self.rules_by_category = {
@@ -1162,6 +1205,7 @@ class ComplianceDebugApp(ctk.CTk):
                     "os":             os_scan(),
                     "checks_run":     0,
                     "checks_skipped": 0,
+                    "checks_policy":  0,
                     "checks":         [],
                     "error":          error_msg,
                 }
@@ -1219,12 +1263,19 @@ class ComplianceDebugApp(ctk.CTk):
         self._set_controls_enabled(True)
 
     # ------------------------------------------------------------------
+    def _stop_scan(self):
+        self._cancel_event.set()
+        self.set_status("Stopping…")
+        self.stop_btn.pack_forget()
+
     def run_all_rules(self):
         if self.running:
             self.set_status("Already running rules"); return
+        self._cancel_event.clear()
         self.running = True
         self.set_status("Running...")
         self._set_controls_enabled(False)
+        self.stop_btn.pack(side="left", padx=(0, 6))
         self._update_progress(0.0)
         rule_paths = self._all_rule_paths()
         _log.info("Scan started: %d rules (category=%s, severity=%s)",
@@ -1253,21 +1304,34 @@ class ComplianceDebugApp(ctk.CTk):
             self.after(0, lambda p=path, r=result: self._on_rule_result(p, r))
 
         def worker():
-            results = run_rules_blocking(rule_paths, progress_cb=progress_cb, result_cb=result_cb)
+            results = run_rules_blocking(
+                rule_paths,
+                progress_cb=progress_cb,
+                result_cb=result_cb,
+                cancel_event=self._cancel_event,
+            )
             elapsed = time.monotonic() - _scan_start[0]
-            self.after(0, lambda r=results, e=elapsed: self._on_all_rules_done(r, e))
+            cancelled = self._cancel_event.is_set()
+            self.after(0, lambda r=results, e=elapsed, c=cancelled: self._on_all_rules_done(r, e, c))
 
         threading.Thread(target=worker, daemon=True).start()
 
-    def _on_all_rules_done(self, results: Dict[str, RunResult], elapsed: float = 0.0):
+    def _on_all_rules_done(self, results: Dict[str, RunResult], elapsed: float = 0.0, cancelled: bool = False):
         self.running = False
+        self.stop_btn.pack_forget()
+        self._set_controls_enabled(True)
         # results_by_path and button colours were updated live by _on_rule_result;
         # do a final recompute to ensure the dashboard is fully in sync.
         self._recompute_summary()
-        _log.info("Scan complete in %s.", _fmt_duration(elapsed))
-        self._update_progress(1.0)
-        self.set_status(f"Done  ({_fmt_duration(elapsed)} total)")
-        self.all_rules_run = True
+        if cancelled:
+            _log.info("Scan cancelled after %s.", _fmt_duration(elapsed))
+            self._update_progress(0.0)
+            self.set_status(f"Stopped  ({_fmt_duration(elapsed)} elapsed)")
+        else:
+            _log.info("Scan complete in %s.", _fmt_duration(elapsed))
+            self._update_progress(1.0)
+            self.set_status(f"Done  ({_fmt_duration(elapsed)} total)")
+        self.all_rules_run = not cancelled
 
         result_to_show = (
             results.get(self.selected_rule_path)
@@ -1276,8 +1340,6 @@ class ComplianceDebugApp(ctk.CTk):
         )
         if result_to_show:
             render_rule_details(self.details_text, result_to_show)
-
-        self._set_controls_enabled(True)
 
     # ------------------------------------------------------------------
     def _run_export(
@@ -1398,7 +1460,7 @@ class ComplianceDebugApp(ctk.CTk):
         )
 
         ctk.CTkLabel(
-            win, text="CMMC Level 2 Compliance Scanner by RuleForge",
+            win, text="Compliance Scanner by RuleForge",
             font=ctk.CTkFont(size=12, weight="bold"),
         ).pack(**pad)
 
@@ -1406,8 +1468,8 @@ class ComplianceDebugApp(ctk.CTk):
             win,
             text=(
                 "Scans Windows, Linux, and Debian systems against\n"
-                "CMMC Level 2 control requirements and generates\n"
-                "detailed PDF and CSV compliance reports."
+                "JSON-based compliance rule sets (CMMC, SOC 2, or custom)\n"
+                "and generates detailed PDF and CSV compliance reports."
             ),
             font=ctk.CTkFont(size=11),
             justify="center",
@@ -1431,6 +1493,232 @@ class ComplianceDebugApp(ctk.CTk):
         ctk.CTkButton(
             win, text="Close", command=win.destroy, width=100,
         ).pack(pady=(4, 20))
+
+        win.bind("<Escape>", lambda _e: win.destroy())
+
+    # ------------------------------------------------------------------
+    def _load_custom_rules(self) -> None:
+        """Let the user pick a folder of custom rule JSON files."""
+        directory = filedialog.askdirectory(
+            title="Select Custom Rules Folder",
+            initialdir=PROJECT_ROOT,
+        )
+        if not directory:
+            return
+        if directory not in self._custom_rules_dirs:
+            self._custom_rules_dirs.append(directory)
+            self.set_status(f"Custom rules loaded from: {os.path.basename(directory)}")
+        self.refresh_rules()
+
+    # ------------------------------------------------------------------
+    def _show_rule_format(self) -> None:
+        """Open a modal showing the framework-agnostic rule authoring guide."""
+        win = ctk.CTkToplevel(self)
+        win.title("Rule Format Guide")
+        win.grab_set()
+
+        self.update_idletasks()
+        px = self.winfo_x() + self.winfo_width()  // 2
+        py = self.winfo_y() + self.winfo_height() // 2
+        win.geometry(f"780x620+{px - 390}+{py - 310}")
+        win.minsize(600, 480)
+
+        ctk.CTkLabel(
+            win, text="Rule Authoring Guide",
+            font=ctk.CTkFont(size=16, weight="bold"),
+        ).pack(pady=(16, 4))
+
+        ctk.CTkLabel(
+            win,
+            text="Place .json rule files in any folder, then use \"Load Rules\" to add them.",
+            font=ctk.CTkFont(size=11),
+        ).pack(pady=(0, 8))
+
+        _bg = "#1e1e1e" if self.theme == "dark" else "#f5f5f5"
+        _fg = "#e8e8e8" if self.theme == "dark" else "#1a1a1a"
+
+        frame = ctk.CTkFrame(win, fg_color="transparent")
+        frame.pack(fill="both", expand=True, padx=16, pady=(0, 8))
+
+        txt = tk.Text(
+            frame, wrap="word", bg=_bg, fg=_fg,
+            font=("Consolas", 10), relief="flat", bd=0,
+            padx=10, pady=8, cursor="arrow", state="normal",
+        )
+        sb = ctk.CTkScrollbar(frame, command=txt.yview)
+        txt.configure(yscrollcommand=sb.set)
+        sb.pack(side="right", fill="y")
+        txt.pack(side="left", fill="both", expand=True)
+
+        _GUIDE = """\
+RULE FILE STRUCTURE
+───────────────────
+Each rule is a single .json file.  Sub-folders are used as group labels
+in the rule tree (e.g., MyFramework/AC/MY-001.json appears under "MyFramework → AC").
+
+{
+  "id":             "MY-001",            // Unique rule identifier
+  "control_number": "MY-001",            // Control number (may equal id)
+  "title":          "My Control Title",  // Short human-readable title
+  "description":    "Full description of what this control requires.",
+  "category":       "AC",               // See VALID CATEGORIES below
+  "target_os":      ["windows_client", "linux"],  // See VALID OS TARGETS
+  "severity":       "High",             // Critical | High | Medium | Low
+  "remediation":    "Steps to fix non-compliance.",
+  "tags":           ["AC", "MY-001"],   // Free-form searchable tags
+
+  "check_details": {
+    "windows_client": {
+      "checks": [
+        {
+          "check_type":      "command",
+          "name":            "Verify Audit Policy",
+          "sub_control":     "a",
+          "command":         "auditpol /get /category:* | Select-String 'Logon'",
+          "expected_result": "Logon shows Success and Failure auditing enabled",
+          "purpose":         "Confirms logon events are captured in the audit log"
+        },
+        {
+          "check_type":      "service",
+          "name":            "Windows Event Log Running",
+          "sub_control":     "b",
+          "command":         "EventLog",
+          "expected_result": "Service is running",
+          "purpose":         "Event log service must be active for auditing"
+        }
+      ]
+    },
+    "linux": {
+      "checks": [
+        {
+          "check_type":      "command",
+          "name":            "Auditd Enabled",
+          "sub_control":     "a",
+          "command":         "systemctl is-active auditd",
+          "expected_result": "active",
+          "purpose":         "auditd must be running to capture audit events"
+        }
+      ]
+    }
+  }
+}
+
+───────────────────────────────────────────────────────
+CHECK TYPES
+───────────────────────────────────────────────────────
+
+  command           Run a shell command.
+                    • Windows: executed via PowerShell
+                    • Linux/Debian: executed via bash
+                    PASS when exit code = 0.
+
+  service           Check whether a named service is running.
+                    "command" field = the service name.
+                    • Windows: queries Get-Service
+                    • Debian:  queries systemctl
+
+  file_permissions  Check ACL / permissions on a file or directory.
+                    "command" field = the file/directory path.
+                    • Windows: uses Get-Acl
+                    • Linux:   uses stat
+
+  policy            Manual review required.
+                    The check is recorded but never executed automatically.
+                    Use this for controls that cannot be automated (e.g.,
+                    "verify that a written policy document exists").
+
+  NA                Skip this check entirely (placeholder for future work).
+
+───────────────────────────────────────────────────────
+CUSTOM PYTHON FUNCTIONS  (cs_f)
+───────────────────────────────────────────────────────
+Set check_type to "command" and use the special prefix:
+
+  "command": "cs_f(module_name.function_name)"
+
+The engine will import  core/custom_functions/<module_name>.py
+and call  function_name().
+
+  • Function takes no arguments.
+  • Return (bool, str) — (passed, output_message) — or just bool.
+  • Runs with a 60-second timeout.
+  • Errors are caught and recorded as FAIL.
+
+Example:
+  "command": "cs_f(my_checks.verify_password_policy)"
+  → calls core/custom_functions/my_checks.verify_password_policy()
+
+───────────────────────────────────────────────────────
+VALID CATEGORIES
+───────────────────────────────────────────────────────
+
+  AC   Access Control              AU   Audit & Accountability
+  CA   Security Assessment         CM   Configuration Management
+  IA   Identification & Auth       IR   Incident Response
+  MA   Maintenance                 MP   Media Protection
+  NC   Network Connectivity        SC   System & Comms Protection
+  SI   System & Info Integrity
+
+Any other string is accepted — it will appear as its own category group.
+
+───────────────────────────────────────────────────────
+VALID OS TARGETS  (target_os array)
+───────────────────────────────────────────────────────
+
+  windows_client    windows_server    linux    debian    mac
+
+Checks under check_details keys that don't match the detected OS are ignored.
+You can omit OS entries that don't apply to your environment.
+
+───────────────────────────────────────────────────────
+MINIMAL EXAMPLE
+───────────────────────────────────────────────────────
+
+{
+  "id": "CUSTOM-001",
+  "control_number": "CUSTOM-001",
+  "title": "Ensure NTP is Configured",
+  "description": "The system clock must be synchronized with an NTP server.",
+  "category": "CM",
+  "target_os": ["linux", "debian"],
+  "severity": "Medium",
+  "remediation": "Install and configure chrony or ntpd, then enable the service.",
+  "tags": ["CM", "NTP", "CUSTOM-001"],
+  "check_details": {
+    "linux": {
+      "checks": [
+        {
+          "check_type": "service",
+          "name": "Chrony or NTP Service Running",
+          "sub_control": "a",
+          "command": "chronyd",
+          "expected_result": "Service is active",
+          "purpose": "Time synchronization must be active"
+        }
+      ]
+    },
+    "debian": {
+      "checks": [
+        {
+          "check_type": "service",
+          "name": "Chrony or NTP Service Running",
+          "sub_control": "a",
+          "command": "chronyd",
+          "expected_result": "Service is active",
+          "purpose": "Time synchronization must be active"
+        }
+      ]
+    }
+  }
+}
+"""
+
+        txt.insert("1.0", _GUIDE)
+        txt.configure(state="disabled")
+
+        ctk.CTkButton(
+            win, text="Close", command=win.destroy, width=100,
+        ).pack(pady=(4, 16))
 
         win.bind("<Escape>", lambda _e: win.destroy())
 

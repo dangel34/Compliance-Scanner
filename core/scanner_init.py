@@ -53,14 +53,11 @@ def get_scanner():
     Returns a scanner instance for the current OS, or None if unsupported.
     """
     os_type = os_scan()
-    scanners_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "scanners")
-    if scanners_dir not in sys.path:
-        sys.path.insert(0, scanners_dir)
     if "windows" in os_type:
-        from windows import WindowsModule
+        from core.scanners.windows import WindowsModule
         return WindowsModule()
     if "debian" in os_type:
-        from debian import DebianModule
+        from core.scanners.debian import DebianModule
         return DebianModule()
     return None
 
