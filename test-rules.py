@@ -4,7 +4,7 @@ import subprocess
 import sys
 
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
-RULE_PATH = os.path.join(SCRIPT_DIR, "rulesets", "cmmc-rules", "AC.L2-3.1.1.json")
+RULE_PATH = os.path.join(SCRIPT_DIR, "rulesets", "CMMC Level 1 & 2", "AC.L2-3.1.1.json")
 
 with open(RULE_PATH, encoding="utf-8") as f:
     rule = json.load(f)

@@ -125,9 +125,17 @@ _TRIVIAL_OUTPUT = frozenset({"true", "false", "0", "1", "yes", "no"})
 def generate_report_pdf(
     save_path: str,
     results_by_path: Dict[str, RunResult],
-    rules_by_category: Dict[str, List[Dict[str, str]]],
+    rules_by_category: Optional[Dict[str, List[Dict[str, str]]]] = None,
     page_size: str = "A4",
 ) -> None:
+    if rules_by_category is None:
+        rules_by_category = {
+            "Results": [
+                {"path": path, "rule_id": r.get("rule_id", path), "title": r.get("title", "")}
+                for path, r in results_by_path.items()
+            ]
+        }
+
     now         = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     detected_os = _escape_xml(format_os_name(os_scan()))
 

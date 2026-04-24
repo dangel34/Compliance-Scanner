@@ -223,11 +223,11 @@ def _build_parser() -> argparse.ArgumentParser:
         epilog=(
             "Examples:\n"
             "  python cli.py\n"
-            "  python cli.py --ruleset rulesets/cmmc-rules\n"
+            "  python cli.py --ruleset \"rulesets/CMMC Level 1 & 2\"\n"
             "  python cli.py --format csv --output report.csv\n"
             "  python cli.py --format pdf --output report.pdf\n"
             "  python cli.py --format json --output report.json\n"
-            "  python cli.py --ruleset rulesets/cmmc-rules --format pdf --output out.pdf --verbose\n"
+            "  python cli.py --ruleset \"rulesets/CMMC Level 1 & 2\" --format pdf --output out.pdf --verbose\n"
         ),
     )
     parser.add_argument(
@@ -236,7 +236,7 @@ def _build_parser() -> argparse.ArgumentParser:
         metavar="DIR",
         help=(
             "Directory to scan for rule files (default: rulesets/).\n"
-            "Can point to a specific sub-folder, e.g. rulesets/cmmc-rules."
+            "Can point to a specific sub-folder, e.g. \"rulesets/CMMC Level 1 & 2\"."
         ),
     )
     parser.add_argument(

@@ -97,7 +97,7 @@ The CLI runs the same rule checks and produces the same results as the GUI witho
 python cli.py
 
 # Scan a specific ruleset folder
-python cli.py --ruleset rulesets/cmmc-rules
+python cli.py --ruleset "rulesets/CMMC Level 1 & 2"
 
 # Export a CSV report
 python cli.py --format csv --output report.csv
@@ -109,7 +109,7 @@ python cli.py --format pdf --output report.pdf
 python cli.py --format json --output report.json
 
 # Verbose scan with PDF output (useful in CI logs)
-python cli.py --ruleset rulesets/cmmc-rules --format pdf --output out.pdf --verbose
+python cli.py --ruleset "rulesets/CMMC Level 1 & 2" --format pdf --output out.pdf --verbose
 
 # Collect results in CI without failing the build
 python cli.py --format json --output results.json --no-fail
@@ -137,7 +137,7 @@ A **Stop** button appears next to the run controls while a scan is in progress. 
 
 ## Rule Files
 
-Rules are stored as JSON files under `rulesets/cmmc-rules/`. Each file defines one CMMC control and contains separate check lists for each supported operating system. The file must conform to the schema defined in `rulesets/rule_schema.json`.
+Rules are stored as JSON files under `rulesets/CMMC Level 1 & 2/`. Each file defines one CMMC control and contains separate check lists for each supported operating system. The file must conform to the schema defined in `rulesets/rule_schema.json`.
 
 The required top-level fields are:
 
@@ -167,7 +167,7 @@ purpose         Why this check is required
 
 A command value of `"NA"` causes the check to be skipped and counted separately from run checks in the results.
 
-To add a new rule, copy `rulesets/rule_template.json`, fill in the fields, and place the file in `rulesets/cmmc-rules/`. The application will pick it up automatically on the next launch or when Refresh Rules is clicked.
+To add a new rule, copy `rulesets/rule_template.json`, fill in the fields, and place the file in `rulesets/CMMC Level 1 & 2/` (or a custom sub-folder). The application will pick it up automatically on the next launch or when Refresh Rules is clicked.
 
 ## Custom Check Functions
 
