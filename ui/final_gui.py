@@ -440,7 +440,7 @@ _SETTINGS_DEFAULTS: Dict[str, Any] = {
 # Main application
 # ---------------------------------------------------------------------------
 
-class ComplianceDebugApp(ctk.CTk):
+class RuleForgeApp(ctk.CTk):
 
     def __init__(self):
         super().__init__()
@@ -1764,7 +1764,7 @@ MINIMAL EXAMPLE
 def main():
     setup_logging()
     _log.info("Application started. OS: %s", os_scan())
-    app = ComplianceDebugApp()
+    app = RuleForgeApp()
     app.mainloop()
     _log.info("Application exited")
 

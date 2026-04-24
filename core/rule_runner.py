@@ -279,7 +279,7 @@ class RuleRunner:
 
 
 if __name__ == "__main__":
-    RULE_PATH = os.path.join(_project_root, "rulesets", "cmmc-rules", "AC.L2-3.1.1.json")
+    RULE_PATH = os.path.join(_project_root, "rulesets", "CMMC Level 1 & 2", "AC.L2-3.1.1.json")
     runner = RuleRunner(rule_path=RULE_PATH, os_type=None)
     result = runner.run_checks()
 
