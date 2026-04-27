@@ -3,7 +3,6 @@ from __future__ import annotations
 
 import datetime
 import html
-import json
 from typing import Dict
 
 from ui.utils import RunResult, _safe_str, get_rule_status
