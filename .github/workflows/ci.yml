@@ -21,8 +21,7 @@ jobs:
           cache: pip
 
       - name: Install dependencies
-        run: pip install -r requirements.txt
+        run: pip install -r requirements.txt -r requirements-dev.txt
 
-      - name: CLI smoke test
-        run: python cli.py --ruleset "rulesets/CMMC Level 1 & 2" --format text --no-fail
-        timeout-minutes: 5
+      - name: Run tests
+        run: pytest

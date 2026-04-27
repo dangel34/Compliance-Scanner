@@ -1,0 +1,109 @@
+{
+  "id": "TEST.01",
+  "control_number": "TEST.01",
+  "title": "Sample Test Rule",
+  "description": "Minimal rule used by the test suite.",
+  "category": "TEST",
+  "target_os": ["windows_client", "windows_server", "linux", "debian"],
+  "check_details": {
+    "windows_client": {
+      "checks": [
+        {
+          "check_type": "command",
+          "name": "Echo Check",
+          "sub_control": "a",
+          "command": "echo compliance-scanner-test",
+          "expected_result": "compliance-scanner-test",
+          "purpose": "Verify command execution works"
+        },
+        {
+          "check_type": "command",
+          "name": "NA Check",
+          "sub_control": "b",
+          "command": "NA",
+          "expected_result": "N/A",
+          "purpose": "Not applicable on this platform"
+        },
+        {
+          "check_type": "policy",
+          "name": "Policy Check",
+          "sub_control": "c",
+          "command": "NA",
+          "expected_result": "Manual review required",
+          "purpose": "Requires human verification"
+        }
+      ]
+    },
+    "windows_server": {
+      "checks": [
+        {
+          "check_type": "command",
+          "name": "Echo Check",
+          "sub_control": "a",
+          "command": "echo compliance-scanner-test",
+          "expected_result": "compliance-scanner-test",
+          "purpose": "Verify command execution works"
+        },
+        {
+          "check_type": "command",
+          "name": "NA Check",
+          "sub_control": "b",
+          "command": "NA",
+          "expected_result": "N/A",
+          "purpose": "Not applicable on this platform"
+        },
+        {
+          "check_type": "policy",
+          "name": "Policy Check",
+          "sub_control": "c",
+          "command": "NA",
+          "expected_result": "Manual review required",
+          "purpose": "Requires human verification"
+        }
+      ]
+    },
+    "linux": {
+      "checks": [
+        {
+          "check_type": "command",
+          "name": "Echo Check",
+          "sub_control": "a",
+          "command": "echo compliance-scanner-test",
+          "expected_result": "compliance-scanner-test",
+          "purpose": "Verify command execution works"
+        },
+        {
+          "check_type": "command",
+          "name": "NA Check",
+          "sub_control": "b",
+          "command": "NA",
+          "expected_result": "N/A",
+          "purpose": "Not applicable on this platform"
+        }
+      ]
+    },
+    "debian": {
+      "checks": [
+        {
+          "check_type": "command",
+          "name": "Echo Check",
+          "sub_control": "a",
+          "command": "echo compliance-scanner-test",
+          "expected_result": "compliance-scanner-test",
+          "purpose": "Verify command execution works"
+        },
+        {
+          "check_type": "command",
+          "name": "NA Check",
+          "sub_control": "b",
+          "command": "NA",
+          "expected_result": "N/A",
+          "purpose": "Not applicable on this platform"
+        }
+      ]
+    }
+  },
+  "severity": "High",
+  "remediation": "No remediation needed for test rule.",
+  "tags": ["TEST"]
+}
