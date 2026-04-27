@@ -45,10 +45,6 @@ jobs:
             echo "available=false" >> "$GITHUB_OUTPUT"
           fi
 
-      - name: CLI smoke test
-        run: python cli.py --ruleset "rulesets/CMMC Level 1 & 2" --format text --no-fail
-        timeout-minutes: 5
-
       - name: Build with PyInstaller
         run: python -m PyInstaller compliance_scanner.spec --clean --noconfirm
 

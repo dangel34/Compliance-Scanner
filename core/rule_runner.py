@@ -279,28 +279,3 @@ class RuleRunner:
             "checks_policy":  checks_policy,
             "checks":         results,
         }
-
-
-if __name__ == "__main__":
-    RULE_PATH = os.path.join(_project_root, "rulesets", "CMMC Level 1 & 2", "AC.L2-3.1.1.json")
-    runner = RuleRunner(rule_path=RULE_PATH, os_type=None)
-    result = runner.run_checks()
-
-    print(f"Rule ID: {result['rule_id']}")
-    print(f"Title: {result['title']}")
-    print(f"OS: {result['os']}")
-    print(f"Checks Run: {result['checks_run']}")
-    print("-" * 50)
-
-    for check in result["checks"]:
-        print(f"Check: {check['check_name']}")
-        print(f"Status: {check['status']}")
-        print(f"Command: {check['command']}")
-
-        if check["stdout"]:
-            print("Output:")
-            print(check["stdout"])
-
-        if check["stderr"]:
-            print("Error:")
-            print(check["stderr"])
