@@ -102,6 +102,50 @@ def _discover_rule_paths(rules_dir: str) -> list[str]:
 
 
 # ---------------------------------------------------------------------------
+# Rule metadata filtering
+# ---------------------------------------------------------------------------
+
+def _load_rule_meta(path: str) -> dict[str, str]:
+    """Return {severity, category} from a rule file, or empty strings on error."""
+    try:
+        with open(path, "r", encoding="utf-8") as f:
+            data = json.load(f)
+        return {
+            "severity": str(data.get("severity", "")).strip(),
+            "category": str(data.get("category", "")).strip().upper(),
+        }
+    except Exception:
+        return {"severity": "", "category": ""}
+
+
+def _filter_rule_paths(
+    paths: list[str],
+    severities: list[str] | None,
+    categories: list[str] | None,
+) -> list[str]:
+    """
+    Return only the paths whose rule metadata matches the requested filters.
+    Both filters are OR-within-filter and AND-between-filters:
+      --filter-severity High Critical  →  High OR Critical
+      --filter-category AC IA          →  AC OR IA
+      both specified                   →  (High OR Critical) AND (AC OR IA)
+    """
+    if not severities and not categories:
+        return paths
+    filtered = []
+    sev_set  = {s.capitalize() for s in severities} if severities else None
+    cat_set  = {c.upper() for c in categories}       if categories else None
+    for path in paths:
+        meta = _load_rule_meta(path)
+        if sev_set and meta["severity"] not in sev_set:
+            continue
+        if cat_set and meta["category"] not in cat_set:
+            continue
+        filtered.append(path)
+    return filtered
+
+
+# ---------------------------------------------------------------------------
 # Scan runner
 # ---------------------------------------------------------------------------
 
@@ -117,7 +161,7 @@ def run_scan(
 
     def _run_one(path: str) -> RunResult:
         try:
-            return RuleRunner(rule_path=path, os_type=None).run_checks()
+            return RuleRunner(rule_path=path, os_type=detected_os).run_checks()
         except Exception as exc:
             label = os.path.basename(path)
             error_msg = _safe_str(f"{type(exc).__name__}: {exc}", max_len=256)
@@ -165,13 +209,23 @@ def run_scan(
 # Output formatters
 # ---------------------------------------------------------------------------
 
+def _fmt_duration(seconds: float) -> str:
+    s = max(0, int(seconds))
+    if s < 60:
+        return f"{s}s"
+    m, s = divmod(s, 60)
+    if m < 60:
+        return f"{m}m {s:02d}s"
+    h, m = divmod(m, 60)
+    return f"{h}h {m:02d}m"
+
+
 def _print_text_summary(
     results: dict[str, RunResult],
     detail_mode: str = "status_only",
+    elapsed: float | None = None,
 ) -> None:
     """Print a human-readable summary table to stdout."""
-    from ui.utils import format_os_name
-
     counts: dict[str, int] = {"PASS": 0, "FAIL": 0, "PARTIAL": 0,
                                "POLICY": 0, "SKIP": 0, "ERROR": 0, "NOT_RUN": 0}
     rows: list[tuple[str, str, str]] = []
@@ -208,11 +262,15 @@ def _print_text_summary(
         if automated > 0 else "N/A"
     )
 
+    duration_str = f"  Scan time: {_fmt_duration(elapsed)}" if elapsed is not None else ""
+
     print()
     print("-" * 72)
     print(f"  PASS {counts['PASS']}  FAIL {counts['FAIL']}  PARTIAL {counts['PARTIAL']}  "
           f"POLICY {counts['POLICY']}  SKIP {counts['SKIP']}  ERROR {counts['ERROR']}")
     print(f"  Compliance score: {score_str}  ({counts['PASS']} / {automated} automated checks)")
+    if duration_str:
+        print(duration_str)
     print("=" * 72)
     print()
 
@@ -276,6 +334,11 @@ def _write_pdf(save_path: str, results: dict[str, RunResult], page_size: str = "
     generate_report_pdf(save_path, results, page_size=page_size)
 
 
+def _write_html(save_path: str, results: dict[str, RunResult]) -> None:
+    from ui.report_html import generate_report_html
+    generate_report_html(save_path, results)
+
+
 # ---------------------------------------------------------------------------
 # Exit code logic
 # ---------------------------------------------------------------------------
@@ -322,14 +385,23 @@ def _build_parser() -> argparse.ArgumentParser:
     )
     parser.add_argument(
         "--format",
-        choices=["text", "json", "csv", "pdf"],
+        choices=["text", "json", "csv", "pdf", "html"],
         default="text",
         help="Output format (default: text). text prints a summary to stdout.",
     )
     parser.add_argument(
         "--output",
         metavar="FILE",
-        help="Path to write the report file. Required for json/csv/pdf formats.",
+        help="Path to write the report file. Required for json/csv/pdf/html formats.",
+    )
+    parser.add_argument(
+        "--output-dir",
+        metavar="DIR",
+        help=(
+            "Write one report file per rule into DIR. "
+            "Filename is {rule_id}.{format}. "
+            "Incompatible with --output and --format text."
+        ),
     )
     parser.add_argument(
         "--page-size",
@@ -352,6 +424,35 @@ def _build_parser() -> argparse.ArgumentParser:
         ),
     )
     parser.add_argument(
+        "--workers",
+        type=int,
+        metavar="N",
+        help="Number of parallel scan workers (default: value from settings.json, usually 2).",
+    )
+    parser.add_argument(
+        "--filter-severity",
+        nargs="+",
+        metavar="LEVEL",
+        help=(
+            "Run only rules whose severity matches one of the given values "
+            "(Critical, High, Medium, Low). Multiple values are OR-ed together."
+        ),
+    )
+    parser.add_argument(
+        "--filter-category",
+        nargs="+",
+        metavar="CAT",
+        help=(
+            "Run only rules whose category matches one of the given values "
+            "(e.g. AC, AU, CM, IA, SC, SI). Multiple values are OR-ed together."
+        ),
+    )
+    parser.add_argument(
+        "--dry-run",
+        action="store_true",
+        help="List the rule files that would be scanned and exit without running any checks.",
+    )
+    parser.add_argument(
         "--no-fail",
         action="store_true",
         help="Always exit 0, even when checks fail. Useful in CI to collect results without blocking.",
@@ -360,6 +461,7 @@ def _build_parser() -> argparse.ArgumentParser:
 
 
 def main() -> None:
+    import time
     setup_logging()
     parser = _build_parser()
     args = parser.parse_args()
@@ -371,8 +473,12 @@ def main() -> None:
     if detail_mode not in ("status_only", "full"):
         detail_mode = "status_only"
 
-    # Validate output argument
-    if args.format != "text" and not args.output:
+    # Validate output / output-dir arguments
+    if args.output and args.output_dir:
+        parser.error("--output and --output-dir are mutually exclusive")
+    if args.output_dir and args.format == "text":
+        parser.error("--output-dir requires --format json, csv, pdf, or html")
+    if args.format != "text" and not args.output and not args.output_dir and not args.dry_run:
         parser.error(f"--output is required when --format is {args.format}")
 
     # Discover rules
@@ -383,21 +489,64 @@ def main() -> None:
         print(f"Error: no rule files found in {ruleset_dir}", file=sys.stderr)
         sys.exit(2)
 
+    # Apply severity / category filters
+    rule_paths = _filter_rule_paths(
+        rule_paths,
+        severities=args.filter_severity,
+        categories=args.filter_category,
+    )
+
+    if not rule_paths:
+        print("Error: no rule files matched the specified filters.", file=sys.stderr)
+        sys.exit(2)
+
+    # --dry-run: list matching rules and exit without executing any checks
+    if args.dry_run:
+        print(f"Dry run — {len(rule_paths)} rule(s) would be scanned:\n", file=sys.stderr)
+        for path in rule_paths:
+            meta = _load_rule_meta(path)
+            label = os.path.basename(path)
+            sev = meta["severity"] or "?"
+            cat = meta["category"] or "?"
+            print(f"  [{cat}] [{sev:<8}] {label}")
+        sys.exit(0)
+
     print(f"Found {len(rule_paths)} rule file(s) in {ruleset_dir}", file=sys.stderr)
     print(f"Detected OS: {os_scan()}", file=sys.stderr)
     print(file=sys.stderr)
 
-    # Run scan
+    # Run scan — --workers flag overrides settings.json value
     scan_workers = settings.get("scan_workers", 2)
     try:
         scan_workers = max(1, int(scan_workers))
     except (TypeError, ValueError):
         scan_workers = 2
+    if args.workers is not None:
+        scan_workers = max(1, args.workers)
+
+    t0 = time.monotonic()
     results = run_scan(rule_paths, verbose=args.verbose, max_workers=scan_workers)
+    elapsed = time.monotonic() - t0
 
     # Output
     if args.format == "text":
-        _print_text_summary(results, detail_mode=detail_mode)
+        _print_text_summary(results, detail_mode=detail_mode, elapsed=elapsed)
+    elif args.output_dir:
+        os.makedirs(args.output_dir, exist_ok=True)
+        for path, result in results.items():
+            rule_id = _safe_str(result.get("rule_id", os.path.basename(path)))
+            safe_id = rule_id.replace("/", "_").replace("\\", "_").replace(":", "_")
+            out_file = os.path.join(args.output_dir, f"{safe_id}.{args.format}")
+            single = {path: result}
+            if args.format == "json":
+                _write_json(out_file, single)
+            elif args.format == "csv":
+                _write_csv(out_file, single)
+            elif args.format == "pdf":
+                _write_pdf(out_file, single, page_size=args.page_size)
+            elif args.format == "html":
+                _write_html(out_file, single)
+        print(f"Per-rule {args.format.upper()} reports written to {args.output_dir}", file=sys.stderr)
     elif args.format == "json":
         _write_json(args.output, results)
         print(f"JSON report written to {args.output}", file=sys.stderr)
@@ -407,6 +556,9 @@ def main() -> None:
     elif args.format == "pdf":
         _write_pdf(args.output, results, page_size=args.page_size)
         print(f"PDF report written to {args.output}", file=sys.stderr)
+    elif args.format == "html":
+        _write_html(args.output, results)
+        print(f"HTML report written to {args.output}", file=sys.stderr)
 
     if args.no_fail:
         sys.exit(0)

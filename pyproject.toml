@@ -1,0 +1,9 @@
+[tool.ruff.lint]
+# F = pyflakes (unused imports, undefined names, unused variables, bare f-strings)
+# E9 = syntax errors
+select = ["F", "E9"]
+
+[tool.ruff.lint.per-file-ignores]
+# Legacy compliance function modules contain intentional side-effect assignments
+# (e.g. running a command without checking the result). Suppress F841 there only.
+"core/custom_functions/*" = ["F841"]

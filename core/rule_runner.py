@@ -53,7 +53,7 @@ class RuleRunner:
         # This prevents cmd.exe from interpreting shell metacharacters on Windows
         # while still running PowerShell / bash commands as intended.
         if sys.platform == "win32":
-            args = ["powershell", "-NonInteractive", "-Command", cmd]
+            args = ["powershell", "-NonInteractive", "-NoProfile", "-Command", cmd]
         else:
             args = ["bash", "-c", cmd]
         creation_flags = subprocess.CREATE_NO_WINDOW if sys.platform == "win32" else 0
@@ -151,6 +151,7 @@ class RuleRunner:
                 "stderr": str(e),
                 "returncode": -1
             }
+
     def _is_na_check(self, check: Dict[str, Any]) -> bool:
         """Return True if this check should be skipped (command is NA)."""
         cmd = check.get("command")
@@ -195,14 +196,18 @@ class RuleRunner:
                 service_name = check.get("command") or check.get("name")
                 try:
                     out = scanner.check_service(service_name)
+                    # "Running" on Windows, "active" on Debian/Linux.
+                    # A non-empty but non-running string (e.g. "Stopped", "inactive")
+                    # must not be treated as PASS.
+                    is_running = out.lower() in ("running", "active")
                     results.append({
                         "check_name": name,
                         "sub_control": sub_control,
                         "purpose": check.get("purpose", ""),
                         "command": f"check_service({service_name})",
                         "expected_result": check.get("expected_result", ""),
-                        "status": "PASS" if out else "FAIL",
-                        "returncode": 0 if out else -1,
+                        "status": "PASS" if is_running else "FAIL",
+                        "returncode": 0 if is_running else 1,
                         "stdout": out or "",
                         "stderr": ""
                     })

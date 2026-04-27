@@ -40,6 +40,7 @@ _log = logging.getLogger(__name__)
 from ui.rule_display import _configure_tags, render_placeholder, render_rule_details, render_rule_info
 from ui.report_pdf import generate_report_pdf
 from ui.report_csv import generate_report_csv
+from ui.report_html import generate_report_html
 
 from core import os_scan
 from core.rule_runner import RuleRunner
@@ -463,6 +464,22 @@ class AccordionSection:
 
 
 # ---------------------------------------------------------------------------
+# Module-level export helper (used by GUI export_json)
+# ---------------------------------------------------------------------------
+
+def _write_json_report(save_path: str, results: Dict[str, Any]) -> None:
+    payload = {
+        "results": list(results.values()),
+        "summary": {
+            status: sum(1 for r in results.values() if get_rule_status(r) == status)
+            for status in ("PASS", "FAIL", "PARTIAL", "POLICY", "SKIP", "ERROR")
+        },
+    }
+    with open(save_path, "w", encoding="utf-8") as f:
+        json.dump(payload, f, indent=2)
+
+
+# ---------------------------------------------------------------------------
 # Settings defaults
 # ---------------------------------------------------------------------------
 
@@ -474,6 +491,11 @@ _SETTINGS_DEFAULTS: Dict[str, Any] = {
     "result_detail_mode":      "full",
     "scan_workers":            2,
     "pdf_page_size":           "A4",
+    "scheduled_scan_enabled":  False,
+    "scheduled_scan_freq":     "daily",
+    "scheduled_scan_time":     "02:00",
+    "scheduled_scan_day":      "Monday",
+    "scheduled_scan_output":   "",
 }
 
 
@@ -515,11 +537,16 @@ class RuleForgeApp(ctk.CTk):
         self._filter_category_menu: Optional[ctk.CTkOptionMenu] = None
         self._filter_severity_menu: Optional[ctk.CTkOptionMenu] = None
 
-        self.refresh_btn:    Optional[ctk.CTkButton] = None
-        self.run_all_btn:    Optional[ctk.CTkButton] = None
-        self.stop_btn:       Optional[ctk.CTkButton] = None
-        self.export_btn:     Optional[ctk.CTkButton] = None
-        self.export_csv_btn: Optional[ctk.CTkButton] = None
+        self._search_var:          tk.StringVar               = tk.StringVar()
+        self._filter_status:       str                        = "All"
+        self._filter_status_menu:  Optional[ctk.CTkOptionMenu] = None
+        self._sched_status_var:    tk.StringVar               = tk.StringVar()
+
+        self.refresh_btn:      Optional[ctk.CTkButton] = None
+        self.run_all_btn:      Optional[ctk.CTkButton] = None
+        self.stop_btn:         Optional[ctk.CTkButton] = None
+        self.export_btn:       Optional[ctk.CTkButton] = None
+        self.copy_btn:         Optional[ctk.CTkButton] = None
 
         self._cancel_event = threading.Event()
         self._custom_rules_dirs: List[str] = []
@@ -654,6 +681,31 @@ class RuleForgeApp(ctk.CTk):
         )
         self._filter_severity_menu.grid(row=0, column=1, sticky="ew", padx=(3, 0))
 
+        # Search + status-filter row
+        search_row = ctk.CTkFrame(left, fg_color="transparent")
+        search_row.pack(fill="x", padx=10, pady=(0, 4))
+        search_row.columnconfigure(0, weight=1)
+
+        self._search_entry = ctk.CTkEntry(
+            search_row,
+            textvariable=self._search_var,
+            placeholder_text="Search rules...",
+            height=28,
+            font=ctk.CTkFont(size=11),
+        )
+        self._search_entry.grid(row=0, column=0, sticky="ew", padx=(0, 3))
+
+        self._filter_status_menu = ctk.CTkOptionMenu(
+            search_row,
+            values=["All", "PASS", "FAIL", "PARTIAL", "POLICY", "SKIP", "ERROR"],
+            command=self._on_status_filter,
+            width=100,
+            font=ctk.CTkFont(size=11),
+            dynamic_resizing=False,
+        )
+        self._filter_status_menu.grid(row=0, column=1, sticky="ew", padx=(3, 0))
+        self._search_var.trace_add("write", lambda *_: self._on_search_change())
+
         self.rules_scroll = ctk.CTkScrollableFrame(left)
         self.rules_scroll.pack(fill="both", expand=True, padx=10, pady=(0, 10))
 
@@ -661,6 +713,17 @@ class RuleForgeApp(ctk.CTk):
 
         details_frame = ctk.CTkFrame(self._results_frame, fg_color="transparent")
         details_frame.pack(fill="both", expand=True, padx=10, pady=(0, 10))
+
+        _details_bar = ctk.CTkFrame(details_frame, fg_color="transparent", height=30)
+        _details_bar.pack(fill="x")
+        _details_bar.pack_propagate(False)
+
+        self.copy_btn = ctk.CTkButton(
+            _details_bar, text="Copy Output", command=self._copy_details,
+            state="disabled", width=100, height=24,
+            font=ctk.CTkFont(size=11),
+        )
+        self.copy_btn.pack(side="right", padx=4, pady=3)
 
         _text_bg = "#1e1e1e" if self.theme == "dark" else "#f5f5f5"
         _text_fg = "#e8e8e8" if self.theme == "dark" else "#1a1a1a"
@@ -706,15 +769,8 @@ class RuleForgeApp(ctk.CTk):
         )
         # Stop button is only shown while a scan is running
 
-        self.export_csv_btn = ctk.CTkButton(
-            btn_row, text="Export CSV", command=self.export_csv, state="disabled", width=120,
-            fg_color=("#1a4a6b", "#0f2d45"), hover_color=("#2167a0", "#1a4a6b"),
-        )
-        self.export_csv_btn.pack(side="right", padx=(6, 0))
-
         self.export_btn = ctk.CTkButton(
-            btn_row, text="Export PDF", command=self.export_report, state="disabled", width=120,
-            fg_color=("#2d6a4f", "#1b4332"), hover_color=("#40916c", "#2d6a4f"),
+            btn_row, text="Export...", command=self._export_dialog, state="disabled", width=120,
         )
         self.export_btn.pack(side="right", padx=(0, 6))
 
@@ -918,6 +974,74 @@ class RuleForgeApp(ctk.CTk):
         self._settings_pdf_size.set(self._settings.get("pdf_page_size", "A4"))
         self._settings_pdf_size.pack(side="left")
 
+        # ── Scan Workers ──────────────────────────────────────────────
+        section_header("Performance")
+
+        row = setting_row("Parallel scan workers")
+        self._settings_scan_workers = ctk.CTkEntry(row, width=60)
+        self._settings_scan_workers.insert(0, str(self._settings.get("scan_workers", 2)))
+        self._settings_scan_workers.pack(side="left")
+
+        # ── Scheduled Scan ────────────────────────────────────────────
+        section_header("Scheduled Scan")
+
+        row = setting_row("Enable scheduled scan")
+        self._settings_sched_enabled = ctk.CTkSwitch(row, text="", width=46)
+        if self._settings.get("scheduled_scan_enabled"):
+            self._settings_sched_enabled.select()
+        self._settings_sched_enabled.pack(side="left")
+
+        row = setting_row("Frequency")
+        self._settings_sched_freq = ctk.CTkSegmentedButton(
+            row, values=["Daily", "Weekly"], width=160,
+        )
+        self._settings_sched_freq.set(
+            "Weekly" if self._settings.get("scheduled_scan_freq") == "weekly" else "Daily"
+        )
+        self._settings_sched_freq.pack(side="left")
+
+        row = setting_row("Day of week (weekly only)")
+        self._settings_sched_day = ctk.CTkOptionMenu(
+            row,
+            values=["Monday", "Tuesday", "Wednesday", "Thursday",
+                    "Friday", "Saturday", "Sunday"],
+            width=140,
+        )
+        self._settings_sched_day.set(self._settings.get("scheduled_scan_day", "Monday"))
+        self._settings_sched_day.pack(side="left")
+
+        row = setting_row("Time (HH:MM, 24-hour)")
+        self._settings_sched_time = ctk.CTkEntry(row, width=80, placeholder_text="02:00")
+        sched_time = str(self._settings.get("scheduled_scan_time", "02:00"))
+        self._settings_sched_time.insert(0, sched_time)
+        self._settings_sched_time.pack(side="left")
+
+        row = setting_row("Output file (JSON)")
+        self._settings_sched_output = ctk.CTkEntry(
+            row, width=200, placeholder_text="Path to write results.json",
+        )
+        sched_out = str(self._settings.get("scheduled_scan_output", ""))
+        if sched_out:
+            self._settings_sched_output.insert(0, sched_out)
+        self._settings_sched_output.pack(side="left", padx=(0, 6))
+        ctk.CTkButton(
+            row, text="Browse", width=70,
+            command=self._browse_sched_output,
+        ).pack(side="left")
+
+        sched_btn_row = ctk.CTkFrame(scroll, fg_color="transparent")
+        sched_btn_row.pack(fill="x", padx=8, pady=(8, 0))
+        ctk.CTkButton(
+            sched_btn_row, text="Apply Schedule", width=140, height=32,
+            command=self._apply_scheduled_scan,
+        ).pack(side="left")
+        self._sched_status_label = ctk.CTkLabel(
+            sched_btn_row, textvariable=self._sched_status_var,
+            font=ctk.CTkFont(size=11), anchor="w",
+            text_color=("#444444", "#aaaaaa"),
+        )
+        self._sched_status_label.pack(side="left", padx=(10, 0))
+
         # ── Apply button ──────────────────────────────────────────────
         ctk.CTkButton(
             parent, text="Apply", width=120, height=34,
@@ -945,6 +1069,10 @@ class RuleForgeApp(ctk.CTk):
             else "full"
         )
         pdf_size    = self._settings_pdf_size.get()
+        try:
+            scan_workers = max(1, int(self._settings_scan_workers.get()))
+        except (ValueError, AttributeError):
+            scan_workers = int(self._settings.get("scan_workers", 2))
 
         # Apply theme if it changed
         if new_theme != self.theme:
@@ -962,6 +1090,7 @@ class RuleForgeApp(ctk.CTk):
         self._settings["verbose_output"]         = verbose_out
         self._settings["result_detail_mode"]     = detail_mode
         self._settings["pdf_page_size"]          = pdf_size
+        self._settings["scan_workers"]           = scan_workers
         self._save_settings()
         self._refresh_selected_rule_details()
         self.set_status("Settings saved.")
@@ -1185,8 +1314,12 @@ class RuleForgeApp(ctk.CTk):
             self._filter_category_menu.set("All")
         if self._filter_severity_menu:
             self._filter_severity_menu.set("All")
+        if self._filter_status_menu:
+            self._filter_status_menu.set("All")
+        self._search_var.set("")
         self._filter_category = "All"
         self._filter_severity = "All"
+        self._filter_status   = "All"
 
         total = len(self.rules)
         cat_count = len(self.rules_by_category)
@@ -1208,22 +1341,45 @@ class RuleForgeApp(ctk.CTk):
         self._filter_severity = value
         self._apply_filters()
 
+    def _on_search_change(self):
+        self._apply_filters()
+
+    def _on_status_filter(self, value: str):
+        self._filter_status = value
+        self._apply_filters()
+
     def _apply_filters(self):
         """
-        Compute the set of rule paths that match the active category and
-        severity filters, then show/hide accordion buttons accordingly.
+        Compute the set of rule paths that match the active category, severity,
+        search text, and status filters, then show/hide accordion buttons.
         Sections whose every rule is filtered out are hidden entirely.
         Sections are always re-packed in their original insertion order so
         the category list never jumbles after a filter change.
         """
-        cat_filter = self._filter_category
-        sev_filter = self._filter_severity
+        cat_filter    = self._filter_category
+        sev_filter    = self._filter_severity
+        search_text   = self._search_var.get().strip().lower()
+        status_filter = self._filter_status
 
         visible: set = set()
         for meta in self.rules:
             cat_match = (cat_filter == "All" or meta.get("category", "") == cat_filter)
             sev_match = (sev_filter == "All" or meta.get("severity", "") == sev_filter)
-            if cat_match and sev_match:
+
+            if search_text:
+                rule_id_lower = meta.get("rule_id", "").lower()
+                title_lower   = meta.get("title",   "").lower()
+                search_match  = search_text in rule_id_lower or search_text in title_lower
+            else:
+                search_match  = True
+
+            if status_filter != "All":
+                result = self.results_by_path.get(meta["path"])
+                status_match = result is not None and get_rule_status(result) == status_filter
+            else:
+                status_match  = True
+
+            if cat_match and sev_match and search_match and status_match:
                 visible.add(meta["path"])
 
         # Re-pack folder wrappers in order, hiding any that have no visible rules
@@ -1251,6 +1407,8 @@ class RuleForgeApp(ctk.CTk):
 
         if not self.running:
             self.run_selected_btn.configure(state="normal")
+            if self.copy_btn:
+                self.copy_btn.configure(state="normal")
 
         result = self.results_by_path.get(rule_path)
         if result:
@@ -1507,6 +1665,15 @@ class RuleForgeApp(ctk.CTk):
         threading.Thread(target=worker, daemon=True).start()
 
     # ------------------------------------------------------------------
+    def _copy_details(self) -> None:
+        """Copy the current details panel text to the system clipboard."""
+        content = self.details_text.get("1.0", "end-1c").strip()
+        if content:
+            self.clipboard_clear()
+            self.clipboard_append(content)
+            self.set_status("Output copied to clipboard.")
+
+    # ------------------------------------------------------------------
     def export_report(self):
         results_snapshot  = dict(self.results_by_path)
         category_snapshot = dict(self.rules_by_category)
@@ -1531,6 +1698,76 @@ class RuleForgeApp(ctk.CTk):
             success_prefix="CSV saved",
             worker_fn=lambda p: generate_report_csv(p, results_snapshot),
         )
+
+    # ------------------------------------------------------------------
+    def export_json(self):
+        results_snapshot = dict(self.results_by_path)
+        self._run_export(
+            ext=".json",
+            filetypes=[("JSON File", "*.json"), ("All Files", "*.*")],
+            dialog_title="Save JSON Report",
+            busy_status="Generating JSON…",
+            success_prefix="JSON saved",
+            worker_fn=lambda p: _write_json_report(p, results_snapshot),
+        )
+
+    # ------------------------------------------------------------------
+    def export_html(self):
+        results_snapshot = dict(self.results_by_path)
+        self._run_export(
+            ext=".html",
+            filetypes=[("HTML File", "*.html"), ("All Files", "*.*")],
+            dialog_title="Save HTML Report",
+            busy_status="Generating HTML…",
+            success_prefix="HTML saved",
+            worker_fn=lambda p: generate_report_html(p, results_snapshot),
+        )
+
+    # ------------------------------------------------------------------
+    def _export_dialog(self) -> None:
+        if not self.results_by_path:
+            self.set_status("Run at least one rule before exporting.")
+            return
+
+        dlg = ctk.CTkToplevel(self)
+        dlg.title("Export Report")
+        dlg.resizable(False, False)
+        dlg.grab_set()
+
+        self.update_idletasks()
+        px = self.winfo_x() + self.winfo_width()  // 2
+        py = self.winfo_y() + self.winfo_height() // 2
+        dlg.geometry(f"260x240+{px - 130}+{py - 120}")
+
+        ctk.CTkLabel(
+            dlg, text="Choose export format",
+            font=ctk.CTkFont(size=13, weight="bold"),
+        ).pack(pady=(18, 10))
+
+        def _go(fn: callable) -> None:
+            dlg.destroy()
+            fn()
+
+        btn_cfg = {"width": 180, "height": 36}
+        ctk.CTkButton(dlg, text="PDF Report",  **btn_cfg,
+                      command=lambda: _go(self.export_report)).pack(pady=4)
+        ctk.CTkButton(dlg, text="CSV",         **btn_cfg,
+                      command=lambda: _go(self.export_csv)).pack(pady=4)
+        ctk.CTkButton(dlg, text="JSON",        **btn_cfg,
+                      command=lambda: _go(self.export_json)).pack(pady=4)
+        ctk.CTkButton(dlg, text="HTML",        **btn_cfg,
+                      command=lambda: _go(self.export_html)).pack(pady=4)
+
+        ctk.CTkButton(
+            dlg, text="Cancel", width=100, height=28,
+            fg_color="transparent", border_width=1,
+            border_color=("#888888", "#666666"),
+            text_color=("#333333", "#cccccc"),
+            hover_color=("#d0d0d0", "#3a3a3a"),
+            command=dlg.destroy,
+        ).pack(pady=(6, 16))
+
+        dlg.bind("<Escape>", lambda _e: dlg.destroy())
 
     # ------------------------------------------------------------------
     def _show_about(self) -> None:
@@ -1826,6 +2063,146 @@ MINIMAL EXAMPLE
         win.bind("<Escape>", lambda _e: win.destroy())
 
     # ------------------------------------------------------------------
+    def _browse_sched_output(self) -> None:
+        path = filedialog.asksaveasfilename(
+            title="Select Scheduled Scan Output File",
+            defaultextension=".json",
+            filetypes=[("JSON File", "*.json"), ("All Files", "*.*")],
+            initialdir=self._settings.get("default_export_dir") or PROJECT_ROOT,
+        )
+        if path:
+            self._settings_sched_output.delete(0, "end")
+            self._settings_sched_output.insert(0, path)
+
+    def _apply_scheduled_scan(self) -> None:
+        enabled     = bool(self._settings_sched_enabled.get())
+        freq        = "weekly" if self._settings_sched_freq.get() == "Weekly" else "daily"
+        day         = self._settings_sched_day.get()
+        time_str    = self._settings_sched_time.get().strip()
+        output_path = self._settings_sched_output.get().strip()
+
+        if enabled:
+            if not re.match(r"^\d{1,2}:\d{2}$", time_str):
+                self._sched_status_var.set("Error: time must be HH:MM (24-hour).")
+                return
+            if not output_path:
+                self._sched_status_var.set("Error: output file path is required.")
+                return
+
+        self._settings["scheduled_scan_enabled"] = enabled
+        self._settings["scheduled_scan_freq"]    = freq
+        self._settings["scheduled_scan_day"]     = day
+        self._settings["scheduled_scan_time"]    = time_str
+        self._settings["scheduled_scan_output"]  = output_path
+        self._save_settings()
+
+        if not enabled:
+            self._remove_scheduled_task()
+            return
+        self._create_scheduled_task(freq, day, time_str, output_path)
+
+    def _create_scheduled_task(
+        self, freq: str, day: str, time_str: str, output_path: str
+    ) -> None:
+        import subprocess as _sp
+        task_name = "RuleForgeComplianceScan"
+
+        if sys.platform == "win32":
+            exe_path = os.path.join(PROJECT_ROOT, "cli.exe")
+            if not os.path.isfile(exe_path):
+                exe_path = None
+
+            if exe_path:
+                tr = f'"{exe_path}" --format json --output "{output_path}" --no-fail'
+            else:
+                tr = (
+                    f'"{sys.executable}" "{os.path.join(PROJECT_ROOT, "cli.py")}"'
+                    f' --format json --output "{output_path}" --no-fail'
+                )
+
+            cmd = [
+                "schtasks", "/create",
+                "/tn", task_name,
+                "/tr", tr,
+                "/sc", "WEEKLY" if freq == "weekly" else "DAILY",
+                "/st", time_str,
+                "/f", "/rl", "HIGHEST",
+            ]
+            if freq == "weekly":
+                _day_abbr = {
+                    "Monday": "MON", "Tuesday": "TUE", "Wednesday": "WED",
+                    "Thursday": "THU", "Friday": "FRI", "Saturday": "SAT", "Sunday": "SUN",
+                }
+                cmd += ["/d", _day_abbr.get(day, "MON")]
+
+            try:
+                r = _sp.run(cmd, capture_output=True, text=True, timeout=15)
+                if r.returncode == 0:
+                    self._sched_status_var.set(f"Task created: {freq} at {time_str}.")
+                    _log.info("Scheduled task created: %s", task_name)
+                else:
+                    err = (r.stderr or r.stdout).strip()
+                    self._sched_status_var.set(f"Error: {err[:100]}")
+                    _log.warning("schtasks create failed: %s", err)
+            except (OSError, _sp.TimeoutExpired) as exc:
+                self._sched_status_var.set(f"Error: {exc}")
+
+        elif sys.platform in ("linux", "darwin"):
+            try:
+                h, m = time_str.split(":")
+                cli_py = os.path.join(PROJECT_ROOT, "cli.py")
+                out_q  = output_path.replace("'", r"\'")
+                _dow = {
+                    "Monday": "1", "Tuesday": "2", "Wednesday": "3",
+                    "Thursday": "4", "Friday": "5", "Saturday": "6", "Sunday": "0",
+                }
+                dow = _dow.get(day, "1") if freq == "weekly" else "*"
+                entry = (
+                    f"{m} {h} * * {dow} "
+                    f"{sys.executable} {cli_py} --format json --output '{out_q}' --no-fail"
+                    f"  # RuleForge"
+                )
+                existing = _sp.run(["crontab", "-l"], capture_output=True, text=True)
+                lines = [ln for ln in existing.stdout.splitlines() if "# RuleForge" not in ln]
+                lines.append(entry)
+                _sp.run(
+                    ["crontab", "-"],
+                    input="\n".join(lines) + "\n",
+                    capture_output=True, text=True, timeout=10,
+                )
+                self._sched_status_var.set(f"Cron job created: {freq} at {time_str}.")
+            except Exception as exc:
+                self._sched_status_var.set(f"Error: {exc}")
+        else:
+            self._sched_status_var.set("Scheduled scan is not supported on this platform.")
+
+    def _remove_scheduled_task(self) -> None:
+        import subprocess as _sp
+        if sys.platform == "win32":
+            try:
+                _sp.run(
+                    ["schtasks", "/delete", "/tn", "RuleForgeComplianceScan", "/f"],
+                    capture_output=True, timeout=10,
+                )
+                self._sched_status_var.set("Schedule removed.")
+            except (OSError, _sp.TimeoutExpired) as exc:
+                self._sched_status_var.set(f"Error removing schedule: {exc}")
+        elif sys.platform in ("linux", "darwin"):
+            try:
+                existing = _sp.run(["crontab", "-l"], capture_output=True, text=True)
+                lines = [ln for ln in existing.stdout.splitlines() if "# RuleForge" not in ln]
+                _sp.run(
+                    ["crontab", "-"],
+                    input="\n".join(lines) + "\n",
+                    capture_output=True, text=True, timeout=10,
+                )
+                self._sched_status_var.set("Schedule removed.")
+            except Exception as exc:
+                self._sched_status_var.set(f"Error removing schedule: {exc}")
+        else:
+            self._sched_status_var.set("No schedule to remove.")
+
+    # ------------------------------------------------------------------
     def _on_closing(self):
         """
         Called when the user clicks the window close button. If a scan is
@@ -1858,10 +2235,11 @@ MINIMAL EXAMPLE
         else:
             self.run_selected_btn.configure(state="disabled")
         export_state = "normal" if (enabled and bool(self.results_by_path)) else "disabled"
-        if hasattr(self, "export_btn") and self.export_btn:
+        if self.export_btn:
             self.export_btn.configure(state=export_state)
-        if hasattr(self, "export_csv_btn") and self.export_csv_btn:
-            self.export_csv_btn.configure(state=export_state)
+        copy_state = "normal" if (enabled and self.selected_rule_path) else "disabled"
+        if hasattr(self, "copy_btn") and self.copy_btn:
+            self.copy_btn.configure(state=copy_state)
 
 
 def main():

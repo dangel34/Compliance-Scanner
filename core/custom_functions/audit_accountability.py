@@ -1,8 +1,5 @@
 import subprocess
-import os
-import stat
 import re
-import hashlib
 from pathlib import Path
 
 _RUN_CACHE: dict[tuple[object, bool, int], tuple[int, str, str]] = {}

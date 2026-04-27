@@ -15,7 +15,7 @@ import subprocess
 import re
 import time
 from pathlib import Path
-from datetime import datetime, timedelta
+from datetime import datetime
 
 _RUN_CACHE: dict[tuple[object, bool, int], tuple[int, str, str]] = {}
 
@@ -236,7 +236,7 @@ def last_update_date_lx() -> tuple[bool, str]:
         age = _file_age_days(dpkg_log)
         if age is not None and age <= 30:
             rc, out, _ = _run(
-                f"grep 'upgrade\\|install' /var/log/dpkg.log 2>/dev/null | tail -1"
+                "grep 'upgrade\\|install' /var/log/dpkg.log 2>/dev/null | tail -1"
             )
             if rc == 0 and out.strip():
                 return (True, f"Last package update was within {int(age)} day(s) (dpkg.log): {out.strip()[:80]}")
@@ -799,7 +799,7 @@ def network_monitoring_ws() -> tuple[bool, str]:
     )
     if rc2 == 0 and len(out2.strip()) > 0:
         return (True, "Windows Firewall logging is configured (provides minimum network traffic visibility)")
-    return (False, f"No network monitoring agent running and firewall logging is not configured")
+    return (False, "No network monitoring agent running and firewall logging is not configured")
 
 
 def credential_guard_ws() -> tuple[bool, str]:

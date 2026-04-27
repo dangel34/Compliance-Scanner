@@ -436,7 +436,7 @@ def ssh_mfa_enabled_lx() -> tuple[bool, str]:
     cra_enabled = cra and cra.lower() == "yes"
     methods_mfa = auth_methods and ("keyboard-interactive" in auth_methods or "publickey,keyboard" in auth_methods)
     if cra_enabled:
-        return (True, f"SSH ChallengeResponseAuthentication = yes")
+        return (True, "SSH ChallengeResponseAuthentication = yes")
     if methods_mfa:
         return (True, f"SSH AuthenticationMethods includes MFA: {auth_methods}")
     return (False, f"SSH MFA not configured (ChallengeResponseAuthentication = {cra or 'no'}, AuthenticationMethods = {auth_methods or 'not set'})")
@@ -1082,7 +1082,7 @@ def ssh_encryption_lx() -> tuple[bool, str]:
     weak = ["arcfour", "3des-cbc", "aes128-cbc", "blowfish-cbc", "cast128-cbc"]
     found_weak = [w for w in weak if w in ciphers]
     if not found_weak:
-        return (True, f"SSH Ciphers contain no weak algorithms")
+        return (True, "SSH Ciphers contain no weak algorithms")
     return (False, f"Weak SSH cipher(s) configured: {', '.join(found_weak)}")
 
 

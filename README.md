@@ -4,7 +4,7 @@ A desktop application that scans Windows, Linux, and Debian systems against CMMC
 
 ## Overview
 
-The scanner loads a set of JSON rule files, executes the checks defined in each rule against the local system, and displays pass/fail results in a graphical interface. Results can be exported as a PDF report or a CSV file. The tool detects the operating system at startup and runs only the checks relevant to that platform.
+The scanner loads a set of JSON rule files, executes the checks defined in each rule against the local system, and displays pass/fail results in a graphical interface. Results can be exported as a PDF, CSV, JSON, or HTML report. The tool detects the operating system at startup and runs only the checks relevant to that platform.
 
 The 94 included rules cover six CMMC Level 2 control families across Windows Client and Windows Server: Access Control (AC), Audit and Accountability (AU), Configuration Management (CM), Identification and Authentication (IA), System and Communications Protection (SC), and System and Information Integrity (SI). SOC 2 rules are also included.
 
@@ -76,12 +76,17 @@ The CLI runs the same rule checks and produces the same results as the GUI witho
 | Flag | Default | Description |
 |------|---------|-------------|
 | `--ruleset DIR` | `rulesets/` | Directory to scan for rule files. Can point to a specific sub-folder. |
-| `--format text\|json\|csv\|pdf` | `text` | Output format. `text` prints a summary table to stdout. |
+| `--format text\|json\|csv\|pdf\|html` | `text` | Output format. `text` prints a summary table to stdout. `html` writes a self-contained single-file report. |
 | `--output FILE` | — | File path to write the report. Required for `json`, `csv`, and `pdf`. |
 | `--page-size A4\|LETTER` | `A4` | Page size for PDF reports. |
+| `--workers N` | from `settings.json` | Number of parallel scan workers. Overrides the `scan_workers` value in `settings.json`. |
 | `--verbose` / `-v` | off | Print each rule's pass/fail status to stderr as the scan progresses. |
 | `--detail-mode status_only\|full` | from `settings.json` | Override text output detail mode. `status_only` prints bool-style check results; `full` includes full per-check debug output. |
 | `--no-fail` | off | Always exit 0, even when checks fail. Useful for collecting results without blocking a CI pipeline. |
+| `--filter-severity SEVERITY` | — | Only scan rules matching this severity. Repeatable (`--filter-severity High --filter-severity Critical`). Case-insensitive. |
+| `--filter-category CATEGORY` | — | Only scan rules matching this category abbreviation (e.g. `AC`, `AU`). Repeatable. Case-insensitive. |
+| `--dry-run` | off | List rule files that would be scanned (to stdout) without executing any checks. Rule list is pipeable; summary header goes to stderr. |
+| `--output-dir DIR` | — | Write one report file per rule into `DIR` (filename is `{rule_id}.{format}`). Incompatible with `--output` and `--format text`. |
 
 **Exit codes:**
 
@@ -120,25 +125,71 @@ python cli.py --format text --detail-mode full
 
 # Collect results in CI without failing the build
 python cli.py --format json --output results.json --no-fail
+
+# Run with 4 parallel workers instead of the settings.json default
+python cli.py --workers 4
+
+# Preview which rules would run (no checks executed)
+python cli.py --ruleset "rulesets/CMMC Level 1 & 2" --dry-run
+
+# Scan only Critical and High severity rules
+python cli.py --filter-severity Critical --filter-severity High
+
+# Scan only Access Control rules
+python cli.py --filter-category AC
+
+# Combine filters: High AC rules only
+python cli.py --filter-severity High --filter-category AC
+
+# Export a self-contained HTML report
+python cli.py --format html --output report.html
+
+# Write one JSON file per rule into a directory
+python cli.py --format json --output-dir results/
 ```
 
-Progress lines (e.g. `[1/74] AC.L2-3.1.1.json`) are written to stderr so they do not pollute piped stdout or output files.
+Progress lines (e.g. `[1/74] AC.L2-3.1.1.json`) are written to stderr so they do not pollute piped stdout or output files. Text-format output includes a `Scan time:` footer showing total elapsed time.
 
 ## Using the Interface
 
 The left panel lists all discovered rules grouped by control family. Click a category header to expand it and see the individual rules. Click a rule name to preview its metadata, including the checks it will run and the remediation guidance for that control.
 
-The filter dropdowns above the rule list narrow the list by control family or severity (Critical, High, Medium, Low). The Run All Rules button and the compliance score only reflect the rules currently visible after filtering.
+Three controls above the rule list narrow what is shown:
+
+- Category and severity dropdowns filter rules before a scan (same as before).
+- The search box filters rules by ID or title as you type.
+- The status dropdown (All, PASS, FAIL, PARTIAL, POLICY, SKIP, ERROR) filters rules by their scan result after a scan runs. Only rules that have been scanned are shown when a status other than All is selected.
 
 The bottom bar shows scan progress with an estimated time remaining while a scan is running. When a scan completes, the summary dashboard at the top of the right panel updates with the total count of rules and a per-status breakdown. The compliance score is calculated as the number of passing rules divided by the total number of rules that produced a result, excluding skipped checks.
 
 A **Stop** button appears next to the run controls while a scan is in progress. Clicking it cancels the scan after the current rule finishes, preserving all results collected so far.
 
+An **Export...** button appears in the bottom toolbar after a scan completes. Clicking it opens a format picker with four options:
+
+- **PDF Report**: generates a full PDF compliance report.
+- **CSV**: generates a CSV file with one row per check result.
+- **JSON**: generates a JSON report in the same format as `--format json` from the CLI.
+- **HTML**: generates a self-contained single-file HTML report that can be opened in any browser.
+
+A **Copy Output** button appears above the details pane when a rule is selected. Clicking it copies the full contents of the details pane to the system clipboard.
+
+In **Settings → Performance**, the `Parallel scan workers` field controls how many rules run concurrently. Increasing this speeds up large scans on multi-core machines.
+
+In **Settings → Scheduled Scan**, you can configure the application to run automatically on a schedule without manual interaction:
+
+- Toggle `Enable scheduled scan` on.
+- Set `Frequency` to Daily or Weekly. For weekly, pick a day of the week.
+- Set the time in 24-hour HH:MM format.
+- Set the output file path where results will be written as JSON.
+- Click **Apply Schedule**.
+
+On Windows this creates a Task Scheduler task (`RuleForgeComplianceScan`) running as the current user with highest privileges. On Linux and macOS it writes a crontab entry. Toggling the switch off and clicking Apply Schedule removes the task or crontab entry.
+
 In **Settings → Display**, `Result detail mode` controls how check output is shown:
 - `Status Only`: show check status plus a bool-style result (`True`/`False`) for fast triage.
 - `Full Output`: show full check diagnostics (command, expected result, return code, stdout/stderr).
 
-The `Untruncate failed output` setting still applies in full mode and disables line capping for failed/partial/error checks.
+Settings are saved to `settings.json` automatically when you click **Apply** in the Settings tab and persist across restarts.
 
 **Keyboard shortcuts:**
 
@@ -170,13 +221,22 @@ tags            Array of strings used for categorization
 The `check_details` object contains one key per supported OS (`windows_client`, `windows_server`, `linux`, `debian`). Each OS block has a `checks` array. Every check requires:
 
 ```
-check_type      One of: command, service, file_permissions
+check_type      One of: command, service, file_permissions, policy
 name            Human-readable check name
 sub_control     Sub-control letter (a, b, c, ...)
 command         The shell command to run, a cs_f() call, or "NA" to skip
 expected_result Human-readable description of a passing result
 purpose         Why this check is required
 ```
+
+**Check types:**
+
+| Type | Behaviour |
+|------|-----------|
+| `command` | Runs the command string via PowerShell (Windows) or bash (Linux/Debian). Exit code 0 = PASS. Supports `cs_f()` calls for Python-based checks. |
+| `service` | Queries the service by name. Returns PASS if the service is actively running (`Running` on Windows, `active` on Debian/Linux). Any other status — including `Stopped` or `inactive` — is FAIL. |
+| `file_permissions` | Retrieves the ACL or permission bits for the given path. Returns PASS if the path is accessible and permission data is returned; the result string is included in reports for manual review. |
+| `policy` | No command is executed. The check is recorded as POLICY and excluded from the automated compliance score. Used for controls that require human attestation. |
 
 A command value of `"NA"` causes the check to be skipped and counted separately from run checks in the results.
 
@@ -200,16 +260,50 @@ The existing custom function modules are organized by control family and OS suff
 
 ## Reports
 
-PDF and CSV reports are available after a full scan completes using the Export PDF and Export CSV buttons.
+PDF and CSV reports are available after a full scan completes using the **Export...** button in the bottom toolbar.
 
 The PDF report includes a header with the scan timestamp and detected OS, a summary table with pass/fail/partial/skip counts, and a per-rule section listing every check that was run with its return code, output, and any errors.
 
 The CSV report contains one row per check result with columns for rule ID, title, OS, overall status, check name, sub-control, status, expected result, return code, stdout, and stderr. The file is UTF-8 encoded with a BOM for compatibility with Excel.
 
+## Development
+
+### Running Tests
+
+Install dev dependencies and run the full test suite:
+
+```bash
+pip install -r requirements-dev.txt
+pytest
+```
+
+Tests live under `tests/` and cover the CLI argument parser, rule discovery, rule file validation (all 94 CMMC rules and SOC 2 rules are validated against the JSON schema), the `RuleRunner` execution engine, and shared utility functions.
+
+### Linting
+
+The project uses [ruff](https://docs.astral.sh/ruff/) for linting. Run it from the project root:
+
+```bash
+pip install ruff
+ruff check .
+```
+
+Lint configuration is in `pyproject.toml`. The `F` (pyflakes) and `E9` (syntax error) rule sets are enforced. Unused-variable warnings (`F841`) are suppressed in `core/custom_functions/` where side-effect assignments are intentional.
+
+### CI
+
+Every push to `main` and every pull request triggers the CI workflow, which runs the full test suite across:
+
+- **OS:** Windows and Ubuntu
+- **Python:** 3.10, 3.11, 3.12
+
+A separate lint job runs `ruff check .` on Ubuntu / Python 3.11.
+
 ## Project Structure
 
 ```
 cli.py                      Headless CLI entry point (no display required)
+pyproject.toml              Ruff lint configuration
 build.bat                   Build script — runs PyInstaller then Inno Setup
 compliance_scanner.spec     PyInstaller spec file
 installer.iss               Inno Setup installer script
@@ -234,5 +328,6 @@ ui/
   rule_display.py           Result and metadata rendering into the text widget
   report_pdf.py             PDF report generation
   report_csv.py             CSV report generation
+  report_html.py            Self-contained HTML report generation
   utils.py                  Shared helpers, path setup, and headless subprocess patch
 ```

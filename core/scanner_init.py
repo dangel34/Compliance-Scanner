@@ -1,6 +1,4 @@
 import platform
-import os
-import sys
 
 
 def get_linux_flavor():
@@ -40,7 +38,7 @@ def os_scan() -> str:
         return "mac"
     elif "linux" in os_parent:
         distro, id_like = get_linux_flavor()
-        if "debian" in id_like:
+        if distro == "debian" or "debian" in id_like:
             return "debian"
         else:
             return "linux" # Generalization

@@ -21,11 +21,12 @@ _VALID_SEVERITIES = {"Critical", "High", "Medium", "Low"}
 def _collect(directory: str) -> list[str]:
     if not os.path.isdir(directory):
         return []
-    return sorted(
-        os.path.join(directory, f)
-        for f in os.listdir(directory)
-        if f.endswith(".json") and f not in _SKIP_NAMES
-    )
+    paths = []
+    for root, _, files in os.walk(directory):
+        for name in files:
+            if name.lower().endswith(".json") and name not in _SKIP_NAMES:
+                paths.append(os.path.join(root, name))
+    return sorted(paths)
 
 
 _CMMC_RULES = _collect(_CMMC_DIR)

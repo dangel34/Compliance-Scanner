@@ -258,7 +258,7 @@ def aslr_wc() -> tuple[bool, str]:
             return (True, "ASLR is enabled by default (MoveImages registry key is absent)")
         if val.strip() != "0":
             return (True, f"ASLR is enabled (MoveImages = {val})")
-        return (False, f"ASLR is disabled (MoveImages = 0)")
+        return (False, "ASLR is disabled (MoveImages = 0)")
     except Exception as e:
         return (False, f"Exception while checking ASLR: {e}")
 

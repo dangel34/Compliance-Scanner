@@ -23,7 +23,10 @@ jobs:
           cache: pip
 
       - name: Install dependencies
-        run: pip install -r requirements.txt "pyinstaller>=6.0"
+        run: pip install -r requirements.txt -r requirements-dev.txt "pyinstaller>=6.0"
+
+      - name: Run tests
+        run: pytest
 
       - name: Install Inno Setup
         run: choco install innosetup --no-progress -y
@@ -56,12 +59,15 @@ jobs:
           SIGN_CERT_PASSWORD: ${{ secrets.SIGN_CERT_PASSWORD }}
         run: |
           $pfxPath = "$env:RUNNER_TEMP\cert.pfx"
-          [IO.File]::WriteAllBytes($pfxPath, [Convert]::FromBase64String($env:SIGN_CERT_PFX))
-          $signtool = (Get-ChildItem "C:\Program Files (x86)\Windows Kits\10\bin" -Recurse -Filter signtool.exe |
-            Where-Object { $_.FullName -like "*x64*" } | Select-Object -Last 1).FullName
-          & $signtool sign /fd SHA256 /tr http://timestamp.digicert.com /td SHA256 /f $pfxPath /p $env:SIGN_CERT_PASSWORD "dist\ComplianceScanner\RuleForge.exe"
-          Remove-Item $pfxPath -Force
-          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          try {
+            [IO.File]::WriteAllBytes($pfxPath, [Convert]::FromBase64String($env:SIGN_CERT_PFX))
+            $signtool = (Get-ChildItem "C:\Program Files (x86)\Windows Kits\10\bin" -Recurse -Filter signtool.exe |
+              Where-Object { $_.FullName -like "*x64*" } | Sort-Object FullName -Descending | Select-Object -First 1).FullName
+            & $signtool sign /fd SHA256 /tr http://timestamp.digicert.com /td SHA256 /f $pfxPath /p $env:SIGN_CERT_PASSWORD "dist\ComplianceScanner\RuleForge.exe"
+            if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          } finally {
+            if (Test-Path $pfxPath) { Remove-Item $pfxPath -Force }
+          }
 
       - name: Package portable zip
         shell: pwsh
@@ -73,7 +79,7 @@ jobs:
         shell: pwsh
         run: |
           $iscc = "C:\Program Files (x86)\Inno Setup 6\ISCC.exe"
-          & $iscc /DAppVersion=${{ steps.version.outputs.version }} installer.iss
+          & $iscc "/DAppVersion=${{ steps.version.outputs.version }}" installer.iss
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
       - name: Sign installer
@@ -84,12 +90,15 @@ jobs:
           SIGN_CERT_PASSWORD: ${{ secrets.SIGN_CERT_PASSWORD }}
         run: |
           $pfxPath = "$env:RUNNER_TEMP\cert.pfx"
-          [IO.File]::WriteAllBytes($pfxPath, [Convert]::FromBase64String($env:SIGN_CERT_PFX))
-          $signtool = (Get-ChildItem "C:\Program Files (x86)\Windows Kits\10\bin" -Recurse -Filter signtool.exe |
-            Where-Object { $_.FullName -like "*x64*" } | Select-Object -Last 1).FullName
-          & $signtool sign /fd SHA256 /tr http://timestamp.digicert.com /td SHA256 /f $pfxPath /p $env:SIGN_CERT_PASSWORD "dist\installer\ComplianceScannerSetup.exe"
-          Remove-Item $pfxPath -Force
-          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          try {
+            [IO.File]::WriteAllBytes($pfxPath, [Convert]::FromBase64String($env:SIGN_CERT_PFX))
+            $signtool = (Get-ChildItem "C:\Program Files (x86)\Windows Kits\10\bin" -Recurse -Filter signtool.exe |
+              Where-Object { $_.FullName -like "*x64*" } | Sort-Object FullName -Descending | Select-Object -First 1).FullName
+            & $signtool sign /fd SHA256 /tr http://timestamp.digicert.com /td SHA256 /f $pfxPath /p $env:SIGN_CERT_PASSWORD "dist\installer\ComplianceScannerSetup.exe"
+            if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          } finally {
+            if (Test-Path $pfxPath) { Remove-Item $pfxPath -Force }
+          }
 
       - name: Rename installer with version
         shell: bash
