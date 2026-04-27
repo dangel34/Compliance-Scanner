@@ -33,6 +33,18 @@ jobs:
         shell: bash
         run: echo "version=${GITHUB_REF_NAME#v}" >> "$GITHUB_OUTPUT"
 
+      - name: Check for signing certificate
+        id: cert
+        shell: bash
+        env:
+          SIGN_CERT_PFX: ${{ secrets.SIGN_CERT_PFX }}
+        run: |
+          if [ -n "$SIGN_CERT_PFX" ]; then
+            echo "available=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "available=false" >> "$GITHUB_OUTPUT"
+          fi
+
       - name: CLI smoke test
         run: python cli.py --ruleset "rulesets/CMMC Level 1 & 2" --format text --no-fail
         timeout-minutes: 5
@@ -41,7 +53,7 @@ jobs:
         run: python -m PyInstaller compliance_scanner.spec --clean --noconfirm
 
       - name: Sign exe
-        if: ${{ secrets.SIGN_CERT_PFX != '' }}
+        if: steps.cert.outputs.available == 'true'
         shell: pwsh
         env:
           SIGN_CERT_PFX: ${{ secrets.SIGN_CERT_PFX }}
@@ -69,7 +81,7 @@ jobs:
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
       - name: Sign installer
-        if: ${{ secrets.SIGN_CERT_PFX != '' }}
+        if: steps.cert.outputs.available == 'true'
         shell: pwsh
         env:
           SIGN_CERT_PFX: ${{ secrets.SIGN_CERT_PFX }}
