@@ -1,5 +1,10 @@
 # RuleForge
 
+![CI](https://github.com/dangel34/Compliance-Scanner/actions/workflows/ci.yml/badge.svg)
+![Python](https://img.shields.io/badge/python-3.10%2B-blue)
+![Platform](https://img.shields.io/badge/platform-Windows%20%7C%20Linux-lightgrey)
+![License](https://img.shields.io/badge/license-PolyForm%20Noncommercial-orange)
+
 A desktop application that scans Windows, Linux, and Debian systems against CMMC Level 2 control requirements and produces detailed compliance reports. Built as a senior project at Mercyhurst University by Derek Angelini, Connor McBee, and Melanie Fox.
 
 ## Overview
@@ -331,3 +336,9 @@ ui/
   report_html.py            Self-contained HTML report generation
   utils.py                  Shared helpers, path setup, and headless subprocess patch
 ```
+
+## License
+
+This project is licensed under the [PolyForm Noncommercial License 1.0.0](LICENSE).
+
+Free to use for individuals, students, researchers, nonprofits, and government institutions. Commercial use by companies requires explicit written consent from the authors.
