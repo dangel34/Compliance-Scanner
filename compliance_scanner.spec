@@ -2,8 +2,6 @@
 import os
 from PyInstaller.utils.hooks import collect_data_files, collect_submodules
 
-block_cipher = None
-
 # Collect customtkinter theme/asset files
 customtkinter_datas = collect_data_files('customtkinter')
 
@@ -43,13 +41,10 @@ a = Analysis(
     hooksconfig={},
     runtime_hooks=[],
     excludes=[],
-    win_no_prefer_redirects=False,
-    win_private_assemblies=False,
-    cipher=block_cipher,
     noarchive=False,
 )
 
-pyz = PYZ(a.pure, a.zipped_data, cipher=block_cipher)
+pyz = PYZ(a.pure, a.zipped_data)
 
 _icon = 'assets\\icon.ico' if os.path.exists('assets\\icon.ico') else None
 

@@ -80,6 +80,7 @@ The CLI runs the same rule checks and produces the same results as the GUI witho
 | `--output FILE` | — | File path to write the report. Required for `json`, `csv`, and `pdf`. |
 | `--page-size A4\|LETTER` | `A4` | Page size for PDF reports. |
 | `--verbose` / `-v` | off | Print each rule's pass/fail status to stderr as the scan progresses. |
+| `--detail-mode status_only\|full` | from `settings.json` | Override text output detail mode. `status_only` prints bool-style check results; `full` includes full per-check debug output. |
 | `--no-fail` | off | Always exit 0, even when checks fail. Useful for collecting results without blocking a CI pipeline. |
 
 **Exit codes:**
@@ -111,6 +112,12 @@ python cli.py --format json --output report.json
 # Verbose scan with PDF output (useful in CI logs)
 python cli.py --ruleset "rulesets/CMMC Level 1 & 2" --format pdf --output out.pdf --verbose
 
+# Force bool-style text output for quick triage
+python cli.py --format text --detail-mode status_only
+
+# Force full text output for debugging check failures
+python cli.py --format text --detail-mode full
+
 # Collect results in CI without failing the build
 python cli.py --format json --output results.json --no-fail
 ```
@@ -126,6 +133,12 @@ The filter dropdowns above the rule list narrow the list by control family or se
 The bottom bar shows scan progress with an estimated time remaining while a scan is running. When a scan completes, the summary dashboard at the top of the right panel updates with the total count of rules and a per-status breakdown. The compliance score is calculated as the number of passing rules divided by the total number of rules that produced a result, excluding skipped checks.
 
 A **Stop** button appears next to the run controls while a scan is in progress. Clicking it cancels the scan after the current rule finishes, preserving all results collected so far.
+
+In **Settings → Display**, `Result detail mode` controls how check output is shown:
+- `Status Only`: show check status plus a bool-style result (`True`/`False`) for fast triage.
+- `Full Output`: show full check diagnostics (command, expected result, return code, stdout/stderr).
+
+The `Untruncate failed output` setting still applies in full mode and disables line capping for failed/partial/error checks.
 
 **Keyboard shortcuts:**
 
@@ -177,7 +190,11 @@ When a check command begins with `cs_f(`, the scanner executes a Python function
 cs_f(module.function_name)
 ```
 
-Where `module` is a file in `core/custom_functions/` and `function_name` is a callable in that module. The function must return either a boolean or a tuple of `(bool, str)` where the string is the output message. A return value of `True` is treated as a passing result.
+Where `module` is a file in `core/custom_functions/` and `function_name` is a callable in that module. The function may return either:
+- `bool` (legacy/simple format), or
+- `(bool, str)` where the string is a human-readable diagnostic message (preferred).
+
+A `True` result is treated as a pass. The message string (when provided) is surfaced in full-output views to help with compliance troubleshooting.
 
 The existing custom function modules are organized by control family and OS suffix: `_wc` for Windows Client, `_ws` for Windows Server, and `_lx` for Linux and Debian.
 

@@ -16,6 +16,7 @@ Exit codes:
 from __future__ import annotations
 
 import argparse
+import concurrent.futures
 import json
 import logging
 import os
@@ -36,6 +37,11 @@ from ui.utils import RunResult, _safe_str, get_rule_status, setup_logging
 _log = logging.getLogger(__name__)
 
 _NATURAL_SORT_RE = re.compile(r"(\d+)")
+_DEFAULT_SETTINGS: dict[str, object] = {
+    "verbose_output": False,
+    "result_detail_mode": "full",
+    "scan_workers": 2,
+}
 
 def _natural_key(path: str) -> list:
     """Sort key that orders filenames numerically, e.g. 2 before 10."""
@@ -44,6 +50,21 @@ def _natural_key(path: str) -> list:
         int(chunk) if chunk.isdigit() else chunk.lower()
         for chunk in _NATURAL_SORT_RE.split(fname)
     ]
+
+
+def _load_settings() -> dict[str, object]:
+    settings = dict(_DEFAULT_SETTINGS)
+    path = os.path.join(_PROJECT_ROOT, "settings.json")
+    try:
+        with open(path, "r", encoding="utf-8") as f:
+            loaded = json.load(f)
+        if isinstance(loaded, dict):
+            for key in settings:
+                if key in loaded:
+                    settings[key] = loaded[key]
+    except (OSError, json.JSONDecodeError):
+        pass
+    return settings
 
 # ---------------------------------------------------------------------------
 # Rule discovery (no GUI dependency — standalone version)
@@ -87,23 +108,24 @@ def _discover_rule_paths(rules_dir: str) -> list[str]:
 def run_scan(
     rule_paths: list[str],
     verbose: bool = False,
+    max_workers: int = 2,
 ) -> dict[str, RunResult]:
     """Run every rule in *rule_paths* and return a {path: result} dict."""
     results: dict[str, RunResult] = {}
     total = len(rule_paths)
+    detected_os = os_scan()
 
-    for i, path in enumerate(rule_paths, start=1):
-        label = os.path.basename(path)
-        print(f"[{i}/{total}] {label}", file=sys.stderr)
+    def _run_one(path: str) -> RunResult:
         try:
-            r = RuleRunner(rule_path=path, os_type=None).run_checks()
+            return RuleRunner(rule_path=path, os_type=None).run_checks()
         except Exception as exc:
+            label = os.path.basename(path)
             error_msg = _safe_str(f"{type(exc).__name__}: {exc}", max_len=256)
             _log.error("Rule execution error %s: %s", label, error_msg)
-            r = {
+            return {
                 "rule_id":        label,
                 "title":          label,
-                "os":             os_scan(),
+                "os":             detected_os,
                 "checks_run":     0,
                 "checks_skipped": 0,
                 "checks_policy":  0,
@@ -111,11 +133,30 @@ def run_scan(
                 "error":          error_msg,
             }
 
-        results[path] = r
+    if max_workers <= 1 or total <= 1:
+        for i, path in enumerate(rule_paths, start=1):
+            label = os.path.basename(path)
+            print(f"[{i}/{total}] {label}", file=sys.stderr)
+            r = _run_one(path)
+            results[path] = r
+            if verbose:
+                status = get_rule_status(r)
+                print(f"  -> {status}", file=sys.stderr)
+        return results
 
-        if verbose:
-            status = get_rule_status(r)
-            print(f"  -> {status}", file=sys.stderr)
+    completed = 0
+    with concurrent.futures.ThreadPoolExecutor(max_workers=max_workers) as executor:
+        future_to_path = {executor.submit(_run_one, path): path for path in rule_paths}
+        for future in concurrent.futures.as_completed(future_to_path):
+            path = future_to_path[future]
+            completed += 1
+            label = os.path.basename(path)
+            print(f"[{completed}/{total}] {label}", file=sys.stderr)
+            r = future.result()
+            results[path] = r
+            if verbose:
+                status = get_rule_status(r)
+                print(f"  -> {status}", file=sys.stderr)
 
     return results
 
@@ -124,7 +165,10 @@ def run_scan(
 # Output formatters
 # ---------------------------------------------------------------------------
 
-def _print_text_summary(results: dict[str, RunResult]) -> None:
+def _print_text_summary(
+    results: dict[str, RunResult],
+    detail_mode: str = "status_only",
+) -> None:
     """Print a human-readable summary table to stdout."""
     from ui.utils import format_os_name
 
@@ -171,6 +215,43 @@ def _print_text_summary(results: dict[str, RunResult]) -> None:
     print(f"  Compliance score: {score_str}  ({counts['PASS']} / {automated} automated checks)")
     print("=" * 72)
     print()
+
+    for result in results.values():
+        rule_id = _safe_str(result.get("rule_id", ""))
+        title = _safe_str(result.get("title", ""))
+        print(f"Rule: {rule_id} — {title}")
+        print("-" * 72)
+        for idx, check in enumerate(result.get("checks", []), start=1):
+            status = _safe_str(check.get("status", ""))
+            name = _safe_str(check.get("check_name", ""))
+            if status == "POLICY":
+                print(f"[{idx}] POLICY  {name}")
+                continue
+
+            bool_text = "True" if status == "PASS" else "False"
+            print(f"[{idx}] {bool_text:<5} ({status})  {name}")
+
+            if detail_mode != "full":
+                continue
+            command = _safe_str(check.get("command", ""), max_len=4096).strip()
+            expected = _safe_str(check.get("expected_result", ""), max_len=4096).strip()
+            stdout = _safe_str(check.get("stdout", ""), max_len=20000).strip()
+            stderr = _safe_str(check.get("stderr", ""), max_len=20000).strip()
+            returncode = check.get("returncode", "")
+            if command:
+                print(f"    command: {command}")
+            if expected:
+                print(f"    expected: {expected}")
+            print(f"    returncode: {returncode}")
+            if stdout:
+                print("    stdout:")
+                for line in stdout.splitlines():
+                    print(f"      {line}")
+            if stderr:
+                print("    stderr:")
+                for line in stderr.splitlines():
+                    print(f"      {line}")
+        print()
 
 
 def _write_json(save_path: str, results: dict[str, RunResult]) -> None:
@@ -262,6 +343,15 @@ def _build_parser() -> argparse.ArgumentParser:
         help="Print each rule's status to stderr as the scan runs.",
     )
     parser.add_argument(
+        "--detail-mode",
+        choices=["status_only", "full"],
+        help=(
+            "Override text output detail mode. "
+            "'status_only' shows bool-style results; "
+            "'full' includes full check output."
+        ),
+    )
+    parser.add_argument(
         "--no-fail",
         action="store_true",
         help="Always exit 0, even when checks fail. Useful in CI to collect results without blocking.",
@@ -273,6 +363,13 @@ def main() -> None:
     setup_logging()
     parser = _build_parser()
     args = parser.parse_args()
+    settings = _load_settings()
+
+    detail_mode = str(settings.get("result_detail_mode", "status_only")).strip().lower()
+    if args.detail_mode:
+        detail_mode = args.detail_mode
+    if detail_mode not in ("status_only", "full"):
+        detail_mode = "status_only"
 
     # Validate output argument
     if args.format != "text" and not args.output:
@@ -291,11 +388,16 @@ def main() -> None:
     print(file=sys.stderr)
 
     # Run scan
-    results = run_scan(rule_paths, verbose=args.verbose)
+    scan_workers = settings.get("scan_workers", 2)
+    try:
+        scan_workers = max(1, int(scan_workers))
+    except (TypeError, ValueError):
+        scan_workers = 2
+    results = run_scan(rule_paths, verbose=args.verbose, max_workers=scan_workers)
 
     # Output
     if args.format == "text":
-        _print_text_summary(results)
+        _print_text_summary(results, detail_mode=detail_mode)
     elif args.format == "json":
         _write_json(args.output, results)
         print(f"JSON report written to {args.output}", file=sys.stderr)

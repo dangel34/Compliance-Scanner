@@ -11,6 +11,7 @@ Rendering and export logic live in the ui sub-modules:
 from __future__ import annotations
 
 import datetime
+import concurrent.futures
 import json
 import logging
 import os
@@ -220,32 +221,69 @@ def run_rules_blocking(
     progress_cb:  Optional[callable] = None,
     result_cb:    Optional[callable] = None,
     cancel_event: Optional[threading.Event] = None,
+    max_workers: int = 2,
 ) -> Dict[str, RunResult]:
     results: Dict[str, RunResult] = {}
     total = len(rule_paths)
-    for i, path in enumerate(rule_paths, start=1):
-        if cancel_event and cancel_event.is_set():
-            break
-        if progress_cb:
-            progress_cb(i, total, path)
+    detected_os = os_scan()
+    if max_workers <= 1 or total <= 1:
+        for i, path in enumerate(rule_paths, start=1):
+            if cancel_event and cancel_event.is_set():
+                break
+            if progress_cb:
+                progress_cb(i, total, path)
+            try:
+                r = RuleRunner(rule_path=path, os_type=None).run_checks()
+            except Exception as e:
+                error_msg = _safe_str(type(e).__name__ + ": " + str(e), max_len=256)
+                _log.error("Rule execution error: %s: %s", os.path.basename(path), error_msg)
+                r = {
+                    "rule_id":        os.path.basename(path),
+                    "title":          os.path.basename(path),
+                    "os":             detected_os,
+                    "checks_run":     0,
+                    "checks_skipped": 0,
+                    "checks_policy":  0,
+                    "checks":         [],
+                    "error":          error_msg,
+                }
+            results[path] = r
+            if result_cb:
+                result_cb(path, r)
+        return results
+
+    def _run_one(path: str) -> RunResult:
         try:
-            r = RuleRunner(rule_path=path, os_type=None).run_checks()
+            return RuleRunner(rule_path=path, os_type=None).run_checks()
         except Exception as e:
             error_msg = _safe_str(type(e).__name__ + ": " + str(e), max_len=256)
             _log.error("Rule execution error: %s: %s", os.path.basename(path), error_msg)
-            r = {
+            return {
                 "rule_id":        os.path.basename(path),
                 "title":          os.path.basename(path),
-                "os":             os_scan(),
+                "os":             detected_os,
                 "checks_run":     0,
                 "checks_skipped": 0,
                 "checks_policy":  0,
                 "checks":         [],
                 "error":          error_msg,
             }
-        results[path] = r
-        if result_cb:
-            result_cb(path, r)
+
+    completed = 0
+    with concurrent.futures.ThreadPoolExecutor(max_workers=max_workers) as executor:
+        future_to_path = {executor.submit(_run_one, path): path for path in rule_paths}
+        for future in concurrent.futures.as_completed(future_to_path):
+            if cancel_event and cancel_event.is_set():
+                for pending in future_to_path:
+                    pending.cancel()
+                break
+            path = future_to_path[future]
+            completed += 1
+            if progress_cb:
+                progress_cb(completed, total, path)
+            results[path] = future.result()
+            if result_cb:
+                result_cb(path, results[path])
     return results
 
 
@@ -432,6 +470,9 @@ _SETTINGS_DEFAULTS: Dict[str, Any] = {
     "theme":                   "dark",
     "default_export_dir":      "",
     "auto_expand_categories":  False,
+    "verbose_output":          False,
+    "result_detail_mode":      "full",
+    "scan_workers":            2,
     "pdf_page_size":           "A4",
 }
 
@@ -851,6 +892,22 @@ class RuleForgeApp(ctk.CTk):
             self._settings_auto_expand.select()
         self._settings_auto_expand.pack(side="left")
 
+        row = setting_row("Untruncate failed output")
+        self._settings_verbose_output = ctk.CTkSwitch(row, text="", width=46)
+        if self._settings.get("verbose_output"):
+            self._settings_verbose_output.select()
+        self._settings_verbose_output.pack(side="left")
+
+        row = setting_row("Result detail mode")
+        self._settings_result_detail_mode = ctk.CTkSegmentedButton(
+            row, values=["Status Only", "Full Output"], width=220
+        )
+        current_mode = self._settings.get("result_detail_mode", "full")
+        self._settings_result_detail_mode.set(
+            "Status Only" if current_mode == "status_only" else "Full Output"
+        )
+        self._settings_result_detail_mode.pack(side="left")
+
         # ── Reports ───────────────────────────────────────────────────
         section_header("Reports")
 
@@ -878,10 +935,16 @@ class RuleForgeApp(ctk.CTk):
             self._settings_export_entry.insert(0, directory)
 
     def _apply_settings(self) -> None:
-        new_theme  = "dark" if self._settings_theme_menu.get() == "Dark" else "light"
-        export_dir = self._settings_export_entry.get().strip()
-        auto_exp   = bool(self._settings_auto_expand.get())
-        pdf_size   = self._settings_pdf_size.get()
+        new_theme   = "dark" if self._settings_theme_menu.get() == "Dark" else "light"
+        export_dir  = self._settings_export_entry.get().strip()
+        auto_exp    = bool(self._settings_auto_expand.get())
+        verbose_out = bool(self._settings_verbose_output.get())
+        detail_mode = (
+            "status_only"
+            if self._settings_result_detail_mode.get() == "Status Only"
+            else "full"
+        )
+        pdf_size    = self._settings_pdf_size.get()
 
         # Apply theme if it changed
         if new_theme != self.theme:
@@ -896,9 +959,28 @@ class RuleForgeApp(ctk.CTk):
         self._settings["theme"]                  = new_theme
         self._settings["default_export_dir"]     = export_dir
         self._settings["auto_expand_categories"] = auto_exp
+        self._settings["verbose_output"]         = verbose_out
+        self._settings["result_detail_mode"]     = detail_mode
         self._settings["pdf_page_size"]          = pdf_size
         self._save_settings()
+        self._refresh_selected_rule_details()
         self.set_status("Settings saved.")
+
+    def _current_detail_mode(self) -> str:
+        mode = str(self._settings.get("result_detail_mode", "full")).strip().lower()
+        return mode if mode in ("status_only", "full") else "full"
+
+    def _refresh_selected_rule_details(self) -> None:
+        if not self.selected_rule_path:
+            return
+        result = self.results_by_path.get(self.selected_rule_path)
+        if result:
+            render_rule_details(
+                self.details_text,
+                result,
+                verbose=self._settings.get("verbose_output", False),
+                detail_mode=self._current_detail_mode(),
+            )
 
     # ------------------------------------------------------------------
     def _update_summary_display(
@@ -1172,7 +1254,12 @@ class RuleForgeApp(ctk.CTk):
 
         result = self.results_by_path.get(rule_path)
         if result:
-            render_rule_details(self.details_text, result)
+            render_rule_details(
+                self.details_text,
+                result,
+                verbose=self._settings.get("verbose_output", False),
+                detail_mode=self._current_detail_mode(),
+            )
         else:
             render_rule_info(self.details_text, rule_path)
 
@@ -1241,7 +1328,12 @@ class RuleForgeApp(ctk.CTk):
                 section.highlight_selected(path, self.results_by_path)
         self._recompute_summary()
         if path == self.selected_rule_path:
-            render_rule_details(self.details_text, result)
+            render_rule_details(
+                self.details_text,
+                result,
+                verbose=self._settings.get("verbose_output", False),
+                detail_mode=self._current_detail_mode(),
+            )
 
     def _on_selected_rule_done(self, result: RunResult):
         self.running = False
@@ -1258,7 +1350,12 @@ class RuleForgeApp(ctk.CTk):
             section.highlight_selected(path, self.results_by_path)
         self._recompute_summary()
         self._update_progress(1.0)
-        render_rule_details(self.details_text, result)
+        render_rule_details(
+            self.details_text,
+            result,
+            verbose=self._settings.get("verbose_output", False),
+            detail_mode=self._current_detail_mode(),
+        )
         self.set_status("Done")
         self._set_controls_enabled(True)
 
@@ -1309,6 +1406,7 @@ class RuleForgeApp(ctk.CTk):
                 progress_cb=progress_cb,
                 result_cb=result_cb,
                 cancel_event=self._cancel_event,
+                max_workers=max(1, int(self._settings.get("scan_workers", 2))),
             )
             elapsed = time.monotonic() - _scan_start[0]
             cancelled = self._cancel_event.is_set()
@@ -1339,7 +1437,12 @@ class RuleForgeApp(ctk.CTk):
             else next(iter(results.values()), None)
         )
         if result_to_show:
-            render_rule_details(self.details_text, result_to_show)
+            render_rule_details(
+                self.details_text,
+                result_to_show,
+                verbose=self._settings.get("verbose_output", False),
+                detail_mode=self._current_detail_mode(),
+            )
 
     # ------------------------------------------------------------------
     def _run_export(

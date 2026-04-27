@@ -2,7 +2,9 @@
 ; Build with: ISCC.exe installer.iss  (or via build.bat)
 
 #define AppName      "RuleForge"
-#define AppVersion   "1.0.0"
+#ifndef AppVersion
+  #define AppVersion "1.0.0"
+#endif
 #define AppPublisher "Derek Angelini, Connor McBee, and Melanie Fox"
 #define AppExeName   "RuleForge.exe"
 #define SourceDir    "dist\ComplianceScanner"

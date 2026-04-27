@@ -13,6 +13,7 @@ import importlib
 from typing import List, Dict, Any, Optional
 
 _log = logging.getLogger(__name__)
+_CUSTOM_FUNCTION_EXECUTOR = concurrent.futures.ThreadPoolExecutor(max_workers=4)
 
 # Project root (parent of core/)
 if getattr(sys, 'frozen', False):
@@ -122,12 +123,9 @@ class RuleRunner:
 
             func = getattr(module, func_name)
 
-            # Run with a 60-second timeout — same budget as shell commands.
-            # shutdown(wait=False) lets the stray thread die naturally without
-            # blocking the scan when the timeout fires.
-            executor = concurrent.futures.ThreadPoolExecutor(max_workers=1)
-            future   = executor.submit(func)
-            executor.shutdown(wait=False)
+            # Reuse a shared executor to avoid per-check thread churn.
+            # Timeout behavior remains unchanged.
+            future = _CUSTOM_FUNCTION_EXECUTOR.submit(func)
             try:
                 result = future.result(timeout=60)
             except concurrent.futures.TimeoutError:
@@ -200,6 +198,7 @@ class RuleRunner:
                     results.append({
                         "check_name": name,
                         "sub_control": sub_control,
+                        "purpose": check.get("purpose", ""),
                         "command": f"check_service({service_name})",
                         "expected_result": check.get("expected_result", ""),
                         "status": "PASS" if out else "FAIL",
@@ -211,6 +210,7 @@ class RuleRunner:
                     results.append({
                         "check_name": name,
                         "sub_control": sub_control,
+                        "purpose": check.get("purpose", ""),
                         "command": f"check_service({service_name})",
                         "expected_result": check.get("expected_result", ""),
                         "status": "FAIL",
@@ -225,6 +225,7 @@ class RuleRunner:
                     results.append({
                         "check_name": name,
                         "sub_control": sub_control,
+                        "purpose": check.get("purpose", ""),
                         "command": f"check_file_permissions({path})",
                         "expected_result": check.get("expected_result", ""),
                         "status": "PASS" if out else "FAIL",
@@ -236,6 +237,7 @@ class RuleRunner:
                     results.append({
                         "check_name": name,
                         "sub_control": sub_control,
+                        "purpose": check.get("purpose", ""),
                         "command": f"check_file_permissions({path})",
                         "expected_result": check.get("expected_result", ""),
                         "status": "FAIL",
@@ -256,6 +258,7 @@ class RuleRunner:
                 results.append({
                     "check_name": name,
                     "sub_control": sub_control,
+                    "purpose": check.get("purpose", ""),
                     "command": cmd,
                     "expected_result": check.get("expected_result", ""),
                     "status": "PASS" if passed else "FAIL",

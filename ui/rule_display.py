@@ -142,7 +142,12 @@ def render_placeholder(widget: tk.Text, message: str) -> None:
     widget.configure(state="disabled")
 
 
-def render_rule_details(widget: tk.Text, result: RunResult) -> None:
+def render_rule_details(
+    widget: tk.Text,
+    result: RunResult,
+    verbose: bool = False,
+    detail_mode: str = "full",
+) -> None:
     """
     Clear *widget* and write a color-formatted rule result.
     Batches all text into a single list and inserts in one pass per tag
@@ -155,6 +160,9 @@ def render_rule_details(widget: tk.Text, result: RunResult) -> None:
 
     def w(text: str, tag: str = "value") -> None:
         segments.append((text, tag))
+
+    detail_mode = (detail_mode or "full").strip().lower()
+    show_full = detail_mode == "full"
 
     if "error" in result:
         w("\n  ERROR\n",                                  "error_banner")
@@ -196,6 +204,9 @@ def render_rule_details(widget: tk.Text, result: RunResult) -> None:
             w(f"  CHECK #{i}  |  {check.get('check_name', '')}\n", "check_header")
             w("  Subcontrol       : ", "label"); w(f"{check.get('sub_control', '')}\n", "value")
             w("  Status           : ", "label"); w(f"{chk_status}\n", chk_tag)
+            if not show_full and chk_status != "POLICY":
+                bool_text = "True" if chk_status == "PASS" else "False"
+                w("  Result           : ", "label"); w(f"{bool_text}\n", "value")
 
             if chk_status == "POLICY":
                 purpose = check.get("stdout", "").strip()  # purpose stored in stdout field
@@ -204,26 +215,36 @@ def render_rule_details(widget: tk.Text, result: RunResult) -> None:
                     for line in purpose.splitlines():
                         w(f"    {line}\n", "policy_text")
             else:
-                w("  Command          : ", "label"); w(f"{check.get('command',         '')}\n", "value")
-                w("  Expected result  : ", "label"); w(f"{check.get('expected_result', '')}\n", "value")
-                w("  Return code      : ", "label"); w(f"{check.get('returncode',      '')}\n", "value")
+                purpose = check.get("purpose", "").strip()
+                if show_full and purpose:
+                    w("\n  Purpose:\n", "policy_label")
+                    for line in purpose.splitlines():
+                        w(f"    {line}\n", "policy_text")
+                    w("\n")
+                if show_full:
+                    w("  Command          : ", "label"); w(f"{check.get('command',         '')}\n", "value")
+                    w("  Expected result  : ", "label"); w(f"{check.get('expected_result', '')}\n", "value")
+                    w("  Return code      : ", "label"); w(f"{check.get('returncode',      '')}\n", "value")
 
-                stdout = check.get("stdout", "").strip()
-                stderr = check.get("stderr", "").strip()
-                if stdout:
-                    w("\n  stdout:\n", "stdout_label")
-                    lines = stdout.splitlines()
-                    for line in lines[:_MAX_OUTPUT_LINES]:
-                        w(f"    {line}\n", "stdout_text")
-                    if len(lines) > _MAX_OUTPUT_LINES:
-                        w(f"    … {len(lines) - _MAX_OUTPUT_LINES} more lines truncated\n", "meta")
-                if stderr:
-                    w("\n  stderr:\n", "stderr_label")
-                    lines = stderr.splitlines()
-                    for line in lines[:_MAX_OUTPUT_LINES]:
-                        w(f"    {line}\n", "stderr_text")
-                    if len(lines) > _MAX_OUTPUT_LINES:
-                        w(f"    … {len(lines) - _MAX_OUTPUT_LINES} more lines truncated\n", "meta")
+                    stdout = check.get("stdout", "").strip()
+                    stderr = check.get("stderr", "").strip()
+                    untruncated = verbose and chk_status in ("FAIL", "ERROR", "PARTIAL")
+                    if stdout:
+                        w("\n  stdout:\n", "stdout_label")
+                        lines = stdout.splitlines()
+                        cap = len(lines) if untruncated else _MAX_OUTPUT_LINES
+                        for line in lines[:cap]:
+                            w(f"    {line}\n", "stdout_text")
+                        if len(lines) > cap:
+                            w(f"    … {len(lines) - cap} more lines truncated\n", "meta")
+                    if stderr:
+                        w("\n  stderr:\n", "stderr_label")
+                        lines = stderr.splitlines()
+                        cap = len(lines) if untruncated else _MAX_OUTPUT_LINES
+                        for line in lines[:cap]:
+                            w(f"    {line}\n", "stderr_text")
+                        if len(lines) > cap:
+                            w(f"    … {len(lines) - cap} more lines truncated\n", "meta")
 
             w("\n")
             w(_DIVIDER, "divider")

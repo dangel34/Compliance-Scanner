@@ -2,5 +2,8 @@
   "theme": "dark",
   "default_export_dir": "",
   "auto_expand_categories": false,
+  "verbose_output": true,
+  "result_detail_mode": "full",
+  "scan_workers": 2,
   "pdf_page_size": "A4"
 }

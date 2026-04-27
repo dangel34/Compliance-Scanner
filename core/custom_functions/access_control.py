@@ -2,8 +2,19 @@ import subprocess
 import json
 import re
 import sys
+import inspect
+from functools import wraps
+
+_RUN_CACHE: dict[str, dict[str, object]] = {}
 
 def run_command(cmd: str):
+    cached = _RUN_CACHE.get(cmd)
+    if cached is not None:
+        return {
+            "stdout": str(cached["stdout"]),
+            "stderr": str(cached["stderr"]),
+            "returncode": int(cached["returncode"]),
+        }
     try:
         ps_match = re.match(
             r'^\s*powershell(?:\.exe)?\s+-NoProfile\s+-Command\s+"(.*)"\s*$',
@@ -22,17 +33,76 @@ def run_command(cmd: str):
             text=True,
             timeout=60
         )
-        return {
+        output = {
             "stdout": result.stdout.strip(),
             "stderr": result.stderr.strip(),
             "returncode": result.returncode
         }
+        _RUN_CACHE[cmd] = output
+        return output
     except Exception as e:
-        return {
+        output = {
             "stdout": "",
             "stderr": str(e),
             "returncode": -1
         }
+        _RUN_CACHE[cmd] = output
+        return output
+
+
+def _format_check_name(name: str) -> str:
+    return name.replace("_", " ")
+
+
+def _coerce_check_result(name: str, result) -> tuple[bool, str]:
+    if (
+        isinstance(result, tuple)
+        and len(result) == 2
+        and isinstance(result[0], bool)
+        and isinstance(result[1], str)
+    ):
+        return result
+
+    if isinstance(result, bool):
+        status = "passed" if result else "failed"
+        return result, f"{_format_check_name(name)} {status}"
+
+    return False, (
+        f"{_format_check_name(name)} returned unexpected result type: "
+        f"{type(result).__name__}"
+    )
+
+
+def _wrap_bool_output(func):
+    @wraps(func)
+    def _wrapper(*args, **kwargs) -> tuple[bool, str]:
+        try:
+            result = func(*args, **kwargs)
+        except Exception as exc:
+            return False, f"{_format_check_name(func.__name__)} error: {exc}"
+        return _coerce_check_result(func.__name__, result)
+
+    _wrapper.__annotations__["return"] = tuple[bool, str]
+    return _wrapper
+
+
+def _normalize_check_outputs() -> None:
+    excluded = {
+        "run_command",
+        "_format_check_name",
+        "_coerce_check_result",
+        "_wrap_bool_output",
+        "_normalize_check_outputs",
+    }
+    for name, obj in list(globals().items()):
+        if name in excluded:
+            continue
+        if (
+            inspect.isfunction(obj)
+            and obj.__module__ == __name__
+            and re.search(r"_(wc|ws|lx)$", name)
+        ):
+            globals()[name] = _wrap_bool_output(obj)
 
 
 def process_identity_wc():
@@ -10211,4 +10281,7 @@ def portable_storage_limit_lx() -> bool:
 
         except Exception:
             return False
+
+
+_normalize_check_outputs()
 
