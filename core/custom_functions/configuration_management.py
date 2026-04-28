@@ -6,6 +6,11 @@ from pathlib import Path
 _RUN_CACHE: dict[tuple[object, object, int], tuple[int, str, str]] = {}
 
 
+def clear_cache() -> None:
+    """Clear the command result cache so the next scan gets fresh results."""
+    _RUN_CACHE.clear()
+
+
 def _cmd_cache_key(cmd) -> object:
     if isinstance(cmd, (list, tuple)):
         return tuple(str(part) for part in cmd)

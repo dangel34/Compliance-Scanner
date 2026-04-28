@@ -159,11 +159,10 @@ Progress lines (e.g. `[1/74] AC.L2-3.1.1.json`) are written to stderr so they do
 
 The left panel lists all discovered rules grouped by control family. Click a category header to expand it and see the individual rules. Click a rule name to preview its metadata, including the checks it will run and the remediation guidance for that control.
 
-Three controls above the rule list narrow what is shown:
+Four controls above the rule list narrow what is shown:
 
-- Category and severity dropdowns filter rules before a scan (same as before).
 - The search box filters rules by ID or title as you type.
-- The status dropdown (All, PASS, FAIL, PARTIAL, POLICY, SKIP, ERROR) filters rules by their scan result after a scan runs. Only rules that have been scanned are shown when a status other than All is selected.
+- Below the search box, three compact dropdowns sit in one row: **Category**, **Severity**, and **Status**. Category and severity filter before a scan; the status dropdown (All, PASS, FAIL, PARTIAL, POLICY, SKIP, ERROR) filters by scan result after a scan runs. Only rules that have been scanned appear when a status other than All is selected.
 
 The bottom bar shows scan progress with an estimated time remaining while a scan is running. When a scan completes, the summary dashboard at the top of the right panel updates with the total count of rules and a per-status breakdown. The compliance score is calculated as the number of passing rules divided by the total number of rules that produced a result, excluding skipped checks.
 
@@ -206,7 +205,7 @@ Settings are saved to `settings.json` automatically when you click **Apply** in 
 
 ## Rule Files
 
-Rules are stored as JSON files under `rulesets/CMMC Level 1 & 2/`. Each file defines one CMMC control and contains separate check lists for each supported operating system. The file must conform to the schema defined in `rulesets/rule_schema.json`.
+Rules are stored as JSON files organised into category subfolders under each framework directory. For example: `rulesets/CMMC Level 1 & 2/Access Control/AC.L2-3.1.1.json`. The GUI uses the category subfolder name as the group label; the CLI uses the `category` field inside the JSON. Each file defines one control and contains separate check lists for each supported operating system. Files must conform to the schema defined in `rulesets/rule_schema.json`.
 
 The required top-level fields are:
 
@@ -215,7 +214,7 @@ id              Unique rule identifier matching the CMMC control number (e.g. AC
 control_number  Same as id
 title           Human-readable control title
 description     Full description of the requirement
-category        Control family abbreviation: AC, AU, CM, IA, SC, or SI
+category        Control family abbreviation (e.g. AC, AU, CM, IA, SC, SI). Used by the CLI --filter-category flag; the GUI derives the displayed group name from the containing subfolder.
 target_os       Array of operating systems this rule applies to
 check_details   Per-OS check definitions (see below)
 severity        One of: Critical, High, Medium, Low
@@ -245,7 +244,7 @@ purpose         Why this check is required
 
 A command value of `"NA"` causes the check to be skipped and counted separately from run checks in the results.
 
-To add a new rule, copy `rulesets/rule_template.json`, fill in the fields, and place the file in `rulesets/CMMC Level 1 & 2/` (or a custom sub-folder). The application will pick it up automatically on the next launch or when Refresh Rules is clicked.
+To add a new rule, copy `rulesets/rule_template.json`, fill in the fields, and place the file in the appropriate category subfolder (e.g. `rulesets/CMMC Level 1 & 2/Access Control/`). Create the subfolder if it does not exist — the GUI will use the folder name as the category label. The application picks up new files automatically on the next launch or when Refresh Rules is clicked.
 
 ## Custom Check Functions
 
@@ -323,8 +322,19 @@ core/
   custom_functions/         Per-family Python check functions
 
 rulesets/
-  CMMC Level 1 & 2/        94 JSON rule files
-  SOC 2/                   SOC 2 rule files
+  CMMC Level 1 & 2/
+    Access Control/         AC rules
+    Audit and Accountability/
+    Configuration Management/
+    Identification and Authentication/
+    Incident Response/
+    Maintenance/
+    Media Protection/
+    Security Assessment/
+    System Communications Protection/
+    System and Information Integrity/
+  SOC 2/
+    Common Controls/        SOC 2 rules
   rule_schema.json          JSON Schema that all rule files must satisfy
   rule_template.json        Starting point for new rules
 

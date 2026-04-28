@@ -104,6 +104,83 @@ class TestRunChecks:
         assert result["rule_id"] == "TEST.01"
 
 
+class TestRunCommand:
+    """RuleRunner.run_command() — direct execution (not mocked)."""
+
+    def test_returns_required_keys(self, sample_rule_path):
+        runner = RuleRunner(rule_path=sample_rule_path, os_type="windows_client")
+        import subprocess
+        with patch("subprocess.run", return_value=MagicMock(
+            stdout="hello\n", stderr="", returncode=0
+        )):
+            result = runner.run_command("echo hello")
+        for key in ("stdout", "stderr", "returncode"):
+            assert key in result
+
+    def test_timeout_returns_minus_one(self, sample_rule_path):
+        runner = RuleRunner(rule_path=sample_rule_path, os_type="windows_client")
+        import subprocess as sp
+        with patch("subprocess.run", side_effect=sp.TimeoutExpired(cmd="x", timeout=60)):
+            result = runner.run_command("echo slow")
+        assert result["returncode"] == -1
+        assert "timed out" in result["stderr"]
+
+    def test_exception_returns_minus_one(self, sample_rule_path):
+        runner = RuleRunner(rule_path=sample_rule_path, os_type="windows_client")
+        with patch("subprocess.run", side_effect=OSError("no shell")):
+            result = runner.run_command("echo boom")
+        assert result["returncode"] == -1
+        assert "no shell" in result["stderr"]
+
+    def test_nonzero_returncode_captured(self, sample_rule_path):
+        runner = RuleRunner(rule_path=sample_rule_path, os_type="windows_client")
+        with patch("subprocess.run", return_value=MagicMock(
+            stdout="", stderr="bad command", returncode=1
+        )):
+            result = runner.run_command("bad_cmd")
+        assert result["returncode"] == 1
+
+
+class TestRunChecksWithCsF:
+    """run_checks() must dispatch cs_f(...) commands through run_custom_function, not run_command."""
+
+    def test_csf_command_dispatched_to_custom_function(self, tmp_path):
+        rule = {
+            "id": "CSF.01", "rule_id": "CSF.01", "title": "CSF test",
+            "check_details": {
+                "windows_client": {
+                    "checks": [
+                        {
+                            "name": "custom fn check",
+                            "sub_control": "1.1",
+                            "check_type": "command",
+                            "command": "cs_f(mymod.my_func)",
+                            "expected_result": "pass",
+                        }
+                    ]
+                }
+            }
+        }
+        import json, os
+        rule_file = tmp_path / "csf_rule.json"
+        rule_file.write_text(json.dumps(rule), encoding="utf-8")
+
+        runner = RuleRunner(rule_path=str(rule_file), os_type="windows_client", scanner=MagicMock())
+
+        custom_fn_called = []
+
+        def fake_custom(func_call):
+            custom_fn_called.append(func_call)
+            return {"stdout": "ok", "stderr": "", "returncode": 0}
+
+        with patch.object(runner, "run_custom_function", side_effect=fake_custom):
+            with patch.object(runner, "run_command") as mock_cmd:
+                runner.run_checks()
+
+        assert custom_fn_called, "run_custom_function must be called for cs_f() commands"
+        mock_cmd.assert_not_called()
+
+
 class TestRunCustomFunction:
     def test_tuple_success(self, sample_rule_path):
         runner = RuleRunner(rule_path=sample_rule_path, os_type="windows_client")

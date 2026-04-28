@@ -7,6 +7,12 @@ from functools import wraps
 
 _RUN_CACHE: dict[str, dict[str, object]] = {}
 
+
+def clear_cache() -> None:
+    """Clear the command result cache so the next scan gets fresh results."""
+    _RUN_CACHE.clear()
+
+
 def run_command(cmd: str):
     cached = _RUN_CACHE.get(cmd)
     if cached is not None:
@@ -107,39 +113,88 @@ def _normalize_check_outputs() -> None:
 
 def process_identity_wc():
     result = run_command('powershell -NoProfile -Command "Get-CimInstance Win32_Service | Select Name,StartName,State | ConvertTo-Json -Compress"')
-    service_list = json.loads(result['stdout'])
+    if result['returncode'] != 0:
+        return False
+    try:
+        service_list = json.loads(result['stdout'])
+    except (json.JSONDecodeError, ValueError):
+        return False
+    if isinstance(service_list, dict):
+        service_list = [service_list]
     for svc in service_list:
-        if not svc["StartName"]:
-            return False # Found a Blank
-    return True # Found no blanks
+        if not svc.get("StartName"):
+            return False  # Found a blank StartName
+    return True  # All services have a named identity
 
 def authorized_user_ws():
-    result = run_command('powershell -NoProfile -Command "Get-ADUser -Filter * -Properties Enabled | Select Name, Enabled"')
+    """
+    AC.L2-3.1.1a - Authorized Users are Identified (Windows Server / Domain)
+    Verifies the AD user list is queryable AND that at least one enabled,
+    non-system account exists. Simply succeeding at the query is not enough —
+    the output must confirm real named users are present.
+    """
+    result = run_command(
+        'powershell -NoProfile -Command "Get-ADUser -Filter * -Properties Enabled'
+        " | Select-Object Name, Enabled | ConvertTo-Json -Compress\""
+    )
     if result['returncode'] != 0:
-        return False
-    return True
+        return False, f"Get-ADUser query failed: {result['stderr']}"
+    try:
+        users = json.loads(result['stdout'])
+        if isinstance(users, dict):
+            users = [users]
+    except (json.JSONDecodeError, ValueError):
+        return False, "Could not parse AD user list JSON"
+
+    # System/built-in accounts that should not count as 'authorized named users'
+    system_accounts = {"guest", "krbtgt", "defaultaccount"}
+    named_enabled = [
+        u for u in users
+        if u.get("Enabled") is True
+        and (u.get("Name") or "").lower() not in system_accounts
+    ]
+    if named_enabled:
+        return True, f"{len(named_enabled)} enabled named domain user(s) identified"
+    return False, "No enabled named domain users found; only system accounts exist"
 
 def domain_joined_wc():
+    # PartOfDomain returns "True" or "False" reliably — much safer than checking
+    # whether a "." appears in the Domain field, which could match error text or IPs.
     result = run_command(
-        'powershell -NoProfile -Command "Get-WmiObject Win32_ComputerSystem | Select Name, Domain"')
-    if "." not in result['stdout']:
-        return False
-    else:
-        return True
-
-def system_access_wc(): # Chat Ran in elevated Privilages
-    parse_cmd = r'Select-String "SeInteractiveLogonRight","SeRemoteInteractiveLogonRight" C:\secpol.cfg'
-    create_log = run_command(
-        r'powershell -NoProfile -Command "secedit /export /cfg C:\secpol.cfg"')
-    result = run_command(
-        f'powershell -NoProfile -Command "{parse_cmd}"')
-    remove_cmd = r'powershell -NoProfile -Command "rm C:\secpol.cfg"'
+        'powershell -NoProfile -Command "(Get-WmiObject Win32_ComputerSystem).PartOfDomain"'
+    )
     if result['returncode'] != 0:
-        run_command(remove_cmd)
         return False
-    else:
-        run_command(remove_cmd)
-        return True
+    return result['stdout'].strip().lower() == "true"
+
+def system_access_wc():  # Requires elevated privileges
+    """Check that interactive logon rights are explicitly assigned."""
+    import os as _os
+    import time as _time
+    # Unique path per call: avoids collision between concurrent rule executions.
+    # Uses subprocess directly (not run_command) so file-I/O is never cached.
+    tmp_dir = _os.environ.get("TEMP") or _os.environ.get("TMP") or "C:\\Windows\\Temp"
+    cfg_path = _os.path.join(tmp_dir, f"secpol_{_os.getpid()}_{_time.monotonic_ns()}.cfg")
+    try:
+        export = subprocess.run(
+            ["powershell", "-NonInteractive", "-NoProfile", "-Command",
+             f"secedit /export /cfg '{cfg_path}'"],
+            capture_output=True, text=True, timeout=30,
+        )
+        if export.returncode != 0:
+            return False
+        parse = subprocess.run(
+            ["powershell", "-NonInteractive", "-NoProfile", "-Command",
+             f"Select-String 'SeInteractiveLogonRight','SeRemoteInteractiveLogonRight' '{cfg_path}'"],
+            capture_output=True, text=True, timeout=30,
+        )
+        return parse.returncode == 0
+    finally:
+        subprocess.run(
+            ["powershell", "-NonInteractive", "-NoProfile", "-Command",
+             f"if (Test-Path '{cfg_path}') {{ Remove-Item -Force '{cfg_path}' }}"],
+            capture_output=True, timeout=10,
+        )
 
 
 

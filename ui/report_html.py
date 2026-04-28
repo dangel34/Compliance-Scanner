@@ -39,7 +39,7 @@ summary{padding:12px 16px;cursor:pointer;list-style:none;
 summary::-webkit-details-marker{display:none}
 summary::before{content:"\\25B6";font-size:10px;color:#888;flex-shrink:0}
 details[open] summary::before{content:"\\25BC"}
-.checks-tbl{width:100%;border-collapse:collapse;font-size:13px;
+.checks-tbl{border-collapse:collapse;font-size:13px;
             margin:0 16px 12px 16px;width:calc(100% - 32px)}
 .checks-tbl th{background:#f1f3f5;padding:6px 10px;text-align:left;
                border-bottom:1px solid #dee2e6}

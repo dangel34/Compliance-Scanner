@@ -155,6 +155,9 @@ def run_scan(
     max_workers: int = 2,
 ) -> dict[str, RunResult]:
     """Run every rule in *rule_paths* and return a {path: result} dict."""
+    from core.custom_functions import clear_all_caches
+    clear_all_caches()
+
     results: dict[str, RunResult] = {}
     total = len(rule_paths)
     detected_os = os_scan()
@@ -274,6 +277,14 @@ def _print_text_summary(
     print("=" * 72)
     print()
 
+    _STATUS_LABEL_SHORT = {
+        "PASS":    "True ",
+        "FAIL":    "False",
+        "PARTIAL": "Part ",
+        "SKIP":    "Skip ",
+        "ERROR":   "Error",
+    }
+
     for result in results.values():
         rule_id = _safe_str(result.get("rule_id", ""))
         title = _safe_str(result.get("title", ""))
@@ -286,7 +297,7 @@ def _print_text_summary(
                 print(f"[{idx}] POLICY  {name}")
                 continue
 
-            bool_text = "True" if status == "PASS" else "False"
+            bool_text = _STATUS_LABEL_SHORT.get(status, status[:5])
             print(f"[{idx}] {bool_text:<5} ({status})  {name}")
 
             if detail_mode != "full":

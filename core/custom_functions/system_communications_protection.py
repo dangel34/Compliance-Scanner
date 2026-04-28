@@ -18,6 +18,11 @@ from pathlib import Path
 _RUN_CACHE: dict[tuple[object, bool, int], tuple[int, str, str]] = {}
 
 
+def clear_cache() -> None:
+    """Clear the command result cache so the next scan gets fresh results."""
+    _RUN_CACHE.clear()
+
+
 def _run(cmd: str, shell: bool = True, timeout: int = 30) -> tuple[int, str, str]:
     cache_key = (cmd, shell, timeout)
     cached = _RUN_CACHE.get(cache_key)

@@ -110,12 +110,15 @@ class RuleRunner:
 
             func_path = match.group(1).strip()
 
-            # allow module.function or just function
-            if "." in func_path:
-                module_name, func_name = func_path.split(".", 1)
-            else:
-                module_name = func_path
-                func_name = func_path
+            # Require module.function syntax.  The no-prefix form (cs_f(name))
+            # was documented but never worked: it tried to import a module
+            # named after the function, which does not exist.
+            if "." not in func_path:
+                raise ValueError(
+                    f"cs_f() requires a module prefix — use cs_f(module.function_name), "
+                    f"got: cs_f({func_path!r})"
+                )
+            module_name, func_name = func_path.split(".", 1)
 
             module = importlib.import_module(
                 f"core.custom_functions.{module_name}"

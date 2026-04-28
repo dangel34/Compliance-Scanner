@@ -59,6 +59,15 @@ class TestGetRuleStatus:
         result = {"checks": [{"status": "FAIL"}, {"status": "POLICY"}]}
         assert get_rule_status(result) == "FAIL"
 
+    def test_missing_checks_key_returns_skip(self):
+        """A result dict with no 'checks' key at all should behave like empty checks."""
+        assert get_rule_status({}) == "SKIP"
+
+    def test_error_key_takes_priority_over_checks(self):
+        """If both 'error' and 'checks' are present, ERROR wins."""
+        result = {"error": "oops", "checks": [{"status": "PASS"}]}
+        assert get_rule_status(result) == "ERROR"
+
 
 class TestFormatOsName:
     def test_underscore_becomes_space(self):

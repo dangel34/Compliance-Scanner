@@ -6,6 +6,7 @@ Rendering and export logic live in the ui sub-modules:
   ui/rule_display.py  — tk.Text widget rendering
   ui/report_pdf.py    — PDF generation
   ui/report_csv.py    — CSV generation
+  ui/report_html.py   — HTML generation
   ui/utils.py         — shared helpers and PROJECT_ROOT setup
 """
 from __future__ import annotations
@@ -170,7 +171,10 @@ def discover_rule_files(rules_dir: str) -> Dict[str, List[Dict[str, str]]]:
             except ValueError:
                 rel = name
             rel_parts = rel.split(os.sep)
-            folder_label = rel_parts[0] if len(rel_parts) > 1 else "_root_"
+            if len(rel_parts) == 1:
+                folder_label = "_root_"
+            else:
+                folder_label = rel_parts[0]
 
             try:
                 with open(real_path, "r", encoding="utf-8") as f:
@@ -183,7 +187,12 @@ def discover_rule_files(rules_dir: str) -> Dict[str, List[Dict[str, str]]]:
                     _RULE_VALIDATION_CACHE[cache_key] = cached_errors
                 for err in cached_errors:
                     _log.warning("Schema validation error in %s: %s", real_path, err)
-                category = _safe_str(data.get("category") or "Uncategorised") or "Uncategorised"
+                # Use the category subdirectory name when present (depth >= 3),
+                # otherwise fall back to the JSON category field.
+                if len(rel_parts) >= 3:
+                    category = rel_parts[1]
+                else:
+                    category = _safe_str(data.get("category") or "Uncategorised") or "Uncategorised"
                 rule_id = _safe_str(data.get("id") or data.get("rule_id") or name)
                 title = _safe_str(data.get("title") or data.get("control_number") or name)
                 severity = _safe_str(data.get("severity", ""))
@@ -224,6 +233,9 @@ def run_rules_blocking(
     cancel_event: Optional[threading.Event] = None,
     max_workers: int = 2,
 ) -> Dict[str, RunResult]:
+    from core.custom_functions import clear_all_caches
+    clear_all_caches()
+
     results: Dict[str, RunResult] = {}
     total = len(rule_paths)
     detected_os = os_scan()
@@ -414,7 +426,8 @@ class AccordionSection:
 
     def _header_text(self) -> str:
         arrow = "▼" if self.expanded else "▶"
-        return f"  {arrow}  {self.category}"
+        label = self.category if len(self.category) <= 25 else self.category[:24] + "…"
+        return f"  {arrow}  {label}"
 
     def toggle(self):
         self.expanded = not self.expanded
@@ -656,35 +669,9 @@ class RuleForgeApp(ctk.CTk):
             anchor="w", padx=10, pady=(10, 4)
         )
 
-        filter_row = ctk.CTkFrame(left, fg_color="transparent")
-        filter_row.pack(fill="x", padx=10, pady=(0, 4))
-        filter_row.columnconfigure(0, weight=1)
-        filter_row.columnconfigure(1, weight=1)
-
-        self._filter_category_menu = ctk.CTkOptionMenu(
-            filter_row,
-            values=["All"],
-            command=self._on_category_filter,
-            width=130,
-            font=ctk.CTkFont(size=11),
-            dynamic_resizing=False,
-        )
-        self._filter_category_menu.grid(row=0, column=0, sticky="ew", padx=(0, 3))
-
-        self._filter_severity_menu = ctk.CTkOptionMenu(
-            filter_row,
-            values=["All", "Critical", "High", "Medium", "Low"],
-            command=self._on_severity_filter,
-            width=130,
-            font=ctk.CTkFont(size=11),
-            dynamic_resizing=False,
-        )
-        self._filter_severity_menu.grid(row=0, column=1, sticky="ew", padx=(3, 0))
-
-        # Search + status-filter row
+        # Search bar — full width
         search_row = ctk.CTkFrame(left, fg_color="transparent")
         search_row.pack(fill="x", padx=10, pady=(0, 4))
-        search_row.columnconfigure(0, weight=1)
 
         self._search_entry = ctk.CTkEntry(
             search_row,
@@ -693,18 +680,45 @@ class RuleForgeApp(ctk.CTk):
             height=28,
             font=ctk.CTkFont(size=11),
         )
-        self._search_entry.grid(row=0, column=0, sticky="ew", padx=(0, 3))
+        self._search_entry.pack(fill="x")
+        self._search_var.trace_add("write", lambda *_: self._on_search_change())
 
-        self._filter_status_menu = ctk.CTkOptionMenu(
-            search_row,
-            values=["All", "PASS", "FAIL", "PARTIAL", "POLICY", "SKIP", "ERROR"],
-            command=self._on_status_filter,
-            width=100,
+        # Filter row — category / severity / status in one compact row
+        filter_row = ctk.CTkFrame(left, fg_color="transparent")
+        filter_row.pack(fill="x", padx=10, pady=(0, 4))
+        filter_row.columnconfigure(0, weight=1)
+        filter_row.columnconfigure(1, weight=1)
+        filter_row.columnconfigure(2, weight=1)
+
+        self._filter_category_menu = ctk.CTkOptionMenu(
+            filter_row,
+            values=["All"],
+            command=self._on_category_filter,
+            width=90,
             font=ctk.CTkFont(size=11),
             dynamic_resizing=False,
         )
-        self._filter_status_menu.grid(row=0, column=1, sticky="ew", padx=(3, 0))
-        self._search_var.trace_add("write", lambda *_: self._on_search_change())
+        self._filter_category_menu.grid(row=0, column=0, sticky="ew", padx=(0, 2))
+
+        self._filter_severity_menu = ctk.CTkOptionMenu(
+            filter_row,
+            values=["All", "Critical", "High", "Medium", "Low"],
+            command=self._on_severity_filter,
+            width=90,
+            font=ctk.CTkFont(size=11),
+            dynamic_resizing=False,
+        )
+        self._filter_severity_menu.grid(row=0, column=1, sticky="ew", padx=(2, 2))
+
+        self._filter_status_menu = ctk.CTkOptionMenu(
+            filter_row,
+            values=["All", "PASS", "FAIL", "PARTIAL", "POLICY", "SKIP", "ERROR"],
+            command=self._on_status_filter,
+            width=90,
+            font=ctk.CTkFont(size=11),
+            dynamic_resizing=False,
+        )
+        self._filter_status_menu.grid(row=0, column=2, sticky="ew", padx=(2, 0))
 
         self.rules_scroll = ctk.CTkScrollableFrame(left)
         self.rules_scroll.pack(fill="both", expand=True, padx=10, pady=(0, 10))
@@ -1307,7 +1321,6 @@ class RuleForgeApp(ctk.CTk):
                 if self._settings.get("auto_expand_categories"):
                     section.toggle()
 
-        # Rebuild category dropdown
         cat_names = ["All"] + sorted(self.rules_by_category.keys())
         if self._filter_category_menu:
             self._filter_category_menu.configure(values=cat_names)
@@ -1360,7 +1373,6 @@ class RuleForgeApp(ctk.CTk):
         sev_filter    = self._filter_severity
         search_text   = self._search_var.get().strip().lower()
         status_filter = self._filter_status
-
         visible: set = set()
         for meta in self.rules:
             cat_match = (cat_filter == "All" or meta.get("category", "") == cat_filter)
