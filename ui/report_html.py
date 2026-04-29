@@ -61,7 +61,7 @@ def generate_report_html(save_path: str, results: Dict[str, RunResult]) -> None:
     """Write a self-contained single-file HTML compliance report to *save_path*."""
     now = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
-    counts: dict[str, int] = {s: 0 for s in ("PASS", "FAIL", "PARTIAL", "POLICY", "SKIP", "ERROR")}
+    counts: dict[str, int] = dict.fromkeys(("PASS", "FAIL", "PARTIAL", "POLICY", "SKIP", "ERROR"), 0)
     for r in results.values():
         s = get_rule_status(r)
         counts[s] = counts.get(s, 0) + 1

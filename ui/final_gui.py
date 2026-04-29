@@ -1143,7 +1143,7 @@ class RuleForgeApp(ctk.CTk):
 
         # Score: PASS = full credit, PARTIAL = half credit, FAIL/ERROR = no credit.
         ratio, pct_text = compute_score(pass_count, fail_count + error_count, partial_count)
-        if ratio == 0.0 and pct_text == "N/A":
+        if pct_text == "N/A":
             pct_text = "—"
 
         if self._score_label is not None:

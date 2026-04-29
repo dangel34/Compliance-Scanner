@@ -15,7 +15,7 @@ import subprocess
 import re
 import time
 from pathlib import Path
-from datetime import datetime
+from datetime import datetime, timezone
 
 _RUN_CACHE: dict[tuple[object, bool, int], tuple[int, str, str]] = {}
 
@@ -150,7 +150,7 @@ def last_update_date_wc() -> tuple[bool, str]:
         return (False, f"Could not retrieve last Windows Update date: {err or 'no output'}")
     try:
         last = datetime.strptime(out.strip()[:10], "%Y-%m-%d")
-        age_days = (datetime.utcnow() - last).days
+        age_days = (datetime.now(timezone.utc) - last).days
         if age_days <= 30:
             return (True, f"Last Windows Update was {age_days} day(s) ago ({last.date()})")
         return (False, f"Last Windows Update was {age_days} day(s) ago ({last.date()}) — exceeds 30-day limit")
@@ -339,7 +339,7 @@ def av_definitions_current_wc() -> tuple[bool, str]:
         return (False, f"Could not retrieve antivirus signature update date: {err or 'no output'}")
     try:
         last_updated = datetime.strptime(out.strip()[:10], "%Y-%m-%d")
-        age_days = (datetime.utcnow() - last_updated).days
+        age_days = (datetime.now(timezone.utc) - last_updated).days
         if age_days <= 2:
             return (True, f"Antivirus definitions are current (last updated: {last_updated.date()}, {age_days} day(s) ago)")
         return (False, f"Antivirus definitions are stale (last updated: {last_updated.date()}, {age_days} day(s) ago — limit: 2 days)")
@@ -552,7 +552,7 @@ def av_definitions_age_wc() -> tuple[bool, str]:
         return (False, f"Could not retrieve antivirus signature update date: {err or 'no output'}")
     try:
         last_updated = datetime.strptime(out.strip()[:10], "%Y-%m-%d")
-        age_days = (datetime.utcnow() - last_updated).days
+        age_days = (datetime.now(timezone.utc) - last_updated).days
         if age_days <= 1:
             return (True, f"Antivirus definitions are within 24 hours (last updated: {last_updated.date()}, {age_days} day(s) ago)")
         return (False, f"Antivirus definitions are stale (last updated: {last_updated.date()}, {age_days} day(s) ago — limit: 1 day)")
