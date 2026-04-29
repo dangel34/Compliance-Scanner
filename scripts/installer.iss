@@ -7,7 +7,7 @@
 #endif
 #define AppPublisher "Derek Angelini, Connor McBee, and Melanie Fox"
 #define AppExeName   "RuleForge.exe"
-#define SourceDir    "dist\ComplianceScanner"
+#define SourceDir    "..\dist\ComplianceScanner"
 
 [Setup]
 AppId={{A3F2E8D1-4C7B-4A9E-B2F1-6D3E5A8C0F12}
@@ -18,7 +18,7 @@ AppPublisher={#AppPublisher}
 DefaultDirName={autopf}\{#AppName}
 DefaultGroupName={#AppName}
 AllowNoIcons=no
-OutputDir=dist\installer
+OutputDir=..\dist\installer
 OutputBaseFilename=ComplianceScannerSetup
 Compression=lzma2/ultra64
 SolidCompression=yes
