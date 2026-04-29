@@ -14,10 +14,8 @@ from __future__ import annotations
 
 import json
 import re
-from io import StringIO
-from unittest.mock import MagicMock, call, patch
+from unittest.mock import MagicMock, patch
 
-import pytest
 
 
 # ============================================================
@@ -361,7 +359,7 @@ class TestCsFSingleToken:
         mock_mod = MagicMock()
         mock_mod.my_func.return_value = (True, "ok")
         with patch("importlib.import_module", return_value=mock_mod):
-            result = runner.run_custom_function("cs_f(mymod.my_func)")
+            result = runner.run_custom_function("cs_f(access_control.my_func)")
         assert result["returncode"] == 0
 
     def test_error_message_is_informative(self, sample_rule_path):

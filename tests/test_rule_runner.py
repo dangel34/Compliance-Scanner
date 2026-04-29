@@ -109,7 +109,6 @@ class TestRunCommand:
 
     def test_returns_required_keys(self, sample_rule_path):
         runner = RuleRunner(rule_path=sample_rule_path, os_type="windows_client")
-        import subprocess
         with patch("subprocess.run", return_value=MagicMock(
             stdout="hello\n", stderr="", returncode=0
         )):
@@ -154,14 +153,14 @@ class TestRunChecksWithCsF:
                             "name": "custom fn check",
                             "sub_control": "1.1",
                             "check_type": "command",
-                            "command": "cs_f(mymod.my_func)",
+                            "command": "cs_f(access_control.my_func)",
                             "expected_result": "pass",
                         }
                     ]
                 }
             }
         }
-        import json, os
+        import json
         rule_file = tmp_path / "csf_rule.json"
         rule_file.write_text(json.dumps(rule), encoding="utf-8")
 
@@ -187,7 +186,7 @@ class TestRunCustomFunction:
         mock_mod = MagicMock()
         mock_mod.my_func.return_value = (True, "looks good")
         with patch("importlib.import_module", return_value=mock_mod):
-            result = runner.run_custom_function("cs_f(mymod.my_func)")
+            result = runner.run_custom_function("cs_f(access_control.my_func)")
         assert result["returncode"] == 0
         assert result["stdout"] == "looks good"
 
@@ -196,7 +195,7 @@ class TestRunCustomFunction:
         mock_mod = MagicMock()
         mock_mod.my_func.return_value = (False, "not compliant")
         with patch("importlib.import_module", return_value=mock_mod):
-            result = runner.run_custom_function("cs_f(mymod.my_func)")
+            result = runner.run_custom_function("cs_f(access_control.my_func)")
         assert result["returncode"] == 1
 
     def test_bool_true_result(self, sample_rule_path):
@@ -204,7 +203,7 @@ class TestRunCustomFunction:
         mock_mod = MagicMock()
         mock_mod.my_func.return_value = True
         with patch("importlib.import_module", return_value=mock_mod):
-            result = runner.run_custom_function("cs_f(mymod.my_func)")
+            result = runner.run_custom_function("cs_f(access_control.my_func)")
         assert result["returncode"] == 0
 
     def test_bool_false_result(self, sample_rule_path):
@@ -212,7 +211,7 @@ class TestRunCustomFunction:
         mock_mod = MagicMock()
         mock_mod.my_func.return_value = False
         with patch("importlib.import_module", return_value=mock_mod):
-            result = runner.run_custom_function("cs_f(mymod.my_func)")
+            result = runner.run_custom_function("cs_f(access_control.my_func)")
         assert result["returncode"] == 1
 
     def test_invalid_syntax_returns_error(self, sample_rule_path):

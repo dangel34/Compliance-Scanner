@@ -11,7 +11,6 @@ from __future__ import annotations
 import json
 from unittest.mock import MagicMock, patch
 
-import pytest
 
 
 # ============================================================
@@ -38,7 +37,6 @@ class TestPdfPageSize:
     def _captured_pagesize(self, page_size_arg: str, tmp_path) -> object:
         """Return the pagesize that SimpleDocTemplate was called with."""
         from ui.report_pdf import generate_report_pdf
-        from reportlab.lib.pagesizes import A4, LETTER
 
         captured = {}
 
