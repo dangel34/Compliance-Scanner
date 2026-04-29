@@ -6,6 +6,7 @@ Rendering and export logic live in the ui sub-modules:
   ui/rule_display.py  — tk.Text widget rendering
   ui/report_pdf.py    — PDF generation
   ui/report_csv.py    — CSV generation
+  ui/report_html.py   — HTML generation
   ui/utils.py         — shared helpers and PROJECT_ROOT setup
 """
 from __future__ import annotations
@@ -34,7 +35,7 @@ def _bootstrap_path() -> None:
 _bootstrap_path()
 del _bootstrap_path
 
-from ui.utils import PROJECT_ROOT, RunResult, _safe_str, format_os_name, get_rule_status, setup_logging
+from ui.utils import PROJECT_ROOT, RunResult, _fmt_duration, _safe_str, compute_score, format_os_name, get_rule_status, setup_logging
 
 _log = logging.getLogger(__name__)
 from ui.rule_display import _configure_tags, render_placeholder, render_rule_details, render_rule_info
@@ -49,17 +50,6 @@ from core.rule_runner import RuleRunner
 # ---------------------------------------------------------------------------
 # Misc helpers
 # ---------------------------------------------------------------------------
-
-def _fmt_duration(seconds: float) -> str:
-    s = max(0, int(seconds))
-    if s < 60:
-        return f"{s}s"
-    m, s = divmod(s, 60)
-    if m < 60:
-        return f"{m}m {s:02d}s"
-    h, m = divmod(m, 60)
-    return f"{h}h {m:02d}m"
-
 
 # ---------------------------------------------------------------------------
 # Rule discovery helpers — defined at module level so they are not
@@ -170,7 +160,10 @@ def discover_rule_files(rules_dir: str) -> Dict[str, List[Dict[str, str]]]:
             except ValueError:
                 rel = name
             rel_parts = rel.split(os.sep)
-            folder_label = rel_parts[0] if len(rel_parts) > 1 else "_root_"
+            if len(rel_parts) == 1:
+                folder_label = "_root_"
+            else:
+                folder_label = rel_parts[0]
 
             try:
                 with open(real_path, "r", encoding="utf-8") as f:
@@ -183,7 +176,12 @@ def discover_rule_files(rules_dir: str) -> Dict[str, List[Dict[str, str]]]:
                     _RULE_VALIDATION_CACHE[cache_key] = cached_errors
                 for err in cached_errors:
                     _log.warning("Schema validation error in %s: %s", real_path, err)
-                category = _safe_str(data.get("category") or "Uncategorised") or "Uncategorised"
+                # Use the category subdirectory name when present (depth >= 3),
+                # otherwise fall back to the JSON category field.
+                if len(rel_parts) >= 3:
+                    category = rel_parts[1]
+                else:
+                    category = _safe_str(data.get("category") or "Uncategorised") or "Uncategorised"
                 rule_id = _safe_str(data.get("id") or data.get("rule_id") or name)
                 title = _safe_str(data.get("title") or data.get("control_number") or name)
                 severity = _safe_str(data.get("severity", ""))
@@ -224,6 +222,9 @@ def run_rules_blocking(
     cancel_event: Optional[threading.Event] = None,
     max_workers: int = 2,
 ) -> Dict[str, RunResult]:
+    from core.custom_functions import clear_all_caches
+    clear_all_caches()
+
     results: Dict[str, RunResult] = {}
     total = len(rule_paths)
     detected_os = os_scan()
@@ -234,7 +235,7 @@ def run_rules_blocking(
             if progress_cb:
                 progress_cb(i, total, path)
             try:
-                r = RuleRunner(rule_path=path, os_type=None).run_checks()
+                r = RuleRunner(rule_path=path, os_type=detected_os).run_checks()
             except Exception as e:
                 error_msg = _safe_str(type(e).__name__ + ": " + str(e), max_len=256)
                 _log.error("Rule execution error: %s: %s", os.path.basename(path), error_msg)
@@ -255,7 +256,7 @@ def run_rules_blocking(
 
     def _run_one(path: str) -> RunResult:
         try:
-            return RuleRunner(rule_path=path, os_type=None).run_checks()
+            return RuleRunner(rule_path=path, os_type=detected_os).run_checks()
         except Exception as e:
             error_msg = _safe_str(type(e).__name__ + ": " + str(e), max_len=256)
             _log.error("Rule execution error: %s: %s", os.path.basename(path), error_msg)
@@ -414,7 +415,8 @@ class AccordionSection:
 
     def _header_text(self) -> str:
         arrow = "▼" if self.expanded else "▶"
-        return f"  {arrow}  {self.category}"
+        label = self.category if len(self.category) <= 25 else self.category[:24] + "…"
+        return f"  {arrow}  {label}"
 
     def toggle(self):
         self.expanded = not self.expanded
@@ -656,35 +658,9 @@ class RuleForgeApp(ctk.CTk):
             anchor="w", padx=10, pady=(10, 4)
         )
 
-        filter_row = ctk.CTkFrame(left, fg_color="transparent")
-        filter_row.pack(fill="x", padx=10, pady=(0, 4))
-        filter_row.columnconfigure(0, weight=1)
-        filter_row.columnconfigure(1, weight=1)
-
-        self._filter_category_menu = ctk.CTkOptionMenu(
-            filter_row,
-            values=["All"],
-            command=self._on_category_filter,
-            width=130,
-            font=ctk.CTkFont(size=11),
-            dynamic_resizing=False,
-        )
-        self._filter_category_menu.grid(row=0, column=0, sticky="ew", padx=(0, 3))
-
-        self._filter_severity_menu = ctk.CTkOptionMenu(
-            filter_row,
-            values=["All", "Critical", "High", "Medium", "Low"],
-            command=self._on_severity_filter,
-            width=130,
-            font=ctk.CTkFont(size=11),
-            dynamic_resizing=False,
-        )
-        self._filter_severity_menu.grid(row=0, column=1, sticky="ew", padx=(3, 0))
-
-        # Search + status-filter row
+        # Search bar — full width
         search_row = ctk.CTkFrame(left, fg_color="transparent")
         search_row.pack(fill="x", padx=10, pady=(0, 4))
-        search_row.columnconfigure(0, weight=1)
 
         self._search_entry = ctk.CTkEntry(
             search_row,
@@ -693,18 +669,45 @@ class RuleForgeApp(ctk.CTk):
             height=28,
             font=ctk.CTkFont(size=11),
         )
-        self._search_entry.grid(row=0, column=0, sticky="ew", padx=(0, 3))
+        self._search_entry.pack(fill="x")
+        self._search_var.trace_add("write", lambda *_: self._on_search_change())
 
-        self._filter_status_menu = ctk.CTkOptionMenu(
-            search_row,
-            values=["All", "PASS", "FAIL", "PARTIAL", "POLICY", "SKIP", "ERROR"],
-            command=self._on_status_filter,
-            width=100,
+        # Filter row — category / severity / status in one compact row
+        filter_row = ctk.CTkFrame(left, fg_color="transparent")
+        filter_row.pack(fill="x", padx=10, pady=(0, 4))
+        filter_row.columnconfigure(0, weight=1)
+        filter_row.columnconfigure(1, weight=1)
+        filter_row.columnconfigure(2, weight=1)
+
+        self._filter_category_menu = ctk.CTkOptionMenu(
+            filter_row,
+            values=["All"],
+            command=self._on_category_filter,
+            width=90,
             font=ctk.CTkFont(size=11),
             dynamic_resizing=False,
         )
-        self._filter_status_menu.grid(row=0, column=1, sticky="ew", padx=(3, 0))
-        self._search_var.trace_add("write", lambda *_: self._on_search_change())
+        self._filter_category_menu.grid(row=0, column=0, sticky="ew", padx=(0, 2))
+
+        self._filter_severity_menu = ctk.CTkOptionMenu(
+            filter_row,
+            values=["All", "Critical", "High", "Medium", "Low"],
+            command=self._on_severity_filter,
+            width=90,
+            font=ctk.CTkFont(size=11),
+            dynamic_resizing=False,
+        )
+        self._filter_severity_menu.grid(row=0, column=1, sticky="ew", padx=(2, 2))
+
+        self._filter_status_menu = ctk.CTkOptionMenu(
+            filter_row,
+            values=["All", "PASS", "FAIL", "PARTIAL", "POLICY", "SKIP", "ERROR"],
+            command=self._on_status_filter,
+            width=90,
+            font=ctk.CTkFont(size=11),
+            dynamic_resizing=False,
+        )
+        self._filter_status_menu.grid(row=0, column=2, sticky="ew", padx=(2, 0))
 
         self.rules_scroll = ctk.CTkScrollableFrame(left)
         self.rules_scroll.pack(fill="both", expand=True, padx=10, pady=(0, 10))
@@ -1122,8 +1125,6 @@ class RuleForgeApp(ctk.CTk):
         error_count: int    = 0,
         policy_count: int   = 0,
         cat_count: int      = 0,
-        checks_passed: int  = 0,
-        checks_total: int   = 0,
     ) -> None:
         """Refresh every widget in the summary dashboard with new counts."""
         if self._summary_meta is not None:
@@ -1140,13 +1141,9 @@ class RuleForgeApp(ctk.CTk):
             self._stat_count_labels["skip"].configure(text=str(skip_count))
             self._stat_count_labels["policy"].configure(text=str(policy_count))
 
-        # Score is based on individual subcontrols (checks), not rules.
-        # checks_total is the number of checks that actually ran (skipped checks excluded).
-        if checks_total > 0:
-            ratio    = checks_passed / checks_total
-            pct_text = f"{int(ratio * 100)}%"
-        else:
-            ratio    = 0.0
+        # Score: PASS = full credit, PARTIAL = half credit, FAIL/ERROR = no credit.
+        ratio, pct_text = compute_score(pass_count, fail_count + error_count, partial_count)
+        if ratio == 0.0 and pct_text == "N/A":
             pct_text = "—"
 
         if self._score_label is not None:
@@ -1163,41 +1160,19 @@ class RuleForgeApp(ctk.CTk):
             "skip": 0,
             "error": 0,
             "policy": 0,
-            "checks_passed": 0,
-            "checks_total": 0,
         }
-
-    @staticmethod
-    def _result_check_totals(result: RunResult) -> tuple[int, int]:
-        checks_passed = 0
-        checks_total = 0
-        for check in result.get("checks", []):
-            if check.get("status") == "POLICY":
-                continue
-            checks_total += 1
-            if check.get("status") == "PASS":
-                checks_passed += 1
-        return checks_passed, checks_total
 
     def _apply_result_delta(self, previous: Optional[RunResult], current: RunResult) -> None:
         if previous is not None:
-            prev_status = get_rule_status(previous)
-            prev_key = prev_status.lower()
+            prev_key = get_rule_status(previous).lower()
             if prev_key in self._summary_counts:
                 self._summary_counts[prev_key] = max(0, self._summary_counts[prev_key] - 1)
-            prev_passed, prev_total = self._result_check_totals(previous)
-            self._summary_counts["checks_passed"] = max(0, self._summary_counts["checks_passed"] - prev_passed)
-            self._summary_counts["checks_total"] = max(0, self._summary_counts["checks_total"] - prev_total)
         else:
             self._summary_counts["total"] += 1
 
-        curr_status = get_rule_status(current)
-        curr_key = curr_status.lower()
+        curr_key = get_rule_status(current).lower()
         if curr_key in self._summary_counts:
             self._summary_counts[curr_key] += 1
-        curr_passed, curr_total = self._result_check_totals(current)
-        self._summary_counts["checks_passed"] += curr_passed
-        self._summary_counts["checks_total"] += curr_total
 
     def set_status(self, text: str):
         self.status_label.configure(text=f"Status: {text}")
@@ -1307,7 +1282,6 @@ class RuleForgeApp(ctk.CTk):
                 if self._settings.get("auto_expand_categories"):
                     section.toggle()
 
-        # Rebuild category dropdown
         cat_names = ["All"] + sorted(self.rules_by_category.keys())
         if self._filter_category_menu:
             self._filter_category_menu.configure(values=cat_names)
@@ -1360,7 +1334,6 @@ class RuleForgeApp(ctk.CTk):
         sev_filter    = self._filter_severity
         search_text   = self._search_var.get().strip().lower()
         status_filter = self._filter_status
-
         visible: set = set()
         for meta in self.rules:
             cat_match = (cat_filter == "All" or meta.get("category", "") == cat_filter)
@@ -1469,8 +1442,6 @@ class RuleForgeApp(ctk.CTk):
             error_count   = self._summary_counts["error"],
             policy_count  = self._summary_counts["policy"],
             cat_count     = len(self.rules_by_category),
-            checks_passed = self._summary_counts["checks_passed"],
-            checks_total  = self._summary_counts["checks_total"],
         )
 
     def _on_rule_result(self, path: str, result: RunResult) -> None:

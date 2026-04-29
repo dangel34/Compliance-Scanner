@@ -2,6 +2,10 @@
 import os
 from PyInstaller.utils.hooks import collect_data_files, collect_submodules
 
+# SPECPATH is injected by PyInstaller and points to the directory containing
+# this spec file (scripts/).  ROOT is the project root one level up.
+ROOT = os.path.dirname(SPECPATH)
+
 # Collect customtkinter theme/asset files
 customtkinter_datas = collect_data_files('customtkinter')
 
@@ -9,12 +13,12 @@ customtkinter_datas = collect_data_files('customtkinter')
 reportlab_hidden = collect_submodules('reportlab')
 
 a = Analysis(
-    ['ui/final_gui.py'],
-    pathex=['.'],
+    [os.path.join(ROOT, 'ui', 'final_gui.py')],
+    pathex=[ROOT],
     binaries=[],
     datas=[
-        ('rulesets', 'rulesets'),
-        ('settings.json', '.'),
+        (os.path.join(ROOT, 'rulesets'), 'rulesets'),
+        (os.path.join(ROOT, 'settings.json'), '.'),
     ] + customtkinter_datas,
     hiddenimports=[
         # jsonschema internals loaded dynamically
@@ -46,7 +50,8 @@ a = Analysis(
 
 pyz = PYZ(a.pure, a.zipped_data)
 
-_icon = 'assets\\icon.ico' if os.path.exists('assets\\icon.ico') else None
+_icon_path = os.path.join(ROOT, 'assets', 'icon.ico')
+_icon = _icon_path if os.path.exists(_icon_path) else None
 
 exe = EXE(
     pyz,

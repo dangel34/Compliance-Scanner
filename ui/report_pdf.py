@@ -150,7 +150,7 @@ def generate_report_pdf(
     policy_count  = counts["POLICY"]
 
     S              = _get_styles()
-    psize          = LETTER if page_size == "Letter" else A4
+    psize          = LETTER if page_size.upper() == "LETTER" else A4
     page_w, page_h = psize
     margin         = 18 * mm
     content_w      = page_w - 2 * margin

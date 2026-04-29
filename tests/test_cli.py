@@ -189,7 +189,7 @@ class TestCLIEndToEnd:
         assert result.returncode == 0, result.stderr
         assert out.exists()
         content = out.read_text(encoding="utf-8-sig")
-        assert "rule_id" in content.lower() or len(content) > 0
+        assert "rule id" in content.lower()
 
     def test_text_output_printed_to_stdout(self, fixtures_dir):
         result = self._run(
@@ -339,6 +339,32 @@ class TestFilterRulePaths:
         assert len(cli._filter_rule_paths(paths, severities=None, categories=["ac"])) == 1
 
 
+class TestFmtDuration:
+    def test_zero_seconds(self):
+        assert cli._fmt_duration(0) == "0s"
+
+    def test_under_one_minute(self):
+        assert cli._fmt_duration(45) == "45s"
+
+    def test_exactly_one_minute(self):
+        assert cli._fmt_duration(60) == "1m 00s"
+
+    def test_one_minute_thirty(self):
+        assert cli._fmt_duration(90) == "1m 30s"
+
+    def test_59_seconds(self):
+        assert cli._fmt_duration(59) == "59s"
+
+    def test_exactly_one_hour(self):
+        assert cli._fmt_duration(3600) == "1h 00m"
+
+    def test_one_hour_two_minutes(self):
+        assert cli._fmt_duration(3720) == "1h 02m"
+
+    def test_float_truncated(self):
+        assert cli._fmt_duration(45.9) == "45s"
+
+
 class TestHtmlReport:
     """Unit tests for ui/report_html.generate_report_html."""
 
@@ -416,3 +442,41 @@ class TestHtmlReport:
         out = tmp_path / "report.html"
         generate_report_html(str(out), self._fake_results("PASS"))
         assert "hello" in out.read_text(encoding="utf-8")
+
+    def test_escapes_html_in_stdout(self, tmp_path):
+        out = tmp_path / "report.html"
+        results = self._fake_results()
+        results["fake_path"]["checks"][0]["stdout"] = "<script>alert(2)</script>"
+        generate_report_html(str(out), results)
+        content = out.read_text(encoding="utf-8")
+        assert "<script>alert(2)" not in content
+        assert "&lt;script&gt;" in content
+
+    def test_escapes_html_in_stderr(self, tmp_path):
+        out = tmp_path / "report.html"
+        results = self._fake_results("FAIL")
+        results["fake_path"]["checks"][0]["stderr"] = '<img src=x onerror="alert(3)">'
+        generate_report_html(str(out), results)
+        content = out.read_text(encoding="utf-8")
+        assert 'onerror="alert(3)"' not in content
+        assert "&lt;img" in content
+
+    def test_score_na_when_all_policy(self, tmp_path):
+        out = tmp_path / "report.html"
+        results = {
+            "fake_path": {
+                "rule_id": "TEST.02", "title": "Policy Rule",
+                "os": "windows_client", "checks_run": 0, "checks_skipped": 0, "checks_policy": 1,
+                "checks": [{"status": "POLICY", "check_name": "p", "command": "policy",
+                             "expected_result": "", "returncode": None, "stdout": "", "stderr": ""}],
+            }
+        }
+        generate_report_html(str(out), results)
+        content = out.read_text(encoding="utf-8")
+        assert "N/A" in content
+
+    def test_score_zero_percent_when_all_fail(self, tmp_path):
+        out = tmp_path / "report.html"
+        generate_report_html(str(out), self._fake_results("FAIL"))
+        content = out.read_text(encoding="utf-8")
+        assert "0.0%" in content

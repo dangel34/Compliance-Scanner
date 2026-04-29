@@ -6,6 +6,10 @@ dist/
 __pycache__/
 *.py[cod]
 
+# Tool caches
+.ruff_cache/
+.pytest_cache/
+
 # Runtime logs
 logs/
 

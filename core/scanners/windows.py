@@ -3,9 +3,6 @@ import subprocess
 
 
 class WindowsModule(ScannerTarget):
-    def __init__(self):
-        ScannerTarget.__init__(self)
-
     def check_service(self, name: str) -> str:
         """
         Queries a Windows service by name using PowerShell and returns its

@@ -125,6 +125,31 @@ def format_os_name(os_name: str) -> str:
     return os_name.replace("_", " ").title()
 
 
+def compute_score(pass_count: int, fail_count: int, partial_count: int) -> tuple[float, str]:
+    """
+    Return (ratio 0.0–1.0, display string) for the compliance score.
+    PARTIAL rules contribute 0.5 weight so partial compliance is reflected
+    rather than being silently ignored.
+    """
+    automated = pass_count + fail_count + partial_count
+    if automated == 0:
+        return 0.0, "N/A"
+    ratio = (pass_count + 0.5 * partial_count) / automated
+    return ratio, f"{ratio * 100:.1f}%"
+
+
+def _fmt_duration(seconds: float) -> str:
+    """Format a duration in seconds as a human-readable string (e.g. '1m 05s')."""
+    s = max(0, int(seconds))
+    if s < 60:
+        return f"{s}s"
+    m, s = divmod(s, 60)
+    if m < 60:
+        return f"{m}m {s:02d}s"
+    h, m = divmod(m, 60)
+    return f"{h}h {m:02d}m"
+
+
 # ---------------------------------------------------------------------------
 # Rule status helper
 # ---------------------------------------------------------------------------
