@@ -32,7 +32,8 @@ jobs:
       #   pip-compile --generate-hashes requirements.txt requirements-dev.txt \
       #     --output-file requirements-test.lock
       - name: Install dependencies
-        run: pip install --require-hashes --only-binary :all: -r requirements-test.lock
+        run: |
+          pip install --require-hashes --only-binary :all: -r requirements-test.lock
 
       - name: Run tests
         if: "!(matrix.os == 'ubuntu-latest' && matrix.python-version == '3.11')"
@@ -88,7 +89,8 @@ jobs:
       # Regenerate after a ruff version bump with:
       #   pip-compile --generate-hashes requirements-lint.txt --output-file requirements-lint.lock
       - name: Install lint tools
-        run: pip install --require-hashes --only-binary :all: -r requirements-lint.lock
+        run: |
+          pip install --require-hashes --only-binary :all: -r requirements-lint.lock
 
       - name: Lint with ruff
         run: ruff check .
