@@ -170,11 +170,13 @@ def domain_joined_wc():
 def system_access_wc():  # Requires elevated privileges
     """Check that interactive logon rights are explicitly assigned."""
     import os as _os
-    import time as _time
+    import uuid as _uuid
     # Unique path per call: avoids collision between concurrent rule executions.
     # Uses subprocess directly (not run_command) so file-I/O is never cached.
+    # uuid4 guarantees uniqueness regardless of OS timer resolution (monotonic_ns
+    # has ~15 ms granularity on Windows, causing collisions in rapid succession).
     tmp_dir = _os.environ.get("TEMP") or _os.environ.get("TMP") or "C:\\Windows\\Temp"
-    cfg_path = _os.path.join(tmp_dir, f"secpol_{_os.getpid()}_{_time.monotonic_ns()}.cfg")
+    cfg_path = _os.path.join(tmp_dir, f"secpol_{_uuid.uuid4().hex}.cfg")
     try:
         export = subprocess.run(
             ["powershell", "-NonInteractive", "-NoProfile", "-Command",
