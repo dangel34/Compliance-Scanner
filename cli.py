@@ -32,7 +32,7 @@ if _PROJECT_ROOT not in sys.path:
 
 from core.scanner_init import os_scan
 from core.rule_runner import RuleRunner
-from ui.utils import RunResult, _safe_str, get_rule_status, setup_logging
+from ui.utils import RunResult, _fmt_duration, _safe_str, compute_score, get_rule_status, setup_logging
 
 _log = logging.getLogger(__name__)
 
@@ -212,17 +212,6 @@ def run_scan(
 # Output formatters
 # ---------------------------------------------------------------------------
 
-def _fmt_duration(seconds: float) -> str:
-    s = max(0, int(seconds))
-    if s < 60:
-        return f"{s}s"
-    m, s = divmod(s, 60)
-    if m < 60:
-        return f"{m}m {s:02d}s"
-    h, m = divmod(m, 60)
-    return f"{h}h {m:02d}m"
-
-
 def _print_text_summary(
     results: dict[str, RunResult],
     detail_mode: str = "status_only",
@@ -260,10 +249,7 @@ def _print_text_summary(
         print(f"  {label}  {rule_id:<22}  {title}")
 
     automated = counts["PASS"] + counts["FAIL"] + counts["PARTIAL"]
-    score_str = (
-        f"{counts['PASS'] / automated * 100:.1f}%"
-        if automated > 0 else "N/A"
-    )
+    _, score_str = compute_score(counts["PASS"], counts["FAIL"], counts["PARTIAL"])
 
     duration_str = f"  Scan time: {_fmt_duration(elapsed)}" if elapsed is not None else ""
 
@@ -271,7 +257,8 @@ def _print_text_summary(
     print("-" * 72)
     print(f"  PASS {counts['PASS']}  FAIL {counts['FAIL']}  PARTIAL {counts['PARTIAL']}  "
           f"POLICY {counts['POLICY']}  SKIP {counts['SKIP']}  ERROR {counts['ERROR']}")
-    print(f"  Compliance score: {score_str}  ({counts['PASS']} / {automated} automated checks)")
+    print(f"  Compliance score: {score_str}  "
+          f"({counts['PASS']} passed, {counts['PARTIAL']} partial of {automated} automated rules)")
     if duration_str:
         print(duration_str)
     print("=" * 72)

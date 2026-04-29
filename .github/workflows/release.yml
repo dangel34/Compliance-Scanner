@@ -49,7 +49,7 @@ jobs:
           fi
 
       - name: Build with PyInstaller
-        run: python -m PyInstaller compliance_scanner.spec --clean --noconfirm
+        run: python -m PyInstaller scripts/compliance_scanner.spec --clean --noconfirm
 
       - name: Sign exe
         if: steps.cert.outputs.available == 'true'
@@ -79,7 +79,7 @@ jobs:
         shell: pwsh
         run: |
           $iscc = "C:\Program Files (x86)\Inno Setup 6\ISCC.exe"
-          & $iscc "/DAppVersion=${{ steps.version.outputs.version }}" installer.iss
+          & $iscc "/DAppVersion=${{ steps.version.outputs.version }}" scripts/installer.iss
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
       - name: Sign installer

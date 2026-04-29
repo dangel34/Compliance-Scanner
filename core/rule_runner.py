@@ -2,6 +2,7 @@
 Loads rules (JSON) and runs checks via core scanners. Uses scanner_init for
 OS detection and, when applicable, scanner methods for service/file_permissions.
 """
+import atexit
 import concurrent.futures
 import logging
 import os
@@ -14,6 +15,20 @@ from typing import List, Dict, Any, Optional
 
 _log = logging.getLogger(__name__)
 _CUSTOM_FUNCTION_EXECUTOR = concurrent.futures.ThreadPoolExecutor(max_workers=4)
+atexit.register(_CUSTOM_FUNCTION_EXECUTOR.shutdown, wait=False)
+
+# Allowlist of modules that may be loaded via cs_f().  Prevents a crafted rule
+# file from importing arbitrary Python modules via importlib.
+_ALLOWED_CF_MODULES = frozenset({
+    "access_control",
+    "audit_accountability",
+    "configuration_management",
+    "firewall",
+    "identification_authentication",
+    "system_communications_protection",
+    "system_information_integrity",
+    "users",
+})
 
 # Project root (parent of core/)
 if getattr(sys, 'frozen', False):
@@ -119,6 +134,11 @@ class RuleRunner:
                     f"got: cs_f({func_path!r})"
                 )
             module_name, func_name = func_path.split(".", 1)
+
+            if module_name not in _ALLOWED_CF_MODULES:
+                raise ValueError(
+                    f"cs_f() module {module_name!r} is not in the allowed list"
+                )
 
             module = importlib.import_module(
                 f"core.custom_functions.{module_name}"

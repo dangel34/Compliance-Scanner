@@ -7,3 +7,8 @@ select = ["F", "E9"]
 # Legacy compliance function modules contain intentional side-effect assignments
 # (e.g. running a command without checking the result). Suppress F841 there only.
 "core/custom_functions/*" = ["F841"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["."]
+addopts = "-v --tb=short"

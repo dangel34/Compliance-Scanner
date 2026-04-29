@@ -1,6 +1,9 @@
 @echo off
 setlocal enabledelayedexpansion
 
+REM Always run from the project root regardless of where this script is called from.
+cd /d "%~dp0.."
+
 echo ============================================================
 echo  Compliance Scanner - Build Script
 echo ============================================================
@@ -19,7 +22,7 @@ REM ---------------------------------------------------------------
 REM 2. Run PyInstaller
 REM ---------------------------------------------------------------
 echo [BUILD] Running PyInstaller...
-python -m PyInstaller compliance_scanner.spec --clean --noconfirm
+python -m PyInstaller scripts\compliance_scanner.spec --clean --noconfirm
 if errorlevel 1 (
     echo [ERROR] PyInstaller failed. See output above.
     exit /b 1
@@ -125,7 +128,7 @@ if "%ISCC%"=="" (
 )
 
 echo [INSTALLER] Compiling installer with Inno Setup...
-"%ISCC%" installer.iss
+"%ISCC%" scripts\installer.iss
 if errorlevel 1 (
     echo [INSTALLER] Inno Setup compilation failed.
 ) else (

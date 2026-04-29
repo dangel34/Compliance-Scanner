@@ -3,10 +3,9 @@ import subprocess
 
 
 class DebianModule(ScannerTarget):
-    def __init__(self):
-        ScannerTarget.__init__(self)
-
     def check_service(self, name: str) -> str:
+        if not name or any(c in name for c in ("'", '"', ";", "\n", "\r", " ")):
+            return ""
         try:
             result = subprocess.run(
                 ["systemctl", "is-active", name],
@@ -21,6 +20,8 @@ class DebianModule(ScannerTarget):
             return ""
 
     def check_file_permissions(self, path: str) -> str:
+        if not path or any(c in path for c in ("'", '"', "\n", "\r")):
+            return ""
         try:
             result = subprocess.run(
                 ["stat", "-c", "%a %U %G %n", path],

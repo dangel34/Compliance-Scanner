@@ -2,9 +2,6 @@ from abc import ABC, abstractmethod
 
 
 class ScannerTarget(ABC):
-    def __init__(self):
-        self.result = []
-
     @abstractmethod
     def check_service(self, name: str) -> str:
         pass

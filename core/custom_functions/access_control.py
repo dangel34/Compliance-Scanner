@@ -32,7 +32,7 @@ def run_command(cmd: str):
         elif sys.platform == "win32":
             args = ["powershell", "-NonInteractive", "-NoProfile", "-Command", cmd]
         else:
-            args = ["bash", "-lc", cmd]
+            args = ["bash", "-c", cmd]
         result = subprocess.run(
             args,
             capture_output=True,
@@ -47,13 +47,13 @@ def run_command(cmd: str):
         _RUN_CACHE[cmd] = output
         return output
     except Exception as e:
-        output = {
+        # Don't cache transient errors so a retry within the same scan gets a
+        # fresh attempt rather than a permanently stuck failure.
+        return {
             "stdout": "",
             "stderr": str(e),
             "returncode": -1
         }
-        _RUN_CACHE[cmd] = output
-        return output
 
 
 def _format_check_name(name: str) -> str:

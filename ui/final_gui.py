@@ -35,7 +35,7 @@ def _bootstrap_path() -> None:
 _bootstrap_path()
 del _bootstrap_path
 
-from ui.utils import PROJECT_ROOT, RunResult, _safe_str, format_os_name, get_rule_status, setup_logging
+from ui.utils import PROJECT_ROOT, RunResult, _fmt_duration, _safe_str, compute_score, format_os_name, get_rule_status, setup_logging
 
 _log = logging.getLogger(__name__)
 from ui.rule_display import _configure_tags, render_placeholder, render_rule_details, render_rule_info
@@ -50,17 +50,6 @@ from core.rule_runner import RuleRunner
 # ---------------------------------------------------------------------------
 # Misc helpers
 # ---------------------------------------------------------------------------
-
-def _fmt_duration(seconds: float) -> str:
-    s = max(0, int(seconds))
-    if s < 60:
-        return f"{s}s"
-    m, s = divmod(s, 60)
-    if m < 60:
-        return f"{m}m {s:02d}s"
-    h, m = divmod(m, 60)
-    return f"{h}h {m:02d}m"
-
 
 # ---------------------------------------------------------------------------
 # Rule discovery helpers — defined at module level so they are not
@@ -246,7 +235,7 @@ def run_rules_blocking(
             if progress_cb:
                 progress_cb(i, total, path)
             try:
-                r = RuleRunner(rule_path=path, os_type=None).run_checks()
+                r = RuleRunner(rule_path=path, os_type=detected_os).run_checks()
             except Exception as e:
                 error_msg = _safe_str(type(e).__name__ + ": " + str(e), max_len=256)
                 _log.error("Rule execution error: %s: %s", os.path.basename(path), error_msg)
@@ -267,7 +256,7 @@ def run_rules_blocking(
 
     def _run_one(path: str) -> RunResult:
         try:
-            return RuleRunner(rule_path=path, os_type=None).run_checks()
+            return RuleRunner(rule_path=path, os_type=detected_os).run_checks()
         except Exception as e:
             error_msg = _safe_str(type(e).__name__ + ": " + str(e), max_len=256)
             _log.error("Rule execution error: %s: %s", os.path.basename(path), error_msg)
@@ -1136,8 +1125,6 @@ class RuleForgeApp(ctk.CTk):
         error_count: int    = 0,
         policy_count: int   = 0,
         cat_count: int      = 0,
-        checks_passed: int  = 0,
-        checks_total: int   = 0,
     ) -> None:
         """Refresh every widget in the summary dashboard with new counts."""
         if self._summary_meta is not None:
@@ -1154,13 +1141,9 @@ class RuleForgeApp(ctk.CTk):
             self._stat_count_labels["skip"].configure(text=str(skip_count))
             self._stat_count_labels["policy"].configure(text=str(policy_count))
 
-        # Score is based on individual subcontrols (checks), not rules.
-        # checks_total is the number of checks that actually ran (skipped checks excluded).
-        if checks_total > 0:
-            ratio    = checks_passed / checks_total
-            pct_text = f"{int(ratio * 100)}%"
-        else:
-            ratio    = 0.0
+        # Score: PASS = full credit, PARTIAL = half credit, FAIL/ERROR = no credit.
+        ratio, pct_text = compute_score(pass_count, fail_count + error_count, partial_count)
+        if ratio == 0.0 and pct_text == "N/A":
             pct_text = "—"
 
         if self._score_label is not None:
@@ -1177,41 +1160,19 @@ class RuleForgeApp(ctk.CTk):
             "skip": 0,
             "error": 0,
             "policy": 0,
-            "checks_passed": 0,
-            "checks_total": 0,
         }
-
-    @staticmethod
-    def _result_check_totals(result: RunResult) -> tuple[int, int]:
-        checks_passed = 0
-        checks_total = 0
-        for check in result.get("checks", []):
-            if check.get("status") == "POLICY":
-                continue
-            checks_total += 1
-            if check.get("status") == "PASS":
-                checks_passed += 1
-        return checks_passed, checks_total
 
     def _apply_result_delta(self, previous: Optional[RunResult], current: RunResult) -> None:
         if previous is not None:
-            prev_status = get_rule_status(previous)
-            prev_key = prev_status.lower()
+            prev_key = get_rule_status(previous).lower()
             if prev_key in self._summary_counts:
                 self._summary_counts[prev_key] = max(0, self._summary_counts[prev_key] - 1)
-            prev_passed, prev_total = self._result_check_totals(previous)
-            self._summary_counts["checks_passed"] = max(0, self._summary_counts["checks_passed"] - prev_passed)
-            self._summary_counts["checks_total"] = max(0, self._summary_counts["checks_total"] - prev_total)
         else:
             self._summary_counts["total"] += 1
 
-        curr_status = get_rule_status(current)
-        curr_key = curr_status.lower()
+        curr_key = get_rule_status(current).lower()
         if curr_key in self._summary_counts:
             self._summary_counts[curr_key] += 1
-        curr_passed, curr_total = self._result_check_totals(current)
-        self._summary_counts["checks_passed"] += curr_passed
-        self._summary_counts["checks_total"] += curr_total
 
     def set_status(self, text: str):
         self.status_label.configure(text=f"Status: {text}")
@@ -1481,8 +1442,6 @@ class RuleForgeApp(ctk.CTk):
             error_count   = self._summary_counts["error"],
             policy_count  = self._summary_counts["policy"],
             cat_count     = len(self.rules_by_category),
-            checks_passed = self._summary_counts["checks_passed"],
-            checks_total  = self._summary_counts["checks_total"],
         )
 
     def _on_rule_result(self, path: str, result: RunResult) -> None:

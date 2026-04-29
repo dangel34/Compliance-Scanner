@@ -5,7 +5,7 @@ import datetime
 import html
 from typing import Dict
 
-from ui.utils import RunResult, _safe_str, get_rule_status
+from ui.utils import RunResult, _safe_str, compute_score, get_rule_status
 
 _STATUS_STYLE: dict[str, tuple[str, str]] = {
     "PASS":    ("#1f6f43", "#d4edda"),
@@ -66,9 +66,9 @@ def generate_report_html(save_path: str, results: Dict[str, RunResult]) -> None:
         s = get_rule_status(r)
         counts[s] = counts.get(s, 0) + 1
 
-    automated = counts["PASS"] + counts["FAIL"] + counts["PARTIAL"]
-    score_pct = f"{counts['PASS'] / automated * 100:.1f}%" if automated > 0 else "N/A"
-    score_ratio = int(counts["PASS"] / automated * 100) if automated > 0 else 0
+    score_ratio_f, score_pct = compute_score(counts["PASS"], counts["FAIL"], counts["PARTIAL"])
+    automated   = counts["PASS"] + counts["FAIL"] + counts["PARTIAL"]
+    score_ratio = int(score_ratio_f * 100)
 
     # --- summary cards ---
     cards_html = ""
@@ -159,7 +159,7 @@ def generate_report_html(save_path: str, results: Dict[str, RunResult]) -> None:
 <div class="score-wrap"><div class="score-bar" style="width:{score_ratio}%"></div></div>
 <div class="score-txt">
   Compliance score: <b>{score_pct}</b>
-  &nbsp;({counts["PASS"]} of {automated} automated checks passed)
+  &nbsp;({counts["PASS"]} passed, {counts["PARTIAL"]} partial of {automated} automated rules &mdash; partial counts as half credit)
 </div>
 
 <h2>Rule Results</h2>
