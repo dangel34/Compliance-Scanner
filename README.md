@@ -1,6 +1,8 @@
 # RuleForge
 
 ![CI](https://github.com/dangel34/Compliance-Scanner/actions/workflows/ci.yml/badge.svg)
+[![Quality Gate Status](https://sonarcloud.io/api/project_badges/measure?project=YOUR_ORG_KEY_Compliance-Scanner&metric=alert_status)](https://sonarcloud.io/summary/new_code?id=YOUR_ORG_KEY_Compliance-Scanner)
+[![Coverage](https://sonarcloud.io/api/project_badges/measure?project=YOUR_ORG_KEY_Compliance-Scanner&metric=coverage)](https://sonarcloud.io/summary/new_code?id=YOUR_ORG_KEY_Compliance-Scanner)
 ![Python](https://img.shields.io/badge/python-3.10%2B-blue)
 ![Platform](https://img.shields.io/badge/platform-Windows%20%7C%20Linux-lightgrey)
 ![License](https://img.shields.io/badge/license-PolyForm%20Noncommercial-orange)
@@ -302,6 +304,10 @@ Every push to `main` and every pull request triggers the CI workflow, which runs
 - **Python:** 3.10, 3.11, 3.12
 
 A separate lint job runs `ruff check .` on Ubuntu / Python 3.11.
+
+After all test matrix jobs pass, a SonarCloud scan runs automatically. It analyzes code quality, security hotspots, and test coverage (measured on Ubuntu / Python 3.11). Results appear on the [SonarCloud project dashboard](https://sonarcloud.io/summary/new_code?id=YOUR_ORG_KEY_Compliance-Scanner) and as inline annotations on pull requests.
+
+The scan requires a `SONAR_TOKEN` secret set in **Settings → Secrets and variables → Actions**. Generate the token at **sonarcloud.io → My Account → Security**. See [docs/RELEASE.md](docs/RELEASE.md) for the full secrets reference.
 
 ## Project Structure
 

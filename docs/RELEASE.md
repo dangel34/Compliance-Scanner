@@ -51,16 +51,30 @@ Review and edit the auto-generated release notes, then click **Publish release**
 
 The version number comes from the tag. Pushing `v1.2.3` produces artifacts labeled `1.2.3`. The fallback version in `installer.iss` (`1.0.0`) is only used for local builds run directly with `build.bat`.
 
+## Repository Secrets Reference
+
+All secrets live under **Settings → Secrets and variables → Actions** on GitHub.
+
+| Secret | Required | Purpose | How to obtain |
+|--------|----------|---------|---------------|
+| `SONAR_TOKEN` | Yes (for SonarCloud scan) | Authenticates the CI SonarCloud scan job | sonarcloud.io → My Account → Security → Generate Token |
+| `SIGN_CERT_PFX` | No (code signing only) | Base64-encoded `.pfx` certificate for signing the exe and installer | Base64-encode your `.pfx` file (see below) |
+| `SIGN_CERT_PASSWORD` | No (code signing only) | Password for the `.pfx` certificate | From your certificate provider |
+
+## SonarCloud Setup
+
+The CI workflow uploads test coverage and triggers a SonarCloud scan after the test matrix passes. To enable it:
+
+1. Create a project at [sonarcloud.io](https://sonarcloud.io) linked to this GitHub repo.
+2. Go to **My Account → Security** and generate a token named `ruleforge-github-actions`.
+3. Add it as `SONAR_TOKEN` in GitHub repo secrets.
+4. Update `sonar-project.properties` in the repo root — replace `YOUR_ORG_KEY` with your SonarCloud organization key (visible in the URL: `sonarcloud.io/organizations/<key>`).
+
+Without `SONAR_TOKEN`, the `sonar` CI job will fail. If you want to disable SonarCloud entirely, remove the `sonar:` job from `.github/workflows/ci.yml`.
+
 ## Code Signing (Optional)
 
 When present, the workflow signs the exe before packaging the portable zip, then signs the installer. Both artifacts end up signed. The signing certificate file is written to a temporary path, used, and always deleted in a `finally` block — even if signing fails — so credentials are never left on disk.
-
-Add two secrets to the repository under Settings > Secrets and variables > Actions:
-
-| Secret | Value |
-|--------|-------|
-| `SIGN_CERT_PFX` | Base64-encoded `.pfx` certificate file |
-| `SIGN_CERT_PASSWORD` | Password for the certificate |
 
 To base64-encode a certificate on Windows:
 

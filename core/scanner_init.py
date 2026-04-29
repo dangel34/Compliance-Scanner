@@ -27,7 +27,7 @@ def os_scan() -> str:
     :return:
     """
     os_parent = platform.system().lower()
-    if "win" in os_parent:
+    if os_parent.startswith("win"):
         try:
             if "server" in platform.win32_edition().lower():
                 return "windows_server"

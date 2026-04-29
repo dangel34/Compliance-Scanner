@@ -40,8 +40,27 @@ def _run(cmd: str, shell: bool = True, timeout: int = 30) -> tuple[int, str, str
 
 
 def _ps(cmd: str) -> tuple[int, str, str]:
-    full_cmd = f'powershell.exe -NonInteractive -NoProfile -Command "{cmd}"'
-    return _run(full_cmd)
+    cache_key = ("_ps", cmd, 30)
+    cached = _RUN_CACHE.get(cache_key)
+    if cached is not None:
+        return cached
+    try:
+        result = subprocess.run(
+            ["powershell.exe", "-NonInteractive", "-NoProfile", "-Command", cmd],
+            shell=False,
+            capture_output=True,
+            text=True,
+            timeout=30,
+        )
+        output: tuple[int, str, str] = (
+            result.returncode,
+            result.stdout.strip(),
+            result.stderr.strip(),
+        )
+    except subprocess.TimeoutExpired:
+        output = (-1, "", "command timed out")
+    _RUN_CACHE[cache_key] = output
+    return output
 
 
 def _reg_get(key: str, value: str) -> str | None:

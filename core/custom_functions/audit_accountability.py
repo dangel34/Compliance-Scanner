@@ -976,31 +976,69 @@ def audit_self_protect_rules_lx() -> tuple[bool, str]:
 
 def manage_audit_right_wc() -> tuple[bool, str]:
     """Verify SeSecurityPrivilege is assigned only to Administrators on Windows Client."""
-    rc, out, err = _ps(
-        "secedit /export /cfg C:\\Windows\\Temp\\secpol_tmp.cfg /quiet; "
-        "Select-String 'SeSecurityPrivilege' C:\\Windows\\Temp\\secpol_tmp.cfg"
-    )
-    if rc != 0:
-        return (False, f"Could not export security policy to check SeSecurityPrivilege: {err}")
-    if not out.strip():
-        return (False, "SeSecurityPrivilege is not defined in the security policy")
-    # Should only reference Administrators (*S-1-5-32-544) or equivalent
-    if "SeSecurityPrivilege" in out and "Users" not in out:
-        return (True, "SeSecurityPrivilege is assigned only to Administrators (not to Users)")
-    return (False, "SeSecurityPrivilege may be granted to non-administrative accounts (Users found in policy)")
+    import os as _os, uuid as _uuid
+    tmp_dir = _os.environ.get("TEMP") or _os.environ.get("TMP") or r"C:\Windows\Temp"
+    cfg_path = _os.path.join(tmp_dir, f"secpol_{_uuid.uuid4().hex}.cfg")
+    try:
+        export = subprocess.run(
+            ["powershell", "-NonInteractive", "-NoProfile", "-Command",
+             f"secedit /export /cfg '{cfg_path}' /quiet"],
+            capture_output=True, text=True, timeout=30,
+        )
+        if export.returncode != 0:
+            return (False, f"Could not export security policy to check SeSecurityPrivilege: {export.stderr.strip()}")
+        check = subprocess.run(
+            ["powershell", "-NonInteractive", "-NoProfile", "-Command",
+             f"Select-String 'SeSecurityPrivilege' '{cfg_path}'"],
+            capture_output=True, text=True, timeout=30,
+        )
+        out = check.stdout.strip()
+        if not out:
+            return (False, "SeSecurityPrivilege is not defined in the security policy")
+        # Should only reference Administrators (*S-1-5-32-544) or equivalent
+        if "SeSecurityPrivilege" in out and "Users" not in out:
+            return (True, "SeSecurityPrivilege is assigned only to Administrators (not to Users)")
+        return (False, "SeSecurityPrivilege may be granted to non-administrative accounts (Users found in policy)")
+    except subprocess.TimeoutExpired:
+        return (False, "secedit export timed out")
+    finally:
+        subprocess.run(
+            ["powershell", "-NonInteractive", "-NoProfile", "-Command",
+             f"if (Test-Path '{cfg_path}') {{ Remove-Item -Force '{cfg_path}' }}"],
+            capture_output=True, timeout=10,
+        )
 
 
 def audit_policy_modify_restricted_wc() -> tuple[bool, str]:
     """Confirm standard users cannot modify audit policy on Windows Client."""
-    rc, out, err = _ps(
-        "secedit /export /cfg C:\\Windows\\Temp\\secpol_tmp.cfg /quiet; "
-        "Select-String 'SeSecurityPrivilege|SeAuditPrivilege' C:\\Windows\\Temp\\secpol_tmp.cfg"
-    )
-    if rc != 0:
-        return (False, f"Could not query audit modification privileges: {err}")
-    if "Users" not in out:
-        return (True, "SeSecurityPrivilege and SeAuditPrivilege are not granted to standard Users")
-    return (False, "Standard Users group may have SeSecurityPrivilege or SeAuditPrivilege")
+    import os as _os, uuid as _uuid
+    tmp_dir = _os.environ.get("TEMP") or _os.environ.get("TMP") or r"C:\Windows\Temp"
+    cfg_path = _os.path.join(tmp_dir, f"secpol_{_uuid.uuid4().hex}.cfg")
+    try:
+        export = subprocess.run(
+            ["powershell", "-NonInteractive", "-NoProfile", "-Command",
+             f"secedit /export /cfg '{cfg_path}' /quiet"],
+            capture_output=True, text=True, timeout=30,
+        )
+        if export.returncode != 0:
+            return (False, f"Could not query audit modification privileges: {export.stderr.strip()}")
+        check = subprocess.run(
+            ["powershell", "-NonInteractive", "-NoProfile", "-Command",
+             f"Select-String 'SeSecurityPrivilege|SeAuditPrivilege' '{cfg_path}'"],
+            capture_output=True, text=True, timeout=30,
+        )
+        out = check.stdout.strip()
+        if "Users" not in out:
+            return (True, "SeSecurityPrivilege and SeAuditPrivilege are not granted to standard Users")
+        return (False, "Standard Users group may have SeSecurityPrivilege or SeAuditPrivilege")
+    except subprocess.TimeoutExpired:
+        return (False, "secedit export timed out")
+    finally:
+        subprocess.run(
+            ["powershell", "-NonInteractive", "-NoProfile", "-Command",
+             f"if (Test-Path '{cfg_path}') {{ Remove-Item -Force '{cfg_path}' }}"],
+            capture_output=True, timeout=10,
+        )
 
 
 def manage_audit_right_ws() -> tuple[bool, str]:
