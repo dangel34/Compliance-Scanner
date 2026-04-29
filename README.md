@@ -26,10 +26,10 @@ The application requests administrator privileges at launch — this is required
 Requires Python 3.10+, [PyInstaller](https://pyinstaller.org), and [Inno Setup 6](https://jrsoftware.org/isinfo.php).
 
 ```bat
-build.bat
+scripts\build.bat
 ```
 
-This script installs PyInstaller if needed, runs it against `compliance_scanner.spec`, then (if Inno Setup is installed) compiles `installer.iss` to produce `dist\installer\ComplianceScannerSetup.exe`.
+This script installs PyInstaller if needed, runs it against `scripts\compliance_scanner.spec`, then (if Inno Setup is installed) compiles `scripts\installer.iss` to produce `dist\installer\ComplianceScannerSetup.exe`.
 
 ## Running Without the Installer
 
@@ -308,9 +308,11 @@ A separate lint job runs `ruff check .` on Ubuntu / Python 3.11.
 ```
 cli.py                      Headless CLI entry point (no display required)
 pyproject.toml              Ruff lint configuration
-build.bat                   Build script — runs PyInstaller then Inno Setup
-compliance_scanner.spec     PyInstaller spec file
-installer.iss               Inno Setup installer script
+
+scripts/
+  build.bat                 Build script — runs PyInstaller then Inno Setup
+  compliance_scanner.spec   PyInstaller spec file
+  installer.iss             Inno Setup installer script
 
 core/
   rule_runner.py            Loads rule files and executes checks
