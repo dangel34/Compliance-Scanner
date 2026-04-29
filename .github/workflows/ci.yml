@@ -27,10 +27,9 @@ jobs:
           cache: pip
           cache-dependency-path: requirements-test.lock
 
-      # Lock files were generated with Python 3.14 but are compatible with 3.10-3.12
-      # for these packages. Regenerate after any dependency bump with:
-      #   pip-compile --generate-hashes requirements.txt requirements-dev.txt \
-      #     --output-file requirements-test.lock
+      # Regenerate after any dependency bump with:
+      #   uv pip compile requirements.txt requirements-dev.txt \
+      #     --python-version 3.10 --generate-hashes --output-file requirements-test.lock
       - name: Install dependencies
         run: |
           pip install --require-hashes --only-binary :all: -r requirements-test.lock
@@ -87,7 +86,7 @@ jobs:
           cache-dependency-path: requirements-lint.lock
 
       # Regenerate after a ruff version bump with:
-      #   pip-compile --generate-hashes requirements-lint.txt --output-file requirements-lint.lock
+      #   uv pip compile requirements-lint.txt --python-version 3.10 --generate-hashes --output-file requirements-lint.lock
       - name: Install lint tools
         run: |
           pip install --require-hashes --only-binary :all: -r requirements-lint.lock
