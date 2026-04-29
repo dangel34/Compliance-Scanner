@@ -610,3 +610,113 @@ class TestGetScanner:
         from core.scanner_init import get_scanner
         with patch("core.scanner_init.os_scan", return_value="linux"):
             assert get_scanner() is None
+
+
+# ============================================================
+# Timezone-aware datetime checks (datetime.utcnow() removed)
+# ============================================================
+
+class TestDatetimeAwareFunctions:
+    """last_update_date_wc, av_definitions_current_wc, av_definitions_age_wc
+    must work correctly now that they use timezone-aware datetime objects."""
+
+    def _fake_run(self, date_str: str, rc: int = 0):
+        from unittest.mock import MagicMock
+        result = MagicMock(returncode=rc, stdout=date_str, stderr="")
+        return lambda *a, **kw: result
+
+    def _recent(self, days: int) -> str:
+        from datetime import datetime, timezone, timedelta
+        return (datetime.now(timezone.utc) - timedelta(days=days)).strftime("%Y-%m-%d")
+
+    # --- last_update_date_wc ---
+
+    def test_last_update_recent_passes(self):
+        from core.custom_functions.system_information_integrity import last_update_date_wc, _RUN_CACHE
+        _RUN_CACHE.clear()
+        with patch("core.custom_functions.system_information_integrity.subprocess.run",
+                   self._fake_run(self._recent(5))):
+            ok, msg = last_update_date_wc()
+        assert ok
+        assert "day(s) ago" in msg
+
+    def test_last_update_stale_fails(self):
+        from core.custom_functions.system_information_integrity import last_update_date_wc, _RUN_CACHE
+        _RUN_CACHE.clear()
+        with patch("core.custom_functions.system_information_integrity.subprocess.run",
+                   self._fake_run(self._recent(45))):
+            ok, msg = last_update_date_wc()
+        assert not ok
+        assert "exceeds 30-day limit" in msg
+
+    def test_last_update_ps_failure(self):
+        from core.custom_functions.system_information_integrity import last_update_date_wc, _RUN_CACHE
+        _RUN_CACHE.clear()
+        with patch("core.custom_functions.system_information_integrity.subprocess.run",
+                   self._fake_run("", rc=1)):
+            ok, msg = last_update_date_wc()
+        assert not ok
+
+    def test_last_update_bad_date(self):
+        from core.custom_functions.system_information_integrity import last_update_date_wc, _RUN_CACHE
+        _RUN_CACHE.clear()
+        with patch("core.custom_functions.system_information_integrity.subprocess.run",
+                   self._fake_run("not-a-date")):
+            ok, msg = last_update_date_wc()
+        assert not ok
+
+    # --- av_definitions_current_wc ---
+
+    def test_av_definitions_current_recent_passes(self):
+        from core.custom_functions.system_information_integrity import av_definitions_current_wc, _RUN_CACHE
+        _RUN_CACHE.clear()
+        with patch("core.custom_functions.system_information_integrity.subprocess.run",
+                   self._fake_run(self._recent(1))):
+            ok, msg = av_definitions_current_wc()
+        assert ok
+        assert "current" in msg
+
+    def test_av_definitions_current_stale_fails(self):
+        from core.custom_functions.system_information_integrity import av_definitions_current_wc, _RUN_CACHE
+        _RUN_CACHE.clear()
+        with patch("core.custom_functions.system_information_integrity.subprocess.run",
+                   self._fake_run(self._recent(5))):
+            ok, msg = av_definitions_current_wc()
+        assert not ok
+        assert "stale" in msg
+
+    def test_av_definitions_current_ps_failure(self):
+        from core.custom_functions.system_information_integrity import av_definitions_current_wc, _RUN_CACHE
+        _RUN_CACHE.clear()
+        with patch("core.custom_functions.system_information_integrity.subprocess.run",
+                   self._fake_run("", rc=1)):
+            ok, _ = av_definitions_current_wc()
+        assert not ok
+
+    # --- av_definitions_age_wc ---
+
+    def test_av_definitions_age_recent_passes(self):
+        from core.custom_functions.system_information_integrity import av_definitions_age_wc, _RUN_CACHE
+        _RUN_CACHE.clear()
+        with patch("core.custom_functions.system_information_integrity.subprocess.run",
+                   self._fake_run(self._recent(0))):
+            ok, msg = av_definitions_age_wc()
+        assert ok
+        assert "within 24 hours" in msg
+
+    def test_av_definitions_age_stale_fails(self):
+        from core.custom_functions.system_information_integrity import av_definitions_age_wc, _RUN_CACHE
+        _RUN_CACHE.clear()
+        with patch("core.custom_functions.system_information_integrity.subprocess.run",
+                   self._fake_run(self._recent(3))):
+            ok, msg = av_definitions_age_wc()
+        assert not ok
+        assert "stale" in msg
+
+    def test_av_definitions_age_ps_failure(self):
+        from core.custom_functions.system_information_integrity import av_definitions_age_wc, _RUN_CACHE
+        _RUN_CACHE.clear()
+        with patch("core.custom_functions.system_information_integrity.subprocess.run",
+                   self._fake_run("", rc=1)):
+            ok, _ = av_definitions_age_wc()
+        assert not ok

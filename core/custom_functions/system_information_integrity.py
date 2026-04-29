@@ -149,7 +149,7 @@ def last_update_date_wc() -> tuple[bool, str]:
     if rc != 0 or not out.strip():
         return (False, f"Could not retrieve last Windows Update date: {err or 'no output'}")
     try:
-        last = datetime.strptime(out.strip()[:10], "%Y-%m-%d")
+        last = datetime.strptime(out.strip()[:10], "%Y-%m-%d").replace(tzinfo=timezone.utc)
         age_days = (datetime.now(timezone.utc) - last).days
         if age_days <= 30:
             return (True, f"Last Windows Update was {age_days} day(s) ago ({last.date()})")
@@ -338,7 +338,7 @@ def av_definitions_current_wc() -> tuple[bool, str]:
     if rc != 0 or not out.strip():
         return (False, f"Could not retrieve antivirus signature update date: {err or 'no output'}")
     try:
-        last_updated = datetime.strptime(out.strip()[:10], "%Y-%m-%d")
+        last_updated = datetime.strptime(out.strip()[:10], "%Y-%m-%d").replace(tzinfo=timezone.utc)
         age_days = (datetime.now(timezone.utc) - last_updated).days
         if age_days <= 2:
             return (True, f"Antivirus definitions are current (last updated: {last_updated.date()}, {age_days} day(s) ago)")
@@ -551,7 +551,7 @@ def av_definitions_age_wc() -> tuple[bool, str]:
     if rc != 0 or not out.strip():
         return (False, f"Could not retrieve antivirus signature update date: {err or 'no output'}")
     try:
-        last_updated = datetime.strptime(out.strip()[:10], "%Y-%m-%d")
+        last_updated = datetime.strptime(out.strip()[:10], "%Y-%m-%d").replace(tzinfo=timezone.utc)
         age_days = (datetime.now(timezone.utc) - last_updated).days
         if age_days <= 1:
             return (True, f"Antivirus definitions are within 24 hours (last updated: {last_updated.date()}, {age_days} day(s) ago)")
