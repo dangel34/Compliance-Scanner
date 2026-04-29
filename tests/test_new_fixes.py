@@ -457,7 +457,6 @@ class TestRunChecksServiceAndFilePermissions:
                 }
             },
         }
-        import json
         rule_file = tmp_path / f"{check_type}_rule.json"
         rule_file.write_text(json.dumps(rule), encoding="utf-8")
         return str(rule_file)
