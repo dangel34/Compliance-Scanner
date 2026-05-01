@@ -2285,10 +2285,10 @@ def security_functions_enforcement_wc() -> bool:
         secedit_result = subprocess.run(
             ["powershell", "-Command",
              "secedit /export /cfg $env:TEMP\\secpol.cfg /quiet; "
-             "Get-Content $env:TEMP\\secpol.cfg | "
-             "Select-String 'SeAuditPrivilege|SeSecurityPrivilege|"
-             "SeDebugPrivilege|SeLoadDriverPrivilege|"
-             "SeTakeOwnershipPrivilege|SeSystemEnvironmentPrivilege'"],
+             + "Get-Content $env:TEMP\\secpol.cfg | "
+             + "Select-String 'SeAuditPrivilege|SeSecurityPrivilege|"
+             + "SeDebugPrivilege|SeLoadDriverPrivilege|"
+             + "SeTakeOwnershipPrivilege|SeSystemEnvironmentPrivilege'"],
             capture_output=True, text=True, timeout=30
         )
         if secedit_result.returncode != 0:
@@ -2346,10 +2346,10 @@ def security_functions_enforcement_ws() -> bool:
         secedit_result = subprocess.run(
             ["powershell", "-Command",
              "secedit /export /cfg $env:TEMP\\secpol.cfg /quiet; "
-             "Get-Content $env:TEMP\\secpol.cfg | "
-             "Select-String 'SeAuditPrivilege|SeSecurityPrivilege|"
-             "SeDebugPrivilege|SeLoadDriverPrivilege|"
-             "SeTakeOwnershipPrivilege|SeRemoteInteractiveLogonRight'"],
+             + "Get-Content $env:TEMP\\secpol.cfg | "
+             + "Select-String 'SeAuditPrivilege|SeSecurityPrivilege|"
+             + "SeDebugPrivilege|SeLoadDriverPrivilege|"
+             + "SeTakeOwnershipPrivilege|SeRemoteInteractiveLogonRight'"],
             capture_output=True, text=True, timeout=30
         )
         if secedit_result.returncode != 0:
@@ -2705,9 +2705,9 @@ def nonprivileged_access_ws() -> bool:
         secedit_result = subprocess.run(
             ["powershell", "-Command",
              "secedit /export /cfg $env:TEMP\\secpol.cfg /quiet; "
-             "Get-Content $env:TEMP\\secpol.cfg | "
-             "Select-String 'SeInteractiveLogonRight|"
-             "SeDenyInteractiveLogonRight'"],
+             + "Get-Content $env:TEMP\\secpol.cfg | "
+             + "Select-String 'SeInteractiveLogonRight|"
+             + "SeDenyInteractiveLogonRight'"],
             capture_output=True, text=True, timeout=30
         )
         if secedit_result.returncode != 0:
@@ -2916,10 +2916,10 @@ def privileged_function_prevention_wc() -> bool:
         secedit_result = subprocess.run(
             ["powershell", "-Command",
              "secedit /export /cfg $env:TEMP\\secpol.cfg /quiet; "
-             "Get-Content $env:TEMP\\secpol.cfg | "
-             "Select-String 'SeDebugPrivilege|SeTakeOwnershipPrivilege|"
-             "SeLoadDriverPrivilege|SeBackupPrivilege|"
-             "SeRestorePrivilege|SeSecurityPrivilege'"],
+             + "Get-Content $env:TEMP\\secpol.cfg | "
+             + "Select-String 'SeDebugPrivilege|SeTakeOwnershipPrivilege|"
+             + "SeLoadDriverPrivilege|SeBackupPrivilege|"
+             + "SeRestorePrivilege|SeSecurityPrivilege'"],
             capture_output=True, text=True, timeout=30
         )
         if secedit_result.returncode != 0:
@@ -2973,11 +2973,11 @@ def privileged_function_prevention_ws() -> bool:
         secedit_result = subprocess.run(
             ["powershell", "-Command",
              "secedit /export /cfg $env:TEMP\\secpol.cfg /quiet; "
-             "Get-Content $env:TEMP\\secpol.cfg | "
-             "Select-String 'SeDebugPrivilege|SeTakeOwnershipPrivilege|"
-             "SeLoadDriverPrivilege|SeBackupPrivilege|SeRestorePrivilege|"
-             "SeSecurityPrivilege|SeAuditPrivilege|"
-             "SeSystemEnvironmentPrivilege'"],
+             + "Get-Content $env:TEMP\\secpol.cfg | "
+             + "Select-String 'SeDebugPrivilege|SeTakeOwnershipPrivilege|"
+             + "SeLoadDriverPrivilege|SeBackupPrivilege|SeRestorePrivilege|"
+             + "SeSecurityPrivilege|SeAuditPrivilege|"
+             + "SeSystemEnvironmentPrivilege'"],
             capture_output=True, text=True, timeout=30
         )
         if secedit_result.returncode != 0:
@@ -3366,9 +3366,9 @@ def logon_attempt_limit_wc() -> bool:
         secedit_result = subprocess.run(
             ["powershell", "-Command",
              "secedit /export /cfg $env:TEMP\\secpol.cfg /quiet; "
-             "Get-Content $env:TEMP\\secpol.cfg | "
-             "Select-String 'LockoutBadCount|LockoutDuration|"
-             "ResetLockoutCount'"],
+             + "Get-Content $env:TEMP\\secpol.cfg | "
+             + "Select-String 'LockoutBadCount|LockoutDuration|"
+             + "ResetLockoutCount'"],
             capture_output=True, text=True, timeout=30
         )
         if secedit_result.returncode != 0:
@@ -3495,9 +3495,9 @@ def logon_attempt_limit_ws() -> bool:
         secedit_result = subprocess.run(
             ["powershell", "-Command",
              "secedit /export /cfg $env:TEMP\\secpol.cfg /quiet; "
-             "Get-Content $env:TEMP\\secpol.cfg | "
-             "Select-String 'LockoutBadCount|LockoutDuration|"
-             "ResetLockoutCount'"],
+             + "Get-Content $env:TEMP\\secpol.cfg | "
+             + "Select-String 'LockoutBadCount|LockoutDuration|"
+             + "ResetLockoutCount'"],
             capture_output=True, text=True, timeout=30
         )
         if secedit_result.returncode != 0:
@@ -9426,7 +9426,7 @@ def external_system_use_control_lx() -> bool:
                 grep_result = subprocess.run(
                     ["grep", "-l",
                      "usb.*reject\\|removable.*deny\\|"
-                     "RUN.*eject\\|ATTR.*authorized.*0",
+                     + "RUN.*eject\\|ATTR.*authorized.*0",
                      rule_file],
                     capture_output=True, text=True, timeout=10
                 )
