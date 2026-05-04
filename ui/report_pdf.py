@@ -121,7 +121,7 @@ _TRIVIAL_OUTPUT = frozenset({"true", "false", "0", "1", "yes", "no"})
 def _build_automated_table(
     automated_checks: list,
     content_w: float,
-    S: dict,
+    styles: dict,
 ) -> Table:
     aut_cols = [
         8 * mm, 48 * mm, 18 * mm,
@@ -129,12 +129,12 @@ def _build_automated_table(
         14 * mm, 22 * mm,
     ]
     aut_rows = [[
-        Paragraph("<b>#</b>",               S["cell"]),
-        Paragraph("<b>Check Name</b>",      S["cell"]),
-        Paragraph("<b>Subcontrol</b>",      S["cell"]),
-        Paragraph("<b>Expected Result</b>", S["cell"]),
-        Paragraph("<b>RC</b>",              S["cell"]),
-        Paragraph("<b>Status</b>",          S["cell"]),
+        Paragraph("<b>#</b>",               styles["cell"]),
+        Paragraph("<b>Check Name</b>",      styles["cell"]),
+        Paragraph("<b>Subcontrol</b>",      styles["cell"]),
+        Paragraph("<b>Expected Result</b>", styles["cell"]),
+        Paragraph("<b>RC</b>",              styles["cell"]),
+        Paragraph("<b>Status</b>",          styles["cell"]),
     ]]
     aut_style = [
         ("BACKGROUND",    (0, 0), (-1, 0),  _COL_HEADER),
@@ -157,14 +157,14 @@ def _build_automated_table(
         chk_fg   = _STATUS_COLOR.get(chk_stat, colors.black)
 
         aut_rows.append([
-            Paragraph(str(idx),                                         S["cell"]),
-            Paragraph(_escape_xml(check.get("check_name",    "")),      S["cell"]),
-            Paragraph(_escape_xml(check.get("sub_control",   "")),      S["cell"]),
-            Paragraph(_escape_xml(check.get("expected_result", "")),    S["cell"]),
-            Paragraph(_escape_xml(str(check.get("returncode", ""))),    S["cell"]),
+            Paragraph(str(idx),                                         styles["cell"]),
+            Paragraph(_escape_xml(check.get("check_name",    "")),      styles["cell"]),
+            Paragraph(_escape_xml(check.get("sub_control",   "")),      styles["cell"]),
+            Paragraph(_escape_xml(check.get("expected_result", "")),    styles["cell"]),
+            Paragraph(_escape_xml(str(check.get("returncode", ""))),    styles["cell"]),
             Paragraph(
                 f'<font color="#{_hex(chk_fg)}"><b>{_escape_xml(chk_stat)}</b></font>',
-                S["status_text"],
+                styles["status_text"],
             ),
         ])
         if idx % 2 == 0:
@@ -182,18 +182,19 @@ def _build_automated_table(
             if stderr_useful:
                 parts.append(f"<b>Error:</b> {_escape_xml(stderr[:300])}")
             detail_row = len(aut_rows)
-            detail_bg  = (
-                colors.HexColor("#fff0f0") if chk_stat in ("FAIL", "ERROR")
-                else colors.HexColor("#f0fff4") if chk_stat == "PASS"
-                else _COL_ROW_ALT
-            )
+            if chk_stat in ("FAIL", "ERROR"):
+                detail_bg = colors.HexColor("#fff0f0")
+            elif chk_stat == "PASS":
+                detail_bg = colors.HexColor("#f0fff4")
+            else:
+                detail_bg = _COL_ROW_ALT
             aut_rows.append([
-                Paragraph("", S["cell"]),
-                Paragraph("  ".join(parts), S["cell_mono"]),
-                Paragraph("", S["cell"]),
-                Paragraph("", S["cell"]),
-                Paragraph("", S["cell"]),
-                Paragraph("", S["cell"]),
+                Paragraph("", styles["cell"]),
+                Paragraph("  ".join(parts), styles["cell_mono"]),
+                Paragraph("", styles["cell"]),
+                Paragraph("", styles["cell"]),
+                Paragraph("", styles["cell"]),
+                Paragraph("", styles["cell"]),
             ])
             aut_style.append(("SPAN",           (1, detail_row), (5, detail_row)))
             aut_style.append(("BACKGROUND",     (0, detail_row), (-1, detail_row), detail_bg))
@@ -213,7 +214,7 @@ _POL_ST_BG = colors.HexColor("#ede9fe")
 def _build_policy_table(
     policy_checks: list,
     content_w: float,
-    S: dict,
+    styles: dict,
 ) -> Table:
     pol_cols = [
         8 * mm, 48 * mm, 18 * mm,
@@ -221,11 +222,11 @@ def _build_policy_table(
         22 * mm,
     ]
     pol_rows = [[
-        Paragraph("<b>#</b>",                  S["cell"]),
-        Paragraph("<b>Check Name</b>",         S["cell"]),
-        Paragraph("<b>Subcontrol</b>",         S["cell"]),
-        Paragraph("<b>Policy Requirement</b>", S["cell"]),
-        Paragraph("<b>Status</b>",             S["cell"]),
+        Paragraph("<b>#</b>",                  styles["cell"]),
+        Paragraph("<b>Check Name</b>",         styles["cell"]),
+        Paragraph("<b>Subcontrol</b>",         styles["cell"]),
+        Paragraph("<b>Policy Requirement</b>", styles["cell"]),
+        Paragraph("<b>Status</b>",             styles["cell"]),
     ]]
     pol_style = [
         ("BACKGROUND",    (0, 0), (-1, 0),  colors.HexColor("#3d1a6e")),
@@ -245,13 +246,13 @@ def _build_policy_table(
         pol_row = len(pol_rows)
         purpose = _escape_xml(check.get("stdout", "") or "")
         pol_rows.append([
-            Paragraph(str(pol_idx), S["cell"]),
-            Paragraph(_escape_xml(check.get("check_name",  "")), S["cell"]),
-            Paragraph(_escape_xml(check.get("sub_control", "")), S["cell"]),
-            Paragraph(purpose,                                   S["cell"]),
+            Paragraph(str(pol_idx), styles["cell"]),
+            Paragraph(_escape_xml(check.get("check_name",  "")), styles["cell"]),
+            Paragraph(_escape_xml(check.get("sub_control", "")), styles["cell"]),
+            Paragraph(purpose,                                   styles["cell"]),
             Paragraph(
                 f'<font color="#{_hex(_COL_POLICY)}"><b>POLICY</b></font>',
-                S["status_text"],
+                styles["status_text"],
             ),
         ])
         if pol_idx % 2 == 0:
@@ -267,7 +268,7 @@ def _build_rule_elements(
     result: RunResult,
     meta: dict,
     content_w: float,
-    S: dict,
+    styles: dict,
 ) -> list:
     status    = get_rule_status(result)
     status_bg = _STATUS_BG.get(status, _COL_UNKNOWN)
@@ -280,8 +281,8 @@ def _build_rule_elements(
 
     rule_header = Table(
         [[
-            Paragraph(rule_id, S["rule_id"]),
-            Paragraph(title,   S["rule_title"]),
+            Paragraph(rule_id, styles["rule_id"]),
+            Paragraph(title,   styles["rule_title"]),
             Paragraph(
                 f'<b>{_escape_xml(status)}</b>',
                 ParagraphStyle(
@@ -325,7 +326,7 @@ def _build_rule_elements(
 
     if "error" in result:
         err_table = Table(
-            [[Paragraph(f"Error: {_escape_xml(result['error'])}", S["error_text"])]],
+            [[Paragraph(f"Error: {_escape_xml(result['error'])}", styles["error_text"])]],
             colWidths=[content_w],
         )
         err_table.setStyle(TableStyle([
@@ -343,10 +344,10 @@ def _build_rule_elements(
     policy_checks    = [c for c in checks if c.get("status") == "POLICY"]
 
     if not checks:
-        elements.append(Paragraph("No checks recorded.", S["no_checks"]))
+        elements.append(Paragraph("No checks recorded.", styles["no_checks"]))
     else:
         if automated_checks:
-            elements.append(_build_automated_table(automated_checks, content_w, S))
+            elements.append(_build_automated_table(automated_checks, content_w, styles))
         if policy_checks:
             if automated_checks:
                 elements.append(Spacer(1, 2 * mm))
@@ -365,7 +366,7 @@ def _build_rule_elements(
                 ("LEFTPADDING",   (0, 0), (-1, -1), 6),
             ]))
             elements.append(pol_header_tbl)
-            elements.append(_build_policy_table(policy_checks, content_w, S))
+            elements.append(_build_policy_table(policy_checks, content_w, styles))
 
     return elements
 
@@ -401,7 +402,7 @@ def generate_report_pdf(
     skip_count    = counts["SKIP"]
     policy_count  = counts["POLICY"]
 
-    S              = _get_styles()
+    styles         = _get_styles()
     psize          = LETTER if page_size.upper() == "LETTER" else A4
     page_w, page_h = psize
     margin         = 18 * mm
@@ -421,10 +422,10 @@ def generate_report_pdf(
         canvas.restoreState()
 
     header_data = [
-        [Paragraph("Compliance Scan Report", S["title"])],
-        [Paragraph(f"Generated : {now}", S["subtitle"])],
-        [Paragraph(f"OS Detected: {detected_os}", S["subtitle"])],
-        [Paragraph(f"Categories: {len(rules_by_category)}   &nbsp;&nbsp;  Rules evaluated: {total}", S["subtitle"])],
+        [Paragraph("Compliance Scan Report", styles["title"])],
+        [Paragraph(f"Generated : {now}", styles["subtitle"])],
+        [Paragraph(f"OS Detected: {detected_os}", styles["subtitle"])],
+        [Paragraph(f"Categories: {len(rules_by_category)}   &nbsp;&nbsp;  Rules evaluated: {total}", styles["subtitle"])],
     ]
     header_table = Table(header_data, colWidths=[content_w])
     header_table.setStyle(TableStyle([
@@ -472,7 +473,7 @@ def generate_report_pdf(
     for category, metas in rules_by_category.items():
         cat_block: List[Any] = [
             HRFlowable(width="100%", thickness=1.5, color=_COL_ACCENT, spaceAfter=4),
-            Paragraph(_escape_xml(category), S["category"]),
+            Paragraph(_escape_xml(category), styles["category"]),
         ]
 
         for meta in metas:
@@ -481,7 +482,7 @@ def generate_report_pdf(
             if result is None:
                 continue
 
-            rule_elements = _build_rule_elements(result, meta, content_w, S)
+            rule_elements = _build_rule_elements(result, meta, content_w, styles)
             rule_elements.append(Spacer(1, 4 * mm))
             cat_block.append(KeepTogether(rule_elements[:3]))
             cat_block.extend(rule_elements[3:])

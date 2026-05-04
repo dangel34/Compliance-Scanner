@@ -5,7 +5,6 @@ Tests for new helper functions extracted during SonarQube refactoring in:
 """
 from __future__ import annotations
 
-import pytest
 from reportlab.lib.units import mm
 
 

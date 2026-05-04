@@ -11,6 +11,7 @@ Naming convention:
     <check_name>_lx   -> Linux / Debian (shared)
 """
 
+import ipaddress
 import subprocess
 import re
 from pathlib import Path
@@ -380,12 +381,14 @@ def internal_subnet_lx() -> tuple[bool, str]:
         rc, out, err = _run("ip -4 addr show 2>/dev/null | grep 'inet ' | grep -v '127.0.0.1'")
         if rc != 0 or not out:
             return (False, f"Could not retrieve IP addresses or no non-loopback addresses found: {err}")
-        private_re = re.compile(
-            r"inet\s+(10\.\d+\.\d+\.\d+|172\.(1[6-9]|2\d|3[01])\.\d+\.\d+|192\.168\.\d+\.\d+)"
-        )
-        m = private_re.search(out)
-        if m:
-            return (True, f"System has an RFC-1918 private IP address: {m.group(1)}")
+        ip_re = re.compile(r"inet\s+(\d{1,3}(?:\.\d{1,3}){3})")
+        for m in ip_re.finditer(out):
+            try:
+                addr = ipaddress.ip_address(m.group(1))
+                if addr.is_private and not addr.is_loopback:
+                    return (True, f"System has an RFC-1918 private IP address: {m.group(1)}")
+            except ValueError:
+                pass
         return (False, f"No RFC-1918 private IP address found (addresses: {out.strip()})")
     except Exception as e:
         return (False, f"Exception while checking internal subnet: {e}")
@@ -576,7 +579,6 @@ def usb_storage_blocked_wc() -> tuple[bool, str]:
             "HKLM:\\SYSTEM\\CurrentControlSet\\Services\\USBSTOR",
             "Start"
         )
-        # 4 = disabled, 3 = manual (allowed), 2 = automatic (allowed)
         if val == "4":
             return (True, "USB storage is disabled (USBSTOR Start = 4)")
         return (False, f"USB storage is not disabled (USBSTOR Start = {val or 'not set'}, expected: 4)")

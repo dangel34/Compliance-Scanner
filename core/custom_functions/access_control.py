@@ -121,7 +121,7 @@ def _normalize_check_outputs() -> None:
         "_wrap_bool_output",
         "_normalize_check_outputs",
     }
-    for name, obj in list(globals().items()):
+    for name, obj in globals().items():
         if name in excluded:
             continue
         if (
@@ -138,7 +138,7 @@ def process_identity_wc():
         return False
     try:
         service_list = json.loads(result['stdout'])
-    except (json.JSONDecodeError, ValueError):
+    except ValueError:
         return False
     if isinstance(service_list, dict):
         service_list = [service_list]
@@ -164,7 +164,7 @@ def authorized_user_ws():
         users = json.loads(result['stdout'])
         if isinstance(users, dict):
             users = [users]
-    except (json.JSONDecodeError, ValueError):
+    except ValueError:
         return False, "Could not parse AD user list JSON"
 
     # System/built-in accounts that should not count as 'authorized named users'
@@ -634,10 +634,12 @@ def process_identity_lx() -> bool:
             if show_result.returncode != 0:
                 continue
 
-            props = dict(
-                line.split("=", 1) for line in show_result.stdout.strip().splitlines()
+            props = {
+                k: v
+                for line in show_result.stdout.strip().splitlines()
                 if "=" in line
-            )
+                for k, v in [line.split("=", 1)]
+            }
 
             user = props.get("User", "").strip()
 
@@ -698,9 +700,8 @@ def device_restriction_lx() -> bool:
                 ["firewall-cmd", "--list-all"],
                 capture_output=True, text=True, timeout=30
             )
-            if fwd_result.returncode == 0:
-                if "ssh" in fwd_result.stdout.lower():
-                    firewall_restricted = True
+            if fwd_result.returncode == 0 and "ssh" in fwd_result.stdout.lower():
+                firewall_restricted = True
 
         return bool(ssh_restricted or firewall_restricted)
 
@@ -4185,11 +4186,12 @@ def pattern_hiding_ws() -> bool:
 
         if ss_exe:
             ss_filename = ss_exe.split("\\")[-1].lower()
-            if ss_filename not in unacceptable_screensavers:
-                if ss_filename in acceptable_screensavers or not any(
+            if ss_filename not in unacceptable_screensavers and (
+                ss_filename in acceptable_screensavers or not any(
                     kw in ss_filename for kw in ["photo", "video", "slide"]
-                ):
-                    local_pattern_ok = True
+                )
+            ):
+                local_pattern_ok = True
 
         # Check RDP is configured to show logon screen on reconnect
         # DisableAutoReconnect and fPromptForPassword enforce
@@ -5908,7 +5910,7 @@ def managed_access_routing_lx() -> bool:
                 if re.search(r"port\s+22", output):
                     # Check if SSH port rules reference RFC1918 ranges
                     if re.search(
-                        r"(10\.|192\.168\.|172\.(1[6-9]|2[0-9]|3[01])\.)",
+                        r"(10\.|192\.168\.|172\.(1[6-9]|2\d|3[01])\.)",
                         output
                     ):
                         ssh_firewall_restricted = True
@@ -7854,12 +7856,11 @@ def _check_usb_audit_lx() -> bool:
         rules_result = subprocess.run(
             ["auditctl", "-l"], capture_output=True, text=True, timeout=10
         )
-        if rules_result.returncode == 0 and rules_result.stdout.strip():
-            if re.search(
-                r"(\/dev\/bus\/usb|usb|removable|\/sys\/bus\/usb|plug)",
-                rules_result.stdout.lower()
-            ):
-                return True
+        if rules_result.returncode == 0 and rules_result.stdout.strip() and re.search(
+            r"(\/dev\/bus\/usb|usb|removable|\/sys\/bus\/usb|plug)",
+            rules_result.stdout.lower()
+        ):
+            return True
         udev_result = subprocess.run(
             ["find", "/etc/udev/rules.d", "/lib/udev/rules.d",
              "-name", "*.rules", "-type", "f"],
