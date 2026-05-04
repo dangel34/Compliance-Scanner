@@ -946,7 +946,7 @@ def password_history_lx() -> tuple[bool, str]:
 
 def new_account_expired_lx() -> tuple[bool, str]:
     """Verify default useradd configuration expires passwords immediately on Linux/Debian."""
-    _, out, _ = _run("useradd -D 2>/dev/null | grep EXPIRE")
+    _run("useradd -D 2>/dev/null | grep EXPIRE")
     # Check if EXPIRE is set or if accounts can be created with chage -d 0
     # Also verify no accounts have a last change date in the future (permanent bypass)
     rc2, _, _ = _run(

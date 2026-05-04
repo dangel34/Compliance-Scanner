@@ -106,9 +106,6 @@ Add a `docs/authoring-rules.md` guide covering the full rule schema, all check t
 ### Developer CLI Subcommands
 Add `ruleforge validate` (validates all rule files), `ruleforge scaffold rule` (generates a rule template), and `ruleforge scaffold function` (generates a custom function stub) as first-class CLI subcommands so authors do not need to manually copy templates.
 
-### Test Coverage for Custom Functions
-The `core/custom_functions/` modules contain most of the compliance logic but are not well covered by unit tests. Add a mock-subprocess fixture that stubs out PowerShell and bash commands so custom functions can be tested without running on a live system.
-
 ---
 
 ## Security and Compliance
