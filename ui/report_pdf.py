@@ -118,6 +118,258 @@ def _get_styles() -> Dict[str, ParagraphStyle]:
 _TRIVIAL_OUTPUT = frozenset({"true", "false", "0", "1", "yes", "no"})
 
 
+def _build_automated_table(
+    automated_checks: list,
+    content_w: float,
+    S: dict,
+) -> Table:
+    aut_cols = [
+        8 * mm, 48 * mm, 18 * mm,
+        content_w - 8*mm - 48*mm - 18*mm - 14*mm - 22*mm,
+        14 * mm, 22 * mm,
+    ]
+    aut_rows = [[
+        Paragraph("<b>#</b>",               S["cell"]),
+        Paragraph("<b>Check Name</b>",      S["cell"]),
+        Paragraph("<b>Subcontrol</b>",      S["cell"]),
+        Paragraph("<b>Expected Result</b>", S["cell"]),
+        Paragraph("<b>RC</b>",              S["cell"]),
+        Paragraph("<b>Status</b>",          S["cell"]),
+    ]]
+    aut_style = [
+        ("BACKGROUND",    (0, 0), (-1, 0),  _COL_HEADER),
+        ("TEXTCOLOR",     (0, 0), (-1, 0),  _COL_WHITE),
+        ("FONTNAME",      (0, 0), (-1, 0),  "Helvetica-Bold"),
+        ("FONTSIZE",      (0, 0), (-1, 0),  8.5),
+        ("TOPPADDING",    (0, 0), (-1, -1), 4),
+        ("BOTTOMPADDING", (0, 0), (-1, -1), 4),
+        ("LEFTPADDING",   (0, 0), (-1, -1), 4),
+        ("RIGHTPADDING",  (0, 0), (-1, -1), 4),
+        ("VALIGN",        (0, 0), (-1, -1), "TOP"),
+        ("INNERGRID",     (0, 0), (-1, -1), 0.25, _COL_LIGHT),
+        ("BOX",           (0, 0), (-1, -1), 0.5,  _COL_LIGHT),
+    ]
+
+    for idx, check in enumerate(automated_checks, start=1):
+        row_num  = len(aut_rows)
+        chk_stat = check.get("status", "")
+        chk_bg   = _STATUS_BG.get(chk_stat, _COL_WHITE)
+        chk_fg   = _STATUS_COLOR.get(chk_stat, colors.black)
+
+        aut_rows.append([
+            Paragraph(str(idx),                                         S["cell"]),
+            Paragraph(_escape_xml(check.get("check_name",    "")),      S["cell"]),
+            Paragraph(_escape_xml(check.get("sub_control",   "")),      S["cell"]),
+            Paragraph(_escape_xml(check.get("expected_result", "")),    S["cell"]),
+            Paragraph(_escape_xml(str(check.get("returncode", ""))),    S["cell"]),
+            Paragraph(
+                f'<font color="#{_hex(chk_fg)}"><b>{_escape_xml(chk_stat)}</b></font>',
+                S["status_text"],
+            ),
+        ])
+        if idx % 2 == 0:
+            aut_style.append(("BACKGROUND", (0, row_num), (-2, row_num), _COL_ROW_ALT))
+        aut_style.append(("BACKGROUND", (5, row_num), (5, row_num), chk_bg))
+
+        stdout = check.get("stdout", "").strip()
+        stderr = check.get("stderr", "").strip()
+        stdout_useful = stdout and stdout.lower() not in _TRIVIAL_OUTPUT
+        stderr_useful = stderr and stderr.lower() not in _TRIVIAL_OUTPUT
+        if stdout_useful or stderr_useful:
+            parts = []
+            if stdout_useful:
+                parts.append(f"<b>Output:</b> {_escape_xml(stdout[:400])}")
+            if stderr_useful:
+                parts.append(f"<b>Error:</b> {_escape_xml(stderr[:300])}")
+            detail_row = len(aut_rows)
+            detail_bg  = (
+                colors.HexColor("#fff0f0") if chk_stat in ("FAIL", "ERROR")
+                else colors.HexColor("#f0fff4") if chk_stat == "PASS"
+                else _COL_ROW_ALT
+            )
+            aut_rows.append([
+                Paragraph("", S["cell"]),
+                Paragraph("  ".join(parts), S["cell_mono"]),
+                Paragraph("", S["cell"]),
+                Paragraph("", S["cell"]),
+                Paragraph("", S["cell"]),
+                Paragraph("", S["cell"]),
+            ])
+            aut_style.append(("SPAN",           (1, detail_row), (5, detail_row)))
+            aut_style.append(("BACKGROUND",     (0, detail_row), (-1, detail_row), detail_bg))
+            aut_style.append(("LEFTPADDING",    (1, detail_row), (1, detail_row), 8))
+            aut_style.append(("BOTTOMPADDING",  (0, detail_row), (-1, detail_row), 6))
+
+    tbl = Table(aut_rows, colWidths=aut_cols, repeatRows=1)
+    tbl.setStyle(TableStyle(aut_style))
+    return tbl
+
+
+_POL_GRID  = colors.HexColor("#d8b4fe")
+_POL_ALT   = colors.HexColor("#f5f0ff")
+_POL_ST_BG = colors.HexColor("#ede9fe")
+
+
+def _build_policy_table(
+    policy_checks: list,
+    content_w: float,
+    S: dict,
+) -> Table:
+    pol_cols = [
+        8 * mm, 48 * mm, 18 * mm,
+        content_w - 8*mm - 48*mm - 18*mm - 22*mm,
+        22 * mm,
+    ]
+    pol_rows = [[
+        Paragraph("<b>#</b>",                  S["cell"]),
+        Paragraph("<b>Check Name</b>",         S["cell"]),
+        Paragraph("<b>Subcontrol</b>",         S["cell"]),
+        Paragraph("<b>Policy Requirement</b>", S["cell"]),
+        Paragraph("<b>Status</b>",             S["cell"]),
+    ]]
+    pol_style = [
+        ("BACKGROUND",    (0, 0), (-1, 0),  colors.HexColor("#3d1a6e")),
+        ("TEXTCOLOR",     (0, 0), (-1, 0),  _COL_WHITE),
+        ("FONTNAME",      (0, 0), (-1, 0),  "Helvetica-Bold"),
+        ("FONTSIZE",      (0, 0), (-1, 0),  8.5),
+        ("TOPPADDING",    (0, 0), (-1, -1), 4),
+        ("BOTTOMPADDING", (0, 0), (-1, -1), 4),
+        ("LEFTPADDING",   (0, 0), (-1, -1), 4),
+        ("RIGHTPADDING",  (0, 0), (-1, -1), 4),
+        ("VALIGN",        (0, 0), (-1, -1), "TOP"),
+        ("INNERGRID",     (0, 0), (-1, -1), 0.25, _POL_GRID),
+        ("BOX",           (0, 0), (-1, -1), 0.5,  _COL_POLICY),
+    ]
+
+    for pol_idx, check in enumerate(policy_checks, start=1):
+        pol_row = len(pol_rows)
+        purpose = _escape_xml(check.get("stdout", "") or "")
+        pol_rows.append([
+            Paragraph(str(pol_idx), S["cell"]),
+            Paragraph(_escape_xml(check.get("check_name",  "")), S["cell"]),
+            Paragraph(_escape_xml(check.get("sub_control", "")), S["cell"]),
+            Paragraph(purpose,                                   S["cell"]),
+            Paragraph(
+                f'<font color="#{_hex(_COL_POLICY)}"><b>POLICY</b></font>',
+                S["status_text"],
+            ),
+        ])
+        if pol_idx % 2 == 0:
+            pol_style.append(("BACKGROUND", (0, pol_row), (-2, pol_row), _POL_ALT))
+        pol_style.append(("BACKGROUND", (4, pol_row), (4, pol_row), _POL_ST_BG))
+
+    tbl = Table(pol_rows, colWidths=pol_cols, repeatRows=1)
+    tbl.setStyle(TableStyle(pol_style))
+    return tbl
+
+
+def _build_rule_elements(
+    result: RunResult,
+    meta: dict,
+    content_w: float,
+    S: dict,
+) -> list:
+    status    = get_rule_status(result)
+    status_bg = _STATUS_BG.get(status, _COL_UNKNOWN)
+    status_fg = _STATUS_COLOR.get(status, colors.black)
+    rule_id   = _escape_xml(result.get("rule_id", meta["rule_id"]))
+    title     = _escape_xml(result.get("title",   meta["title"]))
+    chk_run    = result.get("checks_run",     0)
+    chk_skip   = result.get("checks_skipped", 0)
+    chk_policy = result.get("checks_policy",  0)
+
+    rule_header = Table(
+        [[
+            Paragraph(rule_id, S["rule_id"]),
+            Paragraph(title,   S["rule_title"]),
+            Paragraph(
+                f'<b>{_escape_xml(status)}</b>',
+                ParagraphStyle(
+                    "RHStatus", fontSize=8, fontName="Helvetica-Bold",
+                    alignment=TA_CENTER, textColor=status_fg,
+                ),
+            ),
+        ]],
+        colWidths=[38 * mm, content_w - 38 * mm - 24 * mm, 24 * mm],
+    )
+    rule_header.setStyle(TableStyle([
+        ("BACKGROUND",    (0, 0), (-1, -1), status_bg),
+        ("TOPPADDING",    (0, 0), (-1, -1), 5),
+        ("BOTTOMPADDING", (0, 0), (-1, -1), 5),
+        ("LEFTPADDING",   (0, 0), (-1, -1), 6),
+        ("RIGHTPADDING",  (0, 0), (-1, -1), 6),
+        ("VALIGN",        (0, 0), (-1, -1), "MIDDLE"),
+        ("BOX",           (0, 0), (-1, -1), 0.5, _COL_LIGHT),
+    ]))
+
+    meta_row = Table(
+        [[
+            Paragraph(
+                f"Checks run: <b>{chk_run}</b> &nbsp;&nbsp; Skipped: <b>{chk_skip}</b>"
+                + (f" &nbsp;&nbsp; Policy: <b>{chk_policy}</b>" if chk_policy else ""),
+                ParagraphStyle("MetaRow", fontSize=7.5,
+                               textColor=colors.HexColor("#666666")),
+            ),
+        ]],
+        colWidths=[content_w],
+    )
+    meta_row.setStyle(TableStyle([
+        ("BACKGROUND",    (0, 0), (-1, -1), _COL_ROW_ALT),
+        ("TOPPADDING",    (0, 0), (-1, -1), 3),
+        ("BOTTOMPADDING", (0, 0), (-1, -1), 3),
+        ("LEFTPADDING",   (0, 0), (-1, -1), 6),
+        ("BOX",           (0, 0), (-1, -1), 0.5, _COL_LIGHT),
+    ]))
+
+    elements: list = [rule_header, meta_row]
+
+    if "error" in result:
+        err_table = Table(
+            [[Paragraph(f"Error: {_escape_xml(result['error'])}", S["error_text"])]],
+            colWidths=[content_w],
+        )
+        err_table.setStyle(TableStyle([
+            ("BACKGROUND",    (0, 0), (-1, -1), colors.HexColor("#f8d7da")),
+            ("TOPPADDING",    (0, 0), (-1, -1), 4),
+            ("BOTTOMPADDING", (0, 0), (-1, -1), 4),
+            ("LEFTPADDING",   (0, 0), (-1, -1), 6),
+            ("BOX",           (0, 0), (-1, -1), 0.5, _COL_FAIL),
+        ]))
+        elements.append(err_table)
+        return elements
+
+    checks           = result.get("checks", [])
+    automated_checks = [c for c in checks if c.get("status") != "POLICY"]
+    policy_checks    = [c for c in checks if c.get("status") == "POLICY"]
+
+    if not checks:
+        elements.append(Paragraph("No checks recorded.", S["no_checks"]))
+    else:
+        if automated_checks:
+            elements.append(_build_automated_table(automated_checks, content_w, S))
+        if policy_checks:
+            if automated_checks:
+                elements.append(Spacer(1, 2 * mm))
+            pol_header_tbl = Table(
+                [[Paragraph(
+                    "Policy Requirements",
+                    ParagraphStyle("PolSectionLabel", fontSize=8,
+                                   fontName="Helvetica-Bold", textColor=_COL_WHITE),
+                )]],
+                colWidths=[content_w],
+            )
+            pol_header_tbl.setStyle(TableStyle([
+                ("BACKGROUND",    (0, 0), (-1, -1), _COL_POLICY),
+                ("TOPPADDING",    (0, 0), (-1, -1), 4),
+                ("BOTTOMPADDING", (0, 0), (-1, -1), 4),
+                ("LEFTPADDING",   (0, 0), (-1, -1), 6),
+            ]))
+            elements.append(pol_header_tbl)
+            elements.append(_build_policy_table(policy_checks, content_w, S))
+
+    return elements
+
+
 # ---------------------------------------------------------------------------
 # Public API
 # ---------------------------------------------------------------------------
@@ -229,241 +481,7 @@ def generate_report_pdf(
             if result is None:
                 continue
 
-            status    = get_rule_status(result)
-            status_bg = _STATUS_BG.get(status, _COL_UNKNOWN)
-            status_fg = _STATUS_COLOR.get(status, colors.black)
-            rule_id   = _escape_xml(result.get("rule_id", meta["rule_id"]))
-            title     = _escape_xml(result.get("title",   meta["title"]))
-            chk_run    = result.get("checks_run",     0)
-            chk_skip   = result.get("checks_skipped", 0)
-            chk_policy = result.get("checks_policy",  0)
-
-            rule_header = Table(
-                [[
-                    Paragraph(rule_id, S["rule_id"]),
-                    Paragraph(title,   S["rule_title"]),
-                    Paragraph(
-                        f'<b>{_escape_xml(status)}</b>',
-                        ParagraphStyle(
-                            "RHStatus", fontSize=8, fontName="Helvetica-Bold",
-                            alignment=TA_CENTER, textColor=status_fg,
-                        ),
-                    ),
-                ]],
-                colWidths=[38 * mm, content_w - 38 * mm - 24 * mm, 24 * mm],
-            )
-            rule_header.setStyle(TableStyle([
-                ("BACKGROUND",    (0, 0), (-1, -1), status_bg),
-                ("TOPPADDING",    (0, 0), (-1, -1), 5),
-                ("BOTTOMPADDING", (0, 0), (-1, -1), 5),
-                ("LEFTPADDING",   (0, 0), (-1, -1), 6),
-                ("RIGHTPADDING",  (0, 0), (-1, -1), 6),
-                ("VALIGN",        (0, 0), (-1, -1), "MIDDLE"),
-                ("BOX",           (0, 0), (-1, -1), 0.5, _COL_LIGHT),
-            ]))
-
-            meta_row = Table(
-                [[
-                    Paragraph(
-                        f"Checks run: <b>{chk_run}</b> &nbsp;&nbsp; Skipped: <b>{chk_skip}</b>"
-                        + (f" &nbsp;&nbsp; Policy: <b>{chk_policy}</b>" if chk_policy else ""),
-                        ParagraphStyle("MetaRow", fontSize=7.5,
-                                       textColor=colors.HexColor("#666666")),
-                    ),
-                ]],
-                colWidths=[content_w],
-            )
-            meta_row.setStyle(TableStyle([
-                ("BACKGROUND",    (0, 0), (-1, -1), _COL_ROW_ALT),
-                ("TOPPADDING",    (0, 0), (-1, -1), 3),
-                ("BOTTOMPADDING", (0, 0), (-1, -1), 3),
-                ("LEFTPADDING",   (0, 0), (-1, -1), 6),
-                ("BOX",           (0, 0), (-1, -1), 0.5, _COL_LIGHT),
-            ]))
-
-            rule_elements: List[Any] = [rule_header, meta_row]
-
-            if "error" in result:
-                err_table = Table(
-                    [[Paragraph(f"Error: {_escape_xml(result['error'])}", S["error_text"])]],
-                    colWidths=[content_w],
-                )
-                err_table.setStyle(TableStyle([
-                    ("BACKGROUND",    (0, 0), (-1, -1), colors.HexColor("#f8d7da")),
-                    ("TOPPADDING",    (0, 0), (-1, -1), 4),
-                    ("BOTTOMPADDING", (0, 0), (-1, -1), 4),
-                    ("LEFTPADDING",   (0, 0), (-1, -1), 6),
-                    ("BOX",           (0, 0), (-1, -1), 0.5, _COL_FAIL),
-                ]))
-                rule_elements.append(err_table)
-
-            checks = result.get("checks", [])
-            automated_checks = [c for c in checks if c.get("status") != "POLICY"]
-            policy_checks    = [c for c in checks if c.get("status") == "POLICY"]
-
-            if not checks:
-                rule_elements.append(Paragraph("No checks recorded.", S["no_checks"]))
-            else:
-                # ── Automated checks table ─────────────────────────────────
-                # Cols: # | Check Name | Subcontrol | Expected Result | RC | Status
-                if automated_checks:
-                    aut_cols = [
-                        8 * mm, 48 * mm, 18 * mm,
-                        content_w - 8*mm - 48*mm - 18*mm - 14*mm - 22*mm,
-                        14 * mm, 22 * mm,
-                    ]
-                    aut_rows = [[
-                        Paragraph("<b>#</b>",               S["cell"]),
-                        Paragraph("<b>Check Name</b>",      S["cell"]),
-                        Paragraph("<b>Subcontrol</b>",      S["cell"]),
-                        Paragraph("<b>Expected Result</b>", S["cell"]),
-                        Paragraph("<b>RC</b>",              S["cell"]),
-                        Paragraph("<b>Status</b>",          S["cell"]),
-                    ]]
-                    aut_style = [
-                        ("BACKGROUND",    (0, 0), (-1, 0),  _COL_HEADER),
-                        ("TEXTCOLOR",     (0, 0), (-1, 0),  _COL_WHITE),
-                        ("FONTNAME",      (0, 0), (-1, 0),  "Helvetica-Bold"),
-                        ("FONTSIZE",      (0, 0), (-1, 0),  8.5),
-                        ("TOPPADDING",    (0, 0), (-1, -1), 4),
-                        ("BOTTOMPADDING", (0, 0), (-1, -1), 4),
-                        ("LEFTPADDING",   (0, 0), (-1, -1), 4),
-                        ("RIGHTPADDING",  (0, 0), (-1, -1), 4),
-                        ("VALIGN",        (0, 0), (-1, -1), "TOP"),
-                        ("INNERGRID",     (0, 0), (-1, -1), 0.25, _COL_LIGHT),
-                        ("BOX",           (0, 0), (-1, -1), 0.5,  _COL_LIGHT),
-                    ]
-
-                    for idx, check in enumerate(automated_checks, start=1):
-                        row_num  = len(aut_rows)
-                        chk_stat = check.get("status", "")
-                        chk_bg   = _STATUS_BG.get(chk_stat, _COL_WHITE)
-                        chk_fg   = _STATUS_COLOR.get(chk_stat, colors.black)
-
-                        aut_rows.append([
-                            Paragraph(str(idx),                                         S["cell"]),
-                            Paragraph(_escape_xml(check.get("check_name",    "")),      S["cell"]),
-                            Paragraph(_escape_xml(check.get("sub_control",   "")),      S["cell"]),
-                            Paragraph(_escape_xml(check.get("expected_result", "")),    S["cell"]),
-                            Paragraph(_escape_xml(str(check.get("returncode", ""))),    S["cell"]),
-                            Paragraph(
-                                f'<font color="#{_hex(chk_fg)}"><b>{_escape_xml(chk_stat)}</b></font>',
-                                S["status_text"],
-                            ),
-                        ])
-                        if idx % 2 == 0:
-                            aut_style.append(("BACKGROUND", (0, row_num), (-2, row_num), _COL_ROW_ALT))
-                        aut_style.append(("BACKGROUND", (5, row_num), (5, row_num), chk_bg))
-
-                        # Output detail row — only shown when the output carries real
-                        # diagnostic value. Single-word boolean/numeric outputs (e.g.
-                        # "True", "False", "0") are suppressed as they clutter the report.
-                        stdout = check.get("stdout", "").strip()
-                        stderr = check.get("stderr", "").strip()
-                        stdout_useful = stdout and stdout.lower() not in _TRIVIAL_OUTPUT
-                        stderr_useful = stderr and stderr.lower() not in _TRIVIAL_OUTPUT
-                        if stdout_useful or stderr_useful:
-                            parts = []
-                            if stdout_useful:
-                                parts.append(f"<b>Output:</b> {_escape_xml(stdout[:400])}")
-                            if stderr_useful:
-                                parts.append(f"<b>Error:</b> {_escape_xml(stderr[:300])}")
-                            detail_row = len(aut_rows)
-                            detail_bg  = (
-                                colors.HexColor("#fff0f0") if chk_stat in ("FAIL", "ERROR")
-                                else colors.HexColor("#f0fff4") if chk_stat == "PASS"
-                                else _COL_ROW_ALT
-                            )
-                            aut_rows.append([
-                                Paragraph("", S["cell"]),
-                                Paragraph("  ".join(parts), S["cell_mono"]),
-                                Paragraph("", S["cell"]),
-                                Paragraph("", S["cell"]),
-                                Paragraph("", S["cell"]),
-                                Paragraph("", S["cell"]),
-                            ])
-                            aut_style.append(("SPAN",           (1, detail_row), (5, detail_row)))
-                            aut_style.append(("BACKGROUND",     (0, detail_row), (-1, detail_row), detail_bg))
-                            aut_style.append(("LEFTPADDING",    (1, detail_row), (1, detail_row), 8))
-                            aut_style.append(("BOTTOMPADDING",  (0, detail_row), (-1, detail_row), 6))
-
-                    aut_tbl = Table(aut_rows, colWidths=aut_cols, repeatRows=1)
-                    aut_tbl.setStyle(TableStyle(aut_style))
-                    rule_elements.append(aut_tbl)
-
-                # ── Policy checks table ────────────────────────────────────
-                # Separate table with "Policy Requirement" column in place of
-                # Expected Result + RC — policy checks have no executable command.
-                if policy_checks:
-                    if automated_checks:
-                        rule_elements.append(Spacer(1, 2 * mm))
-
-                    pol_header_tbl = Table(
-                        [[Paragraph(
-                            "Policy Requirements",
-                            ParagraphStyle("PolSectionLabel", fontSize=8,
-                                           fontName="Helvetica-Bold", textColor=_COL_WHITE),
-                        )]],
-                        colWidths=[content_w],
-                    )
-                    pol_header_tbl.setStyle(TableStyle([
-                        ("BACKGROUND",    (0, 0), (-1, -1), _COL_POLICY),
-                        ("TOPPADDING",    (0, 0), (-1, -1), 4),
-                        ("BOTTOMPADDING", (0, 0), (-1, -1), 4),
-                        ("LEFTPADDING",   (0, 0), (-1, -1), 6),
-                    ]))
-                    rule_elements.append(pol_header_tbl)
-
-                    pol_cols = [
-                        8 * mm, 48 * mm, 18 * mm,
-                        content_w - 8*mm - 48*mm - 18*mm - 22*mm,
-                        22 * mm,
-                    ]
-                    pol_rows = [[
-                        Paragraph("<b>#</b>",                  S["cell"]),
-                        Paragraph("<b>Check Name</b>",         S["cell"]),
-                        Paragraph("<b>Subcontrol</b>",         S["cell"]),
-                        Paragraph("<b>Policy Requirement</b>", S["cell"]),
-                        Paragraph("<b>Status</b>",             S["cell"]),
-                    ]]
-                    _POL_GRID  = colors.HexColor("#d8b4fe")
-                    _POL_ALT   = colors.HexColor("#f5f0ff")
-                    _POL_ST_BG = colors.HexColor("#ede9fe")
-                    pol_style = [
-                        ("BACKGROUND",    (0, 0), (-1, 0),  colors.HexColor("#3d1a6e")),
-                        ("TEXTCOLOR",     (0, 0), (-1, 0),  _COL_WHITE),
-                        ("FONTNAME",      (0, 0), (-1, 0),  "Helvetica-Bold"),
-                        ("FONTSIZE",      (0, 0), (-1, 0),  8.5),
-                        ("TOPPADDING",    (0, 0), (-1, -1), 4),
-                        ("BOTTOMPADDING", (0, 0), (-1, -1), 4),
-                        ("LEFTPADDING",   (0, 0), (-1, -1), 4),
-                        ("RIGHTPADDING",  (0, 0), (-1, -1), 4),
-                        ("VALIGN",        (0, 0), (-1, -1), "TOP"),
-                        ("INNERGRID",     (0, 0), (-1, -1), 0.25, _POL_GRID),
-                        ("BOX",           (0, 0), (-1, -1), 0.5,  _COL_POLICY),
-                    ]
-
-                    for pol_idx, check in enumerate(policy_checks, start=1):
-                        pol_row = len(pol_rows)
-                        purpose = _escape_xml(check.get("stdout", "") or "")
-                        pol_rows.append([
-                            Paragraph(str(pol_idx), S["cell"]),
-                            Paragraph(_escape_xml(check.get("check_name",  "")), S["cell"]),
-                            Paragraph(_escape_xml(check.get("sub_control", "")), S["cell"]),
-                            Paragraph(purpose,                                   S["cell"]),
-                            Paragraph(
-                                f'<font color="#{_hex(_COL_POLICY)}"><b>POLICY</b></font>',
-                                S["status_text"],
-                            ),
-                        ])
-                        if pol_idx % 2 == 0:
-                            pol_style.append(("BACKGROUND", (0, pol_row), (-2, pol_row), _POL_ALT))
-                        pol_style.append(("BACKGROUND", (4, pol_row), (4, pol_row), _POL_ST_BG))
-
-                    pol_tbl = Table(pol_rows, colWidths=pol_cols, repeatRows=1)
-                    pol_tbl.setStyle(TableStyle(pol_style))
-                    rule_elements.append(pol_tbl)
-
+            rule_elements = _build_rule_elements(result, meta, content_w, S)
             rule_elements.append(Spacer(1, 4 * mm))
             cat_block.append(KeepTogether(rule_elements[:3]))
             cat_block.extend(rule_elements[3:])

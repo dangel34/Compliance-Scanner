@@ -247,7 +247,7 @@ def listening_ports_lx() -> tuple[bool, str]:
 def secure_boot_wc() -> tuple[bool, str]:
     """Verify Secure Boot is enabled via Confirm-SecureBootUEFI on Windows Client."""
     try:
-        rc, out, err = _ps("Confirm-SecureBootUEFI")
+        rc, out, _ = _ps("Confirm-SecureBootUEFI")
         if rc == 0 and out.strip().lower() == "true":
             return (True, "Secure Boot is enabled (Confirm-SecureBootUEFI = True)")
         return (False, f"Secure Boot is not enabled (Confirm-SecureBootUEFI = {out.strip() or 'False/error'})")
@@ -550,7 +550,7 @@ def sudo_restricted_lx() -> tuple[bool, str]:
 def dlp_agent_present_wc() -> tuple[bool, str]:
     """Verify a Data Loss Prevention agent (Microsoft Purview/Endpoint DLP) is present on Windows Client."""
     try:
-        rc, out, err = _ps(
+        rc, out, _ = _ps(
             "Get-Service -Name 'MsSense','SenseCncProxy','MpsSvc' -ErrorAction SilentlyContinue | "
             "Where-Object { $_.Status -eq 'Running' } | Measure-Object | "
             "Select-Object -ExpandProperty Count"
@@ -558,7 +558,7 @@ def dlp_agent_present_wc() -> tuple[bool, str]:
         if rc == 0 and out.strip().isdigit() and int(out.strip()) > 0:
             return (True, f"DLP/MDE agent service is running ({out.strip()} service(s) active)")
         # Also check for Purview compliance agent
-        rc2, out2, err2 = _ps(
+        rc2, out2, _ = _ps(
             "Get-Process -Name 'MsSense','SenseIR' -ErrorAction SilentlyContinue | Measure-Object | "
             "Select-Object -ExpandProperty Count"
         )
@@ -628,7 +628,7 @@ def usb_storage_blocked_lx() -> tuple[bool, str]:
             except Exception:
                 continue
         # Check if module is currently not loaded
-        rc, out, _ = _run("lsmod 2>/dev/null | grep usb_storage")
+        rc, _, _ = _run("lsmod 2>/dev/null | grep usb_storage")
         if rc != 0:  # grep returns non-zero if no match
             return (True, "usb-storage module is not currently loaded")
         return (False, "usb-storage module is loaded and no blacklist entry found in /etc/modprobe.d/")
@@ -754,7 +754,7 @@ def ufw_default_deny_lx() -> tuple[bool, str]:
 def rasman_no_split_tunnel_wc() -> tuple[bool, str]:
     """Verify the RasMan/PPP registry does not have split tunneling enabled on Windows Client."""
     try:
-        rc, out, err = _ps(
+        rc, out, _ = _ps(
             "Get-VpnConnection 2>/dev/null | Select-Object -ExpandProperty SplitTunneling"
         )
         if rc == 0 and out.strip():
@@ -779,7 +779,7 @@ def routing_via_vpn_wc() -> tuple[bool, str]:
     """Verify the default route (0.0.0.0/0) is via a VPN-type interface when a VPN is active on Windows Client."""
     try:
         # Check if any VPN connections are currently connected
-        rc, out, err = _ps(
+        rc, out, _ = _ps(
             "Get-VpnConnection -ErrorAction SilentlyContinue | "
             "Where-Object { $_.ConnectionStatus -eq 'Connected' } | "
             "Measure-Object | Select-Object -ExpandProperty Count"
@@ -1144,7 +1144,7 @@ def bitlocker_key_protector_ws() -> tuple[bool, str]:
 def luks_keyslots_lx() -> tuple[bool, str]:
     """Verify LUKS encrypted volumes exist and have key slots configured on Linux/Debian."""
     try:
-        rc, out, err = _run("lsblk -o NAME,FSTYPE 2>/dev/null | grep -i 'crypto_luks'")
+        rc, out, _ = _run("lsblk -o NAME,FSTYPE 2>/dev/null | grep -i 'crypto_luks'")
         if rc != 0 or not out:
             return (False, "No LUKS-encrypted volumes found (lsblk shows no crypto_luks filesystems)")
         # LUKS volumes found; verify at least one key slot is active
@@ -1304,10 +1304,10 @@ def microphone_permissions_lx() -> tuple[bool, str]:
 def ps_execution_policy_wc() -> tuple[bool, str]:
     """Verify PowerShell execution policy is RemoteSigned or AllSigned on Windows Client."""
     try:
-        rc, out, err = _ps("Get-ExecutionPolicy -Scope LocalMachine")
+        rc, out, _ = _ps("Get-ExecutionPolicy -Scope LocalMachine")
         if rc == 0 and out.strip().lower() in ("remotesigned", "allsigned"):
             return (True, f"PowerShell execution policy (LocalMachine) is {out.strip()}")
-        rc2, out2, err2 = _ps("Get-ExecutionPolicy")
+        rc2, out2, _ = _ps("Get-ExecutionPolicy")
         if rc2 == 0 and out2.strip().lower() in ("remotesigned", "allsigned"):
             return (True, f"PowerShell execution policy is {out2.strip()}")
         effective = out2.strip() or out.strip() or "unknown"
@@ -1333,7 +1333,7 @@ def wsh_disabled_wc() -> tuple[bool, str]:
 def applocker_active_wc() -> tuple[bool, str]:
     """Verify AppLocker or WDAC policies are configured and enforced on Windows Client."""
     try:
-        rc, out, err = _ps(
+        rc, out, _ = _ps(
             "Get-AppLockerPolicy -Effective -Xml 2>$null | "
             "Select-String 'EnforcementMode=\"Enabled\"' | Measure-Object | "
             "Select-Object -ExpandProperty Count"
@@ -1341,7 +1341,7 @@ def applocker_active_wc() -> tuple[bool, str]:
         if rc == 0 and out.strip().isdigit() and int(out.strip()) > 0:
             return (True, f"AppLocker policy is active with {out.strip()} enforced rule collection(s)")
         # Check WDAC (Windows Defender Application Control) via CodeIntegrity registry
-        rc2, out2, err2 = _ps(
+        rc2, out2, _ = _ps(
             "(Get-ItemProperty -Path 'HKLM:\\SYSTEM\\CurrentControlSet\\Control\\DeviceGuard\\Scenarios"
             "\\HypervisorEnforcedCodeIntegrity' -Name 'Enabled' -ErrorAction SilentlyContinue).Enabled"
         )
@@ -1433,14 +1433,14 @@ def no_world_writable_path_lx() -> tuple[bool, str]:
 def voip_ports_controlled_wc() -> tuple[bool, str]:
     """Verify SIP/VoIP ports (5060, 5061) are not unexpectedly open or are covered by firewall rules on Windows Client."""
     try:
-        rc, out, err = _ps(
+        rc, out, _ = _ps(
             "Get-NetTCPConnection -State Listen -LocalPort 5060,5061 "
             "-ErrorAction SilentlyContinue | Measure-Object | Select-Object -ExpandProperty Count"
         )
         if rc == 0 and out.strip().isdigit() and int(out.strip()) == 0:
             return (True, "SIP/VoIP ports 5060 and 5061 are not listening")
         # If open, verify firewall rules govern them via port filter objects
-        rc2, out2, err2 = _ps(
+        rc2, out2, _ = _ps(
             "Get-NetFirewallRule | Get-NetFirewallPortFilter | "
             "Where-Object { $_.LocalPort -match '5060|5061' } | "
             "Measure-Object | Select-Object -ExpandProperty Count"
@@ -1545,7 +1545,7 @@ def tls_cert_validation_ws() -> tuple[bool, str]:
 def kerberos_auth_ws() -> tuple[bool, str]:
     """Verify Kerberos authentication is in use by confirming the system is domain-joined on Windows Server."""
     try:
-        rc, out, err = _ps(
+        rc, out, _ = _ps(
             "(Get-WmiObject -Class Win32_ComputerSystem).PartOfDomain"
         )
         if rc == 0 and out.strip().lower() == "true":
@@ -1646,7 +1646,7 @@ def bitlocker_full_encryption_ws() -> tuple[bool, str]:
 def luks_active_lx() -> tuple[bool, str]:
     """Verify LUKS-encrypted partitions exist on the system on Linux/Debian."""
     try:
-        rc, out, err = _run("lsblk -o NAME,FSTYPE,MOUNTPOINT 2>/dev/null | grep -i 'crypto_luks'")
+        rc, out, _ = _run("lsblk -o NAME,FSTYPE,MOUNTPOINT 2>/dev/null | grep -i 'crypto_luks'")
         if rc == 0 and out.strip():
             count = len(out.strip().splitlines())
             return (True, f"LUKS-encrypted partition(s) found: {count} volume(s)")

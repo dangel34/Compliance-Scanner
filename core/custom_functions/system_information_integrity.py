@@ -242,7 +242,7 @@ def missing_patches_lx() -> tuple[bool, str]:
         except ValueError:
             pass
     # Try yum/dnf
-    rc2, out2, _ = _run("yum check-update --security -q 2>/dev/null | grep -c '\\.'")
+    _, out2, _ = _run("yum check-update --security -q 2>/dev/null | grep -c '\\.'")
     try:
         count2 = int(out2.strip())
         if count2 == 0:
@@ -298,14 +298,14 @@ def kernel_current_lx() -> tuple[bool, str]:
 
 def av_installed_running_wc() -> tuple[bool, str]:
     """Verify antivirus or EDR is installed and running on Windows Client."""
-    rc, out, err = _ps(
+    rc, out, _ = _ps(
         "Get-MpComputerStatus -ErrorAction SilentlyContinue "
         "| Select-Object -ExpandProperty AntivirusEnabled"
     )
     if rc == 0 and out.strip().lower() == "true":
         return (True, "Windows Defender Antivirus is enabled")
     # Check for third-party AV via Security Center
-    rc2, out2, err2 = _ps(
+    rc2, out2, _ = _ps(
         "Get-WmiObject -Namespace root/SecurityCenter2 -Class AntiVirusProduct "
         "-ErrorAction SilentlyContinue | Measure-Object | Select-Object -ExpandProperty Count"
     )
@@ -379,7 +379,7 @@ def av_definitions_current_ws() -> tuple[bool, str]:
 
 def av_exclusions_minimal_ws() -> tuple[bool, str]:
     """Confirm antivirus exclusions are minimal and documented on Windows Server."""
-    rc, out, err = _ps(
+    rc, out, _ = _ps(
         "Get-MpPreference | Select-Object -ExpandProperty ExclusionPath"
     )
     if rc != 0:
@@ -562,7 +562,7 @@ def av_definitions_age_wc() -> tuple[bool, str]:
 
 def av_auto_update_enabled_wc() -> tuple[bool, str]:
     """Confirm automatic definition updates are enabled on Windows Client."""
-    rc, out, err = _ps(
+    rc, out, _ = _ps(
         "Get-MpPreference | Select-Object -ExpandProperty SignatureScheduleDay"
     )
     # 0 = every day, 8 = never — anything other than 8 is acceptable
@@ -750,7 +750,7 @@ def onaccess_scan_lx() -> tuple[bool, str]:
             if re.search(r'^\s*OnAccessIncludePath', content, re.MULTILINE):
                 return (True, "ClamAV on-access scanning is active (clamav-daemon running with OnAccessIncludePath configured)")
     # Check for clamonacc process
-    rc, out, _ = _run("pgrep -x clamonacc 2>/dev/null")
+    rc, _, _ = _run("pgrep -x clamonacc 2>/dev/null")
     if rc == 0:
         return (True, "ClamAV on-access scanning is active (clamonacc process is running)")
     return (False, "ClamAV on-access scanning is not active (clamav-daemon not running or OnAccessIncludePath not configured, clamonacc not found)")
@@ -818,7 +818,7 @@ def network_monitoring_ws() -> tuple[bool, str]:
         if rc == 0 and out.strip().lower() == "running":
             return (True, f"Network monitoring agent '{agent}' is running")
     # Check Windows Firewall logging as minimum baseline
-    rc2, out2, err2 = _ps(
+    rc2, out2, _ = _ps(
         "Get-NetFirewallProfile | Select-Object -ExpandProperty LogFileName"
     )
     if rc2 == 0 and len(out2.strip()) > 0:
@@ -912,7 +912,7 @@ def anomaly_detection_wc() -> tuple[bool, str]:
 
 def unauthorized_software_detect_wc() -> tuple[bool, str]:
     """Verify AppLocker, WDAC, or EDR can detect unauthorized execution on Windows Client."""
-    rc, out, err = _ps(
+    rc, out, _ = _ps(
         "Get-AppLockerPolicy -Effective -ErrorAction SilentlyContinue "
         "| Select-Object -ExpandProperty RuleCollections | Measure-Object "
         "| Select-Object -ExpandProperty Count"
@@ -1032,7 +1032,7 @@ def unexpected_connections_lx() -> tuple[bool, str]:
     if rc == 0 and out.strip():
         return (True, f"Firewall logging is active (recent log entry found: {out.strip()[:80]})")
     # Check that firewall logging is enabled
-    rc2, out2, _ = _run("iptables -L INPUT -v -n 2>/dev/null | grep -v '^$' | wc -l")
+    _, out2, _ = _run("iptables -L INPUT -v -n 2>/dev/null | grep -v '^$' | wc -l")
     try:
         count = int(out2.strip())
         if count > 2:

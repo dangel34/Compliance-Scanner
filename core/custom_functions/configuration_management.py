@@ -368,7 +368,7 @@ def firewall_enabled_lx() -> tuple[bool, str]:
         if rc == 0:
             return (True, f"Firewall service '{service}' is active")
     # Check iptables directly for active rules
-    rc2, out2, _ = _run("iptables -L INPUT -n 2>/dev/null | grep -v '^Chain\\|^target' | wc -l")
+    _, out2, _ = _run("iptables -L INPUT -n 2>/dev/null | grep -v '^Chain\\|^target' | wc -l")
     try:
         count = int(out2.strip())
         if count > 0:
@@ -411,7 +411,7 @@ def change_auditing_wc() -> tuple[bool, str]:
 
 def software_install_log_wc() -> tuple[bool, str]:
     """Confirm software installation events are captured in the event log on Windows Client."""
-    rc, out, _ = _ps(
+    rc, _, _ = _ps(
         "Get-WinEvent -LogName 'Application' "
         "-FilterXPath '*[System[Provider[@Name=\"MsiInstaller\"]]]' "
         "-MaxEvents 5 -ErrorAction SilentlyContinue | Measure-Object | Select-Object -ExpandProperty Count"
@@ -604,7 +604,7 @@ def unapproved_change_detect_lx() -> tuple[bool, str]:
 
 def software_install_restricted_wc() -> tuple[bool, str]:
     """Verify standard users do not have local administrator rights on Windows Client."""
-    rc, out, err = _ps(
+    _, out, err = _ps(
         "Get-LocalGroupMember -Group 'Administrators' "
         "-ErrorAction SilentlyContinue | Measure-Object | Select-Object -ExpandProperty Count"
     )
@@ -688,7 +688,7 @@ def root_access_restricted_lx() -> tuple[bool, str]:
 
 def package_install_restricted_lx() -> tuple[bool, str]:
     """Confirm standard users cannot run package managers via sudo on Linux/Debian."""
-    rc, out, _ = _run(
+    _, out, _ = _run(
         "sudo -l -U nobody 2>/dev/null | grep -iE 'apt|yum|dnf|rpm|dpkg'"
     )
     # nobody should have no package manager sudo rights
@@ -980,7 +980,7 @@ def ipv6_disabled_if_unused_lx() -> tuple[bool, str]:
     if rc == 0 and "= 1" in out:
         return (True, "IPv6 is disabled (net.ipv6.conf.all.disable_ipv6 = 1)")
     # If IPv6 is in use (intentionally), check for sysctl setting
-    rc2, out2, _ = _run("ip -6 addr show 2>/dev/null | grep -v '^$' | wc -l")
+    _, out2, _ = _run("ip -6 addr show 2>/dev/null | grep -v '^$' | wc -l")
     try:
         count = int(out2.strip())
         if count > 0:
@@ -1111,7 +1111,7 @@ def mac_enforcing_lx() -> tuple[bool, str]:
 
 def suid_sgid_audit_lx() -> tuple[bool, str]:
     """Scan filesystem for SUID/SGID binaries on Linux/Debian and verify count is reasonable."""
-    rc, out, _ = _run(
+    _, out, _ = _run(
         "find / -xdev \\( -perm -4000 -o -perm -2000 \\) -type f 2>/dev/null | wc -l"
     )
     try:
@@ -1191,7 +1191,7 @@ def home_noexec_lx() -> tuple[bool, str]:
     rc, out, _ = _run("mount | grep -E '\\s/home\\s|\\s/tmp\\s'")
     if rc != 0 or not out.strip():
         # Check /etc/fstab as fallback
-        rc2, out2, _ = _run("grep -E '\\s/home\\s|\\s/tmp\\s' /etc/fstab 2>/dev/null")
+        _, out2, _ = _run("grep -E '\\s/home\\s|\\s/tmp\\s' /etc/fstab 2>/dev/null")
         out = out2
     if not out.strip():
         return (False, "/home and /tmp mount entries not found in mount output or /etc/fstab")
