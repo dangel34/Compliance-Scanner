@@ -796,3 +796,139 @@ class TestLogonAttemptLimitLx:
         with patch(f"{MOD}._check_pam_lockout_lx", return_value=True), \
              patch(f"{MOD}.subprocess.run", return_value=_sp(0, sshd_out)):
             assert _ok(logon_attempt_limit_lx()) is False
+
+
+# ============================================================
+# Branch-coverage gap tests (lines not hit by the tests above)
+# ============================================================
+
+class TestCheckIfaceWpaAuthorizationLxBranches:
+    """Covers line 6966 (unknown auth) and lines 6983-84 (WEP regex)."""
+
+    def _call(self, side_effects):
+        from core.custom_functions.access_control import _check_iface_wpa_authorization_lx
+        fn = getattr(_check_iface_wpa_authorization_lx, "__wrapped__",
+                     _check_iface_wpa_authorization_lx)
+        with patch(f"{MOD}.subprocess.run", side_effect=side_effects):
+            return fn("wlan0")
+
+    def test_unknown_key_mgmt_returns_flagged(self):
+        # key_mgmt not in weak_types and not in enterprise_types → line 6966
+        out = "key_mgmt=PROPRIETARY\n"
+        result = self._call([_sp(0, out)])
+        assert "unknown auth" in result
+
+    def test_iwconfig_wep_key_regex_returns_flagged(self):
+        # wpa_cli fails → iwconfig with WEP key pattern → lines 6983-6984
+        iwconfig = "wlan0  ESSID:\"net\"  Encryption key:ABCDE-FGHIJ  \n"
+        result = self._call([_sp(1), _sp(0, iwconfig)])
+        assert "WEP" in result or "wep" in result.lower()
+
+    def test_wpa_cli_empty_stdout_falls_to_iwconfig(self):
+        # returncode=0 but empty stdout → skips wpa block, tries iwconfig
+        result = self._call([_sp(0, ""), _sp(0, "wlan0  encryption key:off\n")])
+        assert result != ""
+
+
+class TestCheckIfaceWpaAuthenticationLxBranches:
+    """Covers line 7466 (empty CA cert path)."""
+
+    def _call(self, side_effects):
+        from core.custom_functions.access_control import _check_iface_wpa_authentication_lx
+        fn = getattr(_check_iface_wpa_authentication_lx, "__wrapped__",
+                     _check_iface_wpa_authentication_lx)
+        with patch(f"{MOD}.subprocess.run", side_effect=side_effects):
+            return fn("wlan0")
+
+    def test_empty_ca_cert_path_quoted_returns_flagged(self):
+        # ca_cert="" in conf → line 7466
+        conf = 'network={\n  eap=PEAP\n  ca_cert=""\n}\n'
+        # wpa_cli fails (1), conf1 succeeds (2), conf2 fails (3)
+        result = self._call([_sp(1), _sp(0, conf), _sp(1)])
+        assert any("empty CA" in r for r in result)
+
+
+class TestWirelessAuthLxIfaceDown:
+    """Covers line 7505 (continue when iface is down)."""
+
+    def test_iface_down_skips_and_returns_true(self):
+        from core.custom_functions.access_control import wireless_auth_lx
+        with patch(f"{MOD}._get_wireless_interfaces_lx", return_value=["wlan0"]), \
+             patch(f"{MOD}._is_iface_up_lx", return_value=False), \
+             patch(f"{MOD}._check_nm_authentication_lx", return_value=[]):
+            assert _ok(wireless_auth_lx()) is True
+
+
+class TestWirelessEncryptionLxIfaceDown:
+    """Covers line 7610 (continue when iface is down)."""
+
+    def test_iface_down_skips_and_returns_true(self):
+        from core.custom_functions.access_control import wireless_encryption_lx
+        with patch(f"{MOD}._get_wireless_interfaces_lx", return_value=["wlan0"]), \
+             patch(f"{MOD}._is_iface_up_lx", return_value=False), \
+             patch(f"{MOD}._check_nm_cipher_lx", return_value=[]):
+            assert _ok(wireless_encryption_lx()) is True
+
+
+class TestCheckSyslogUsbLxValueError:
+    """Covers lines 7890-7891 (ValueError when grep output is non-numeric)."""
+
+    def _call(self, side_effects):
+        from core.custom_functions.access_control import _check_syslog_usb_lx
+        with patch(f"{MOD}.subprocess.run", side_effect=side_effects):
+            return _ok(_check_syslog_usb_lx())
+
+    def test_non_numeric_grep_output_continues_to_next_log(self):
+        # First grep returns non-numeric (e.g. binary file match) → ValueError → continue
+        # Second grep returns "5" → True
+        assert self._call([_sp(0, "Binary file matches\n"), _sp(0, "5\n")]) is True
+
+    def test_all_non_numeric_then_journal_empty_returns_false(self):
+        # All three greps return non-numeric → all ValueError → falls to journal (empty)
+        assert self._call([
+            _sp(0, "Binary file\n"), _sp(0, "Binary file\n"), _sp(0, "Binary file\n"),
+            _sp(0, ""),
+        ]) is False
+
+
+class TestCheckBluetoothControlledLxValueError:
+    """Covers lines 7929-7930 (ValueError when DiscoverableTimeout is not an int)."""
+
+    def _call(self, side_effects):
+        from core.custom_functions.access_control import _check_bluetooth_controlled_lx
+        with patch(f"{MOD}.subprocess.run", side_effect=side_effects):
+            return _ok(_check_bluetooth_controlled_lx())
+
+    def test_invalid_discoverabletimeout_does_not_crash(self):
+        # DiscoverableTimeout has a bad value → ValueError → pass → bt_timeout_set stays False
+        # Not non-discoverable + timeout not set → falls to journald
+        conf = "Discoverable = false\nDiscoverableTimeout = notanumber\n"
+        journal = "May 04 bluetooth: device connected\n"
+        result = self._call([_sp(0, "active\n"), _sp(0, conf), _sp(0, journal)])
+        # bt_discoverable=False but bt_timeout_set=False → doesn't return True early
+        # Falls to journald which has entries → True
+        assert result is True
+
+
+class TestCheckLuksCipherStrongLxBranches:
+    """Covers line 8226 (continue on cryptsetup failure) and
+    line 8235 (keysize≥256 path when cipher pattern doesn't match)."""
+
+    def _call(self, side_effects):
+        from core.custom_functions.access_control import _check_luks_cipher_strong_lx
+        with patch(f"{MOD}.subprocess.run", side_effect=side_effects):
+            return _ok(_check_luks_cipher_strong_lx())
+
+    def test_first_device_cryptsetup_fails_second_succeeds(self):
+        # Two crypt devices; first cryptsetup fails (line 8226 → continue);
+        # second has aes-256 cipher → True
+        dm = "luks-abc    (253:0)\nluks-def    (253:1)\n"
+        status_ok = "cipher: aes-xts-plain64\nkeysize: 512 bits\n"
+        assert self._call([_sp(0, dm), _sp(1), _sp(0, status_ok)]) is True
+
+    def test_keysize_256_without_cipher_match_returns_true(self):
+        # Cipher pattern doesn't match but keysize is 256 → line 8235 → True
+        dm = "luks-abc    (253:0)\n"
+        # Output has no "cipher:" line, only "keysize: 256 bits"
+        status = "type:    LUKS2\nkeysize: 256 bits\nmode:    aes-xts-plain64\n"
+        assert self._call([_sp(0, dm), _sp(0, status)]) is True
