@@ -222,7 +222,7 @@ def log_forwarding_lx() -> tuple[bool, str]:
     if rc == 0 and out.strip():
         return (True, "rsyslog is configured to forward logs to a remote destination")
     # Check for a running SIEM agent
-    rc2, out2, _ = _run(
+    _, out2, _ = _run(
         "systemctl is-active filebeat elastic-agent splunk 2>/dev/null | grep -c '^active'"
     )
     try:
@@ -340,7 +340,7 @@ def unique_user_accounts_lx() -> tuple[bool, str]:
     duplicate_uids = out.strip()
     if duplicate_uids:
         return (False, f"Duplicate UIDs found in /etc/passwd: {duplicate_uids}")
-    rc2, out2, _ = _run(
+    _, out2, _ = _run(
         "awk -F: '{print $1}' /etc/passwd | grep -iE '^shared|^generic|^temp|^test'"
     )
     if out2.strip():
@@ -366,7 +366,7 @@ def privilege_use_audit_lx() -> tuple[bool, str]:
 
 def auid_preserved_lx() -> tuple[bool, str]:
     """Confirm auid is recorded in recent audit events and is not unset (-1 / 4294967295)."""
-    rc, out, _ = _run(
+    _, out, _ = _run(
         "ausearch -m USER_LOGIN --start recent 2>/dev/null | grep -v 'auid=4294967295' "
         "| grep -c 'auid='"
     )
@@ -515,7 +515,7 @@ def log_full_action_ws() -> tuple[bool, str]:
 
 def siem_audit_alert_ws() -> tuple[bool, str]:
     """Verify SIEM is alerting on Event ID 1102 (log cleared) and 1100 (audit stopped)."""
-    rc, out, err = _ps(
+    rc, _, err = _ps(
         "Get-WinEvent -FilterHashtable @{LogName='Security'; Id=1102,1100} "
         "-MaxEvents 1 -ErrorAction SilentlyContinue | Measure-Object "
         "| Select-Object -ExpandProperty Count"
@@ -660,7 +660,7 @@ def siem_agent_active_lx() -> tuple[bool, str]:
 
 def log_query_capability_wc() -> tuple[bool, str]:
     """Verify ability to filter and query audit logs on Windows Client."""
-    rc, out, err = _ps(
+    rc, _, err = _ps(
         "Get-WinEvent -LogName Security -MaxEvents 10 "
         "-FilterXPath '*[System[EventID=4624]]' -ErrorAction SilentlyContinue "
         "| Measure-Object | Select-Object -ExpandProperty Count"
@@ -672,7 +672,7 @@ def log_query_capability_wc() -> tuple[bool, str]:
 
 def log_export_wc() -> tuple[bool, str]:
     """Confirm audit logs can be exported from Windows Client."""
-    rc, out, err = _ps(
+    rc, _, err = _ps(
         "Get-Command wevtutil -ErrorAction SilentlyContinue | Measure-Object "
         "| Select-Object -ExpandProperty Count"
     )

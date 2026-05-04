@@ -5,6 +5,27 @@ import sys
 import inspect
 from functools import wraps
 
+# ---------------------------------------------------------------------------
+# String constants — define once to satisfy S1192 (duplicated literals)
+# ---------------------------------------------------------------------------
+_AUTH_USERS          = "authenticated users"
+_AUDITPOL_CATEGORY   = "/category:*"
+_SUDOERS_FILE        = "/etc/sudoers"
+_SUDOERS_D_DIR       = "/etc/sudoers.d/"
+_PAM_DIR             = "/etc/pam.d/"
+_PASSWD_FILE         = "/etc/passwd"
+_DOMAIN_ADMINS       = "Domain Admins"
+_BACKUP_OPERATORS    = "Backup Operators"
+_ACCOUNT_OPERATORS   = "Account Operators"
+_SCHEMA_ADMINS       = "Schema Admins"
+_PS_FW_PROFILE_CMD   = "Get-NetFirewallProfile | Select-Object Name, Enabled | ConvertTo-Json"
+_KEY_CLEAR           = "key=clear"
+_SUCCESS_AND_FAILURE = "success and failure"
+_RE_SUDOERS_ALL      = r"ALL\s*=\s*\(ALL(:ALL)?\)\s*ALL"
+_RE_ALL_USER_PROFILE = r"All User Profile\s*:\s*(.+)"
+_RE_AUTH_PATTERN     = r"authentication\s*:\s*(\S+)"
+_RE_CIPHER_PATTERN   = r"cipher\s*:\s*(\S+)"
+
 _RUN_CACHE: dict[str, dict[str, object]] = {}
 
 
@@ -327,7 +348,7 @@ def device_restriction_wc() -> bool:
         # Check Windows Defender Firewall is enabled on all profiles
         fw_result = subprocess.run(
             ["powershell", "-Command",
-             "Get-NetFirewallProfile | Select-Object Name, Enabled | ConvertTo-Json"],
+             _PS_FW_PROFILE_CMD],
             capture_output=True, text=True, timeout=30
         )
         if fw_result.returncode != 0:
@@ -453,7 +474,7 @@ def system_access_ws() -> bool:
             if not rdp_members:
                 return False
 
-            broad_groups = {"everyone", "authenticated users", "users"}
+            broad_groups = {"everyone", _AUTH_USERS, "users"}
             flagged_rdp = [
                 m for m in rdp_members
                 if (m.get("Name") or "").lower().split("\\")[-1] in broad_groups
@@ -530,7 +551,7 @@ def device_restriction_ws() -> bool:
         # Check firewall is enabled on all profiles
         fw_result = subprocess.run(
             ["powershell", "-Command",
-             "Get-NetFirewallProfile | Select-Object Name, Enabled | ConvertTo-Json"],
+             _PS_FW_PROFILE_CMD],
             capture_output=True, text=True, timeout=30
         )
         if fw_result.returncode != 0:
@@ -871,7 +892,7 @@ def function_restriction_ws() -> bool:
     AC.L2-3.1.2b - System Access is Limited to Defined Transactions and Functions (Windows Server)
     """
     try:
-        broad_principals = {"everyone", "authenticated users", "users"}
+        broad_principals = {"everyone", _AUTH_USERS, "users"}
 
         # Check share permissions for overly broad access
         share_result = subprocess.run(
@@ -937,7 +958,7 @@ def function_restriction_lx() -> bool:
 
         # Check sudoers for unrestricted ALL=(ALL) ALL entries
         sudoers_result = subprocess.run(
-            ["sudo", "cat", "/etc/sudoers"],
+            ["sudo", "cat", _SUDOERS_FILE],
             capture_output=True, text=True, timeout=30
         )
         if sudoers_result.returncode == 0:
@@ -950,7 +971,7 @@ def function_restriction_lx() -> bool:
             # Flag any line granting ALL=(ALL) ALL to a non-root, non-group entry
             unrestricted = [
                 l for l in active_lines
-                if re.search(r"ALL\s*=\s*\(ALL(:ALL)?\)\s*ALL", l)
+                if re.search(_RE_SUDOERS_ALL, l)
                 and not l.startswith("%")        # group entries are more acceptable
                 and not l.startswith("root")     # root is expected
                 and "NOPASSWD" not in l          # NOPASSWD ALL is a separate concern
@@ -959,7 +980,7 @@ def function_restriction_lx() -> bool:
 
         # Also check sudoers.d directory
         sudoersd_result = subprocess.run(
-            ["sudo", "grep", "-r", "ALL=(ALL) ALL", "/etc/sudoers.d/"],
+            ["sudo", "grep", "-r", "ALL=(ALL) ALL", _SUDOERS_D_DIR],
             capture_output=True, text=True, timeout=30
         )
         if sudoersd_result.returncode == 0 and sudoersd_result.stdout.strip():
@@ -968,7 +989,7 @@ def function_restriction_lx() -> bool:
 
         # Check PAM for access control configuration
         pam_result = subprocess.run(
-            ["grep", "-r", r"pam_access\|pam_listfile\|pam_wheel", "/etc/pam.d/"],
+            ["grep", "-r", r"pam_access\|pam_listfile\|pam_wheel", _PAM_DIR],
             capture_output=True, text=True, timeout=30
         )
         if pam_result.returncode == 0 and pam_result.stdout.strip():
@@ -1066,7 +1087,7 @@ def cui_flow_enforcement_wc() -> bool:
         # Check Windows Defender Firewall is enabled on all profiles
         fw_result = subprocess.run(
             ["powershell", "-Command",
-             "Get-NetFirewallProfile | Select-Object Name, Enabled | ConvertTo-Json"],
+             _PS_FW_PROFILE_CMD],
             capture_output=True, text=True, timeout=30
         )
         if fw_result.returncode == 0 and fw_result.stdout.strip():
@@ -1119,7 +1140,7 @@ def cui_flow_authorization_wc() -> bool:
     AC.L2-3.1.3d - Authorizations for Controlling CUI Flow are Defined (Windows Client)
     """
     try:
-        broad_principals = {"everyone", "authenticated users", "users", ""}
+        broad_principals = {"everyone", _AUTH_USERS, "users", ""}
 
         # Check outbound firewall rules are not scoped to Everyone
         fw_result = subprocess.run(
@@ -1209,7 +1230,7 @@ def cui_flow_enforcement_ws() -> bool:
         # Check firewall enabled on all profiles
         fw_result = subprocess.run(
             ["powershell", "-Command",
-             "Get-NetFirewallProfile | Select-Object Name, Enabled | ConvertTo-Json"],
+             _PS_FW_PROFILE_CMD],
             capture_output=True, text=True, timeout=30
         )
         if fw_result.returncode != 0:
@@ -1250,7 +1271,7 @@ def cui_flow_enforcement_ws() -> bool:
             return False
 
         admin_shares = {"admin$", "c$", "ipc$", "print$"}
-        broad_principals = {"everyone", "authenticated users"}
+        broad_principals = {"everyone", _AUTH_USERS}
         flagged_shares = [
             s for s in shares
             if (s.get("AccountName") or "").lower().split("\\")[-1] in broad_principals
@@ -1269,7 +1290,7 @@ def cui_flow_authorization_ws() -> bool:
     AC.L2-3.1.3d - Authorizations for Controlling CUI Flow are Defined (Windows Server)
     """
     try:
-        broad_principals = {"everyone", "authenticated users", "users"}
+        broad_principals = {"everyone", _AUTH_USERS, "users"}
 
         # Check share permissions are scoped to named groups
         share_result = subprocess.run(
@@ -1455,7 +1476,7 @@ def cui_flow_authorization_lx() -> bool:
     AC.L2-3.1.3d - Authorizations for Controlling CUI Flow are Defined (Linux/Debian)
     """
     try:
-        sensitive_dirs = ["/etc/sudoers", "/etc/ssh", "/etc/pam.d", "/var/log"]
+        sensitive_dirs = [_SUDOERS_FILE, "/etc/ssh", "/etc/pam.d", "/var/log"]
         flagged = []
 
         for path in sensitive_dirs:
@@ -1471,7 +1492,7 @@ def cui_flow_authorization_lx() -> bool:
             if len(parts) < 3:
                 continue
 
-            mode, owner, group = parts[0], parts[1], parts[2]
+            mode, owner, _ = parts[0], parts[1], parts[2]
 
             # Convert octal mode string to int for bitwise check
             try:
@@ -1518,7 +1539,7 @@ def separation_of_duties_defined_wc() -> bool:
     AC.L2-3.1.4a - Duties Requiring Separation are Defined (Windows Client)
     """
     try:
-        broad_principals = {"everyone", "authenticated users"}
+        broad_principals = {"everyone", _AUTH_USERS}
 
         # Check that both Administrators and Users groups exist and are non-empty
         for group in ["Administrators", "Users"]:
@@ -1653,9 +1674,9 @@ def separation_of_duties_defined_ws() -> bool:
     try:
         # High privilege groups that should have distinct, non-overlapping membership
         sensitive_groups = [
-            "Domain Admins",
-            "Backup Operators",
-            "Account Operators",
+            _DOMAIN_ADMINS,
+            _BACKUP_OPERATORS,
+            _ACCOUNT_OPERATORS,
             "Server Operators"
         ]
 
@@ -1684,14 +1705,14 @@ def separation_of_duties_defined_ws() -> bool:
             return False
 
         # Check Domain Admins group is not empty
-        if not group_members.get("Domain Admins"):
+        if not group_members.get(_DOMAIN_ADMINS):
             return False
 
         # Check that Backup Operators and Account Operators are defined
         # separately from Domain Admins (roles are separated)
-        domain_admins = group_members.get("Domain Admins", set())
-        backup_ops = group_members.get("Backup Operators", set())
-        account_ops = group_members.get("Account Operators", set())
+        domain_admins = group_members.get(_DOMAIN_ADMINS, set())
+        backup_ops = group_members.get(_BACKUP_OPERATORS, set())
+        account_ops = group_members.get(_ACCOUNT_OPERATORS, set())
 
         # Flag if the same accounts appear across all three groups
         # indicating no real separation
@@ -1712,10 +1733,10 @@ def separation_of_duties_assigned_ws() -> bool:
     try:
         # Groups that should have mutually exclusive membership
         conflicting_group_pairs = [
-            ("Domain Admins", "Backup Operators"),
-            ("Domain Admins", "Account Operators"),
-            ("Domain Admins", "Schema Admins"),
-            ("Schema Admins", "Backup Operators"),
+            (_DOMAIN_ADMINS, _BACKUP_OPERATORS),
+            (_DOMAIN_ADMINS, _ACCOUNT_OPERATORS),
+            (_DOMAIN_ADMINS, _SCHEMA_ADMINS),
+            (_SCHEMA_ADMINS, _BACKUP_OPERATORS),
         ]
 
         flagged_accounts = set()
@@ -1795,7 +1816,7 @@ def separation_of_duties_defined_lx() -> bool:
 
         # Check sudoers defines scoped entries, not blanket ALL=(ALL) ALL
         sudoers_result = subprocess.run(
-            ["sudo", "cat", "/etc/sudoers"],
+            ["sudo", "cat", _SUDOERS_FILE],
             capture_output=True, text=True, timeout=30
         )
         if sudoers_result.returncode != 0:
@@ -1809,7 +1830,7 @@ def separation_of_duties_defined_lx() -> bool:
         # Flag unscoped ALL=(ALL) ALL entries not belonging to root or groups
         unscoped = [
             l for l in active_lines
-            if re.search(r"ALL\s*=\s*\(ALL(:ALL)?\)\s*ALL", l)
+            if re.search(_RE_SUDOERS_ALL, l)
             and not l.startswith("%")
             and not l.startswith("root")
         ]
@@ -1879,7 +1900,7 @@ def separation_of_duties_assigned_lx() -> bool:
         # Also check /etc/passwd for any non-root UID 0 accounts
         # which would be an unconditional separation of duties failure
         passwd_result = subprocess.run(
-            ["awk", "-F:", '$3 == 0 && $1 != "root" {print $1}', "/etc/passwd"],
+            ["awk", "-F:", '$3 == 0 && $1 != "root" {print $1}', _PASSWD_FILE],
             capture_output=True, text=True, timeout=10
         )
         if passwd_result.returncode == 0 and passwd_result.stdout.strip():
@@ -1897,7 +1918,7 @@ def privileged_accounts_identified_wc() -> bool:
     AC.L2-3.1.5a - Privileged Accounts are Identified (Windows Client)
     """
     try:
-        broad_principals = {"everyone", "authenticated users", "users"}
+        broad_principals = {"everyone", _AUTH_USERS, "users"}
 
         # Get local Administrators group members
         admin_result = subprocess.run(
@@ -1954,10 +1975,10 @@ def privileged_accounts_identified_ws() -> bool:
     AC.L2-3.1.5a - Privileged Accounts are Identified (Windows Server)
     """
     try:
-        broad_principals = {"everyone", "authenticated users", "users"}
+        broad_principals = {"everyone", _AUTH_USERS, "users"}
         privileged_groups = [
-            "Domain Admins",
-            "Schema Admins",
+            _DOMAIN_ADMINS,
+            _SCHEMA_ADMINS,
             "Enterprise Admins",
             "Group Policy Creator Owners"
         ]
@@ -2018,7 +2039,7 @@ def privileged_accounts_identified_lx() -> bool:
     try:
         # Check for any non-root UID 0 accounts
         uid0_result = subprocess.run(
-            ["awk", "-F:", '$3 == 0 {print $1}', "/etc/passwd"],
+            ["awk", "-F:", '$3 == 0 {print $1}', _PASSWD_FILE],
             capture_output=True, text=True, timeout=10
         )
         if uid0_result.returncode != 0:
@@ -2052,7 +2073,7 @@ def privileged_accounts_identified_lx() -> bool:
 
         # Check sudoers for wildcard or anonymous entries
         sudoers_result = subprocess.run(
-            ["sudo", "cat", "/etc/sudoers"],
+            ["sudo", "cat", _SUDOERS_FILE],
             capture_output=True, text=True, timeout=30
         )
         if sudoers_result.returncode != 0:
@@ -2066,7 +2087,7 @@ def privileged_accounts_identified_lx() -> bool:
         # Flag entries with no specific user/group identifier
         flagged_entries = [
             l for l in active_lines
-            if re.search(r"ALL\s*=\s*\(ALL(:ALL)?\)\s*ALL", l)
+            if re.search(_RE_SUDOERS_ALL, l)
             and not l.startswith("%")
             and not l.startswith("root")
             and not any(m in l for m in privileged_members)
@@ -2096,7 +2117,7 @@ def security_functions_identified_wc() -> bool:
         # Fall back to plain text parsing if ConvertTo-Json fails
         if audit_result.returncode != 0:
             audit_result = subprocess.run(
-                ["auditpol", "/get", "/category:*"],
+                ["auditpol", "/get", _AUDITPOL_CATEGORY],
                 capture_output=True, text=True, timeout=30
             )
 
@@ -2110,7 +2131,7 @@ def security_functions_identified_wc() -> bool:
         # Check Windows Defender Firewall is active on all profiles
         fw_result = subprocess.run(
             ["powershell", "-Command",
-             "Get-NetFirewallProfile | Select-Object Name, Enabled | ConvertTo-Json"],
+             _PS_FW_PROFILE_CMD],
             capture_output=True, text=True, timeout=30
         )
         if fw_result.returncode == 0 and fw_result.stdout.strip():
@@ -2157,7 +2178,7 @@ def security_functions_identified_ws() -> bool:
 
         # Check advanced audit policy is configured
         audit_result = subprocess.run(
-            ["auditpol", "/get", "/category:*"],
+            ["auditpol", "/get", _AUDITPOL_CATEGORY],
             capture_output=True, text=True, timeout=30
         )
         if audit_result.returncode == 0 and audit_result.stdout.strip():
@@ -2169,7 +2190,7 @@ def security_functions_identified_ws() -> bool:
         # Check Windows Defender Firewall is active on all profiles
         fw_result = subprocess.run(
             ["powershell", "-Command",
-             "Get-NetFirewallProfile | Select-Object Name, Enabled | ConvertTo-Json"],
+             _PS_FW_PROFILE_CMD],
             capture_output=True, text=True, timeout=30
         )
         if fw_result.returncode == 0 and fw_result.stdout.strip():
@@ -2279,7 +2300,7 @@ def security_functions_enforcement_wc() -> bool:
     Privilege (Windows Client)
     """
     try:
-        broad_principals = {"everyone", "authenticated users", "users"}
+        broad_principals = {"everyone", _AUTH_USERS, "users"}
 
         # Export secedit and check sensitive privilege assignments
         secedit_result = subprocess.run(
@@ -2340,7 +2361,7 @@ def security_functions_enforcement_ws() -> bool:
     Privilege (Windows Server)
     """
     try:
-        broad_principals = {"everyone", "authenticated users", "users"}
+        broad_principals = {"everyone", _AUTH_USERS, "users"}
 
         # Check sensitive user rights via secedit
         secedit_result = subprocess.run(
@@ -2429,7 +2450,7 @@ def security_functions_enforcement_lx() -> bool:
 
         # Check sudoers scopes security tool access to named users/groups
         sudoers_result = subprocess.run(
-            ["sudo", "cat", "/etc/sudoers"],
+            ["sudo", "cat", _SUDOERS_FILE],
             capture_output=True, text=True, timeout=30
         )
         if sudoers_result.returncode != 0:
@@ -2443,7 +2464,7 @@ def security_functions_enforcement_lx() -> bool:
         # Check no unscoped ALL=(ALL) ALL entries exist for non-root non-group accounts
         unscoped = [
             l for l in active_lines
-            if re.search(r"ALL\s*=\s*\(ALL(:ALL)?\)\s*ALL", l)
+            if re.search(_RE_SUDOERS_ALL, l)
             and not l.startswith("%")
             and not l.startswith("root")
         ]
@@ -2452,7 +2473,7 @@ def security_functions_enforcement_lx() -> bool:
         # Also check sudoers.d for unscoped entries
         sudoersd_result = subprocess.run(
             ["sudo", "grep", "-r",
-             r"ALL=(ALL) ALL", "/etc/sudoers.d/"],
+             r"ALL=(ALL) ALL", _SUDOERS_D_DIR],
             capture_output=True, text=True, timeout=30
         )
         if sudoersd_result.returncode == 0 and sudoersd_result.stdout.strip():
@@ -2533,7 +2554,7 @@ def nonprivileged_access_wc() -> bool:
     Nonsecurity Functions (Windows Client)
     """
     try:
-        broad_principals = {"everyone", "authenticated users", "users"}
+        broad_principals = {"everyone", _AUTH_USERS, "users"}
 
         # Check UAC is enabled and standard users are prompted
         uac_result = subprocess.run(
@@ -2716,7 +2737,7 @@ def nonprivileged_access_ws() -> bool:
         logon_lines = secedit_result.stdout.strip().splitlines()
 
         # Fail if interactive logon is open to Everyone or broad principals
-        broad_principals = {"everyone", "authenticated users", "users"}
+        broad_principals = {"everyone", _AUTH_USERS, "users"}
         flagged_logon = [
             l for l in logon_lines
             if "SeInteractiveLogonRight" in l
@@ -2756,7 +2777,7 @@ def nonprivileged_access_lx() -> bool:
 
         # Check standard users do not have unrestricted sudo access
         sudoers_result = subprocess.run(
-            ["sudo", "cat", "/etc/sudoers"],
+            ["sudo", "cat", _SUDOERS_FILE],
             capture_output=True, text=True, timeout=30
         )
         if sudoers_result.returncode != 0:
@@ -2770,7 +2791,7 @@ def nonprivileged_access_lx() -> bool:
         # Get standard users (UID >= 1000)
         passwd_result = subprocess.run(
             ["awk", "-F:", '$3 >= 1000 && $1 != "nobody" {print $1}',
-             "/etc/passwd"],
+             _PASSWD_FILE],
             capture_output=True, text=True, timeout=10
         )
         if passwd_result.returncode != 0:
@@ -2787,7 +2808,7 @@ def nonprivileged_access_lx() -> bool:
         # Flag any standard user with an unrestricted ALL=(ALL) ALL entry
         unrestricted = [
             l for l in active_lines
-            if re.search(r"ALL\s*=\s*\(ALL(:ALL)?\)\s*ALL", l)
+            if re.search(_RE_SUDOERS_ALL, l)
             and not l.startswith("%")
             and not l.startswith("root")
             and any(u in l for u in standard_users)
@@ -2797,7 +2818,7 @@ def nonprivileged_access_lx() -> bool:
         # Also check sudoers.d
         sudoersd_result = subprocess.run(
             ["sudo", "grep", "-r",
-             r"ALL=(ALL) ALL", "/etc/sudoers.d/"],
+             r"ALL=(ALL) ALL", _SUDOERS_D_DIR],
             capture_output=True, text=True, timeout=30
         )
         if sudoersd_result.returncode == 0 and sudoersd_result.stdout.strip():
@@ -2854,7 +2875,7 @@ def privileged_function_prevention_wc() -> bool:
         applocker_or_srp_active = False
         rights_restricted = False
 
-        broad_principals = {"everyone", "authenticated users", "users"}
+        broad_principals = {"everyone", _AUTH_USERS, "users"}
 
         # Check UAC is fully enforced
         uac_result = subprocess.run(
@@ -2944,7 +2965,7 @@ def privileged_function_prevention_ws() -> bool:
     Privileged Functions (Windows Server)
     """
     try:
-        broad_principals = {"everyone", "authenticated users", "users"}
+        broad_principals = {"everyone", _AUTH_USERS, "users"}
 
         # Check UAC is enforced
         uac_result = subprocess.run(
@@ -3035,7 +3056,7 @@ def privileged_function_prevention_lx() -> bool:
         # Check sudoers has no unscoped ALL=(ALL) ALL for standard users
         passwd_result = subprocess.run(
             ["awk", "-F:", '$3 >= 1000 && $1 != "nobody" {print $1}',
-             "/etc/passwd"],
+             _PASSWD_FILE],
             capture_output=True, text=True, timeout=10
         )
         if passwd_result.returncode != 0:
@@ -3047,7 +3068,7 @@ def privileged_function_prevention_lx() -> bool:
         }
 
         sudoers_result = subprocess.run(
-            ["sudo", "cat", "/etc/sudoers"],
+            ["sudo", "cat", _SUDOERS_FILE],
             capture_output=True, text=True, timeout=30
         )
         if sudoers_result.returncode != 0:
@@ -3060,7 +3081,7 @@ def privileged_function_prevention_lx() -> bool:
 
         unrestricted = [
             l for l in active_lines
-            if re.search(r"ALL\s*=\s*\(ALL(:ALL)?\)\s*ALL", l)
+            if re.search(_RE_SUDOERS_ALL, l)
             and not l.startswith("%")
             and not l.startswith("root")
             and any(u in l for u in standard_users)
@@ -3071,7 +3092,7 @@ def privileged_function_prevention_lx() -> bool:
         pam_result = subprocess.run(
             ["grep", "-r",
              "pam_access\\|pam_listfile\\|pam_wheel",
-             "/etc/pam.d/"],
+             _PAM_DIR],
             capture_output=True, text=True, timeout=30
         )
         if pam_result.returncode == 0 and pam_result.stdout.strip():
@@ -3137,7 +3158,7 @@ def privileged_function_audit_wc() -> bool:
         }
 
         audit_result = subprocess.run(
-            ["auditpol", "/get", "/category:*"],
+            ["auditpol", "/get", _AUDITPOL_CATEGORY],
             capture_output=True, text=True, timeout=30
         )
         if audit_result.returncode != 0:
@@ -3171,7 +3192,7 @@ def privileged_function_audit_wc() -> bool:
             audited = [
                 k for k in matched
                 if category_settings[k] in {
-                    "success", "failure", "success and failure"
+                    "success", "failure", _SUCCESS_AND_FAILURE
                 }
             ]
             if not audited:
@@ -3199,7 +3220,7 @@ def privileged_function_audit_ws() -> bool:
         }
 
         audit_result = subprocess.run(
-            ["auditpol", "/get", "/category:*"],
+            ["auditpol", "/get", _AUDITPOL_CATEGORY],
             capture_output=True, text=True, timeout=30
         )
         if audit_result.returncode != 0:
@@ -3229,7 +3250,7 @@ def privileged_function_audit_ws() -> bool:
             audited = [
                 k for k in matched
                 if category_settings[k] in {
-                    "success", "failure", "success and failure"
+                    "success", "failure", _SUCCESS_AND_FAILURE
                 }
             ]
             if not audited:
@@ -3553,101 +3574,67 @@ def logon_attempt_limit_ws() -> bool:
         return False
 
 
+def _check_pam_lockout_lx() -> bool:
+    faillock_result = subprocess.run(
+        ["cat", "/etc/security/faillock.conf"],
+        capture_output=True, text=True, timeout=10
+    )
+    if faillock_result.returncode == 0 and faillock_result.stdout.strip():
+        active_lines = [
+            l.strip() for l in faillock_result.stdout.lower().splitlines()
+            if l.strip() and not l.strip().startswith("#")
+        ]
+        deny_value = unlock_value = None
+        for line in active_lines:
+            if line.startswith("deny"):
+                m = re.search(r"deny\s*=\s*(\d+)", line)
+                if m:
+                    deny_value = int(m.group(1))
+            if line.startswith("unlock_time"):
+                m = re.search(r"unlock_time\s*=\s*(\d+)", line)
+                if m:
+                    unlock_value = int(m.group(1))
+        if deny_value is not None and unlock_value is not None:
+            if 1 <= deny_value <= 5 and unlock_value >= 900:
+                return True
+
+    for pam_module in ["pam_faillock", "pam_tally2"]:
+        result = subprocess.run(
+            ["grep", "-r", pam_module, _PAM_DIR],
+            capture_output=True, text=True, timeout=30
+        )
+        if result.returncode != 0 or not result.stdout.strip():
+            continue
+        active = [
+            l for l in result.stdout.splitlines()
+            if l.strip() and not l.strip().startswith("#")
+            and ("preauth" in l.lower() or "authfail" in l.lower()
+                 or pam_module == "pam_tally2")
+        ]
+        for line in active:
+            dm = re.search(r"deny=(\d+)", line)
+            um = re.search(r"unlock_time=(\d+)", line)
+            if dm and um and 1 <= int(dm.group(1)) <= 5 and int(um.group(1)) >= 900:
+                return True
+    return False
+
+
 def logon_attempt_limit_lx() -> bool:
     """
     AC.L2-3.1.8b - Defined Means of Limiting Unsuccessful Logon Attempts
     is Implemented (Linux/Debian)
     """
     try:
-        pam_lockout_active = False
-        ssh_limited = False
+        pam_lockout_active = _check_pam_lockout_lx()
 
-        # Check pam_faillock configuration
-        faillock_result = subprocess.run(
-            ["cat", "/etc/security/faillock.conf"],
-            capture_output=True, text=True, timeout=10
-        )
-
-        if faillock_result.returncode == 0 and faillock_result.stdout.strip():
-            conf = faillock_result.stdout.lower()
-            active_lines = [
-                l.strip() for l in conf.splitlines()
-                if l.strip() and not l.strip().startswith("#")
-            ]
-
-            deny_value = None
-            unlock_value = None
-
-            for line in active_lines:
-                if line.startswith("deny"):
-                    match = re.search(r"deny\s*=\s*(\d+)", line)
-                    if match:
-                        deny_value = int(match.group(1))
-                if line.startswith("unlock_time"):
-                    match = re.search(r"unlock_time\s*=\s*(\d+)", line)
-                    if match:
-                        unlock_value = int(match.group(1))
-
-            if deny_value is not None and unlock_value is not None:
-                # deny must be between 1 and 5
-                # unlock_time must be >= 900 seconds (15 minutes)
-                pam_lockout_active = bool(
-                    1 <= deny_value <= 5
-                    and unlock_value >= 900
-                )
-
-        # Fall back to checking PAM stack directly for pam_faillock
-        if not pam_lockout_active:
-            pam_result = subprocess.run(
-                ["grep", "-r", "pam_faillock", "/etc/pam.d/"],
-                capture_output=True, text=True, timeout=30
-            )
-            if pam_result.returncode == 0 and pam_result.stdout.strip():
-                active_pam = [
-                    l for l in pam_result.stdout.splitlines()
-                    if l.strip() and not l.strip().startswith("#")
-                    and "preauth" in l.lower() or "authfail" in l.lower()
-                ]
-
-                for line in active_pam:
-                    deny_match = re.search(r"deny=(\d+)", line)
-                    unlock_match = re.search(r"unlock_time=(\d+)", line)
-                    if deny_match and unlock_match:
-                        deny_val = int(deny_match.group(1))
-                        unlock_val = int(unlock_match.group(1))
-                        if 1 <= deny_val <= 5 and unlock_val >= 900:
-                            pam_lockout_active = True
-                            break
-
-        # Fall back to pam_tally2 if pam_faillock not found
-        if not pam_lockout_active:
-            tally_result = subprocess.run(
-                ["grep", "-r", "pam_tally2", "/etc/pam.d/"],
-                capture_output=True, text=True, timeout=30
-            )
-            if tally_result.returncode == 0 and tally_result.stdout.strip():
-                active_tally = [
-                    l for l in tally_result.stdout.splitlines()
-                    if l.strip() and not l.strip().startswith("#")
-                ]
-                for line in active_tally:
-                    deny_match = re.search(r"deny=(\d+)", line)
-                    unlock_match = re.search(r"unlock_time=(\d+)", line)
-                    if deny_match and unlock_match:
-                        deny_val = int(deny_match.group(1))
-                        unlock_val = int(unlock_match.group(1))
-                        if 1 <= deny_val <= 5 and unlock_val >= 900:
-                            pam_lockout_active = True
-                            break
-
-        # Check SSH MaxAuthTries is configured and <= 4
         sshd_result = subprocess.run(
-            ["sshd", "-T"],
-            capture_output=True, text=True, timeout=30
+            ["sshd", "-T"], capture_output=True, text=True, timeout=30
         )
+        ssh_limited = False
         if sshd_result.returncode == 0:
-            output = sshd_result.stdout.lower()
-            max_auth = re.search(r"^maxauthtries\s+(\d+)", output, re.MULTILINE)
+            max_auth = re.search(
+                r"^maxauthtries\s+(\d+)", sshd_result.stdout.lower(), re.MULTILINE
+            )
             if max_auth:
                 ssh_limited = bool(int(max_auth.group(1)) <= 4)
 
@@ -3774,7 +3761,7 @@ def login_banner_ws() -> bool:
             gpo_enforced = bool(gpo_caption and gpo_text and len(gpo_text) >= 20)
 
         # Check RDP session banner is configured via registry
-        rdp_banner_result = subprocess.run(
+        subprocess.run(
             ["powershell", "-Command",
              "Get-ItemProperty -Path "
              "'HKLM:\\SYSTEM\\CurrentControlSet\\Control\\"
@@ -3900,21 +3887,6 @@ def login_banner_lx() -> bool:
                             )
                         ):
                             ssh_banner_configured = True
-
-        # Check /etc/motd for post-login notice as additional signal
-        motd_result = subprocess.run(
-            ["cat", "/etc/motd"],
-            capture_output=True, text=True, timeout=10
-        )
-        motd_configured = False
-        if motd_result.returncode == 0:
-            motd_text = motd_result.stdout.strip()
-            if (
-                motd_text
-                and len(motd_text) >= 20
-                and not any(p in motd_text.lower() for p in placeholder_values)
-            ):
-                motd_configured = True
 
         # Require at minimum /etc/issue AND SSH banner to be configured
         # /etc/issue.net and /etc/motd are additional signals but not required
@@ -4788,7 +4760,7 @@ def remote_access_control_wc() -> bool:
             if not members:
                 rdp_group_restricted = False
             else:
-                broad_principals = {"everyone", "authenticated users", "users"}
+                broad_principals = {"everyone", _AUTH_USERS, "users"}
                 flagged = [
                     m for m in members
                     if (m.get("Name") or "").lower().split("\\")[-1]
@@ -4862,7 +4834,7 @@ def remote_access_monitoring_wc() -> bool:
         }
 
         audit_result = subprocess.run(
-            ["auditpol", "/get", "/category:*"],
+            ["auditpol", "/get", _AUDITPOL_CATEGORY],
             capture_output=True, text=True, timeout=30
         )
         if audit_result.returncode != 0:
@@ -4892,7 +4864,7 @@ def remote_access_monitoring_wc() -> bool:
             audited = [
                 k for k in matched
                 if category_settings[k] in {
-                    "success", "failure", "success and failure"
+                    "success", "failure", _SUCCESS_AND_FAILURE
                 }
             ]
             if not audited:
@@ -4915,7 +4887,7 @@ def remote_access_control_ws() -> bool:
         firewall_restricted = False
         session_limits_ok = False
 
-        broad_principals = {"everyone", "authenticated users", "users"}
+        broad_principals = {"everyone", _AUTH_USERS, "users"}
 
         # Check Remote Desktop Users group is scoped to named accounts
         rdp_result = subprocess.run(
@@ -5024,7 +4996,7 @@ def remote_access_monitoring_ws() -> bool:
         }
 
         audit_result = subprocess.run(
-            ["auditpol", "/get", "/category:*"],
+            ["auditpol", "/get", _AUDITPOL_CATEGORY],
             capture_output=True, text=True, timeout=30
         )
         if audit_result.returncode != 0:
@@ -5054,7 +5026,7 @@ def remote_access_monitoring_ws() -> bool:
             audited = [
                 k for k in matched
                 if category_settings[k] in {
-                    "success", "failure", "success and failure"
+                    "success", "failure", _SUCCESS_AND_FAILURE
                 }
             ]
             if not audited:
@@ -5254,7 +5226,7 @@ def remote_access_monitoring_lx() -> bool:
         pam_result = subprocess.run(
             ["grep", "-r",
              "session.*pam_unix\\|session.*pam_loginuid",
-             "/etc/pam.d/"],
+             _PAM_DIR],
             capture_output=True, text=True, timeout=30
         )
         if pam_result.returncode == 0 and pam_result.stdout.strip():
@@ -5569,7 +5541,6 @@ def remote_crypto_lx() -> bool:
             version_match = re.search(r"openssh_(\d+)\.(\d+)", version_output)
             if version_match:
                 major = int(version_match.group(1))
-                minor = int(version_match.group(2))
                 # OpenSSH 8.0+ removed weak ciphers from defaults
                 ciphers_ok = bool(major >= 8)
             else:
@@ -6025,7 +5996,7 @@ def remote_privileged_exec_wc() -> bool:
         winrm_restricted = False
         winrm_source_restricted = False
 
-        broad_principals = {"everyone", "authenticated users", "users"}
+        broad_principals = {"everyone", _AUTH_USERS, "users"}
 
         # Check if WinRM service is running
         winrm_svc_result = subprocess.run(
@@ -6041,7 +6012,7 @@ def remote_privileged_exec_wc() -> bool:
                 return True
 
         # Check WinRM listener is configured and restricted
-        listener_result = subprocess.run(
+        subprocess.run(
             ["powershell", "-Command",
              "Get-WSManInstance -ResourceURI winrm/config/listener "
              "-SelectorSet @{Address='*';Transport='HTTP'} "
@@ -6139,7 +6110,7 @@ def remote_security_info_access_wc() -> bool:
     Authorized (Windows Client)
     """
     try:
-        broad_principals = {"everyone", "authenticated users", "users"}
+        broad_principals = {"everyone", _AUTH_USERS, "users"}
 
         # Check Windows Event Log (Security) access permissions
         evtlog_result = subprocess.run(
@@ -6244,7 +6215,7 @@ def remote_privileged_exec_ws() -> bool:
         winrm_source_restricted = False
         audit_configured = False
 
-        broad_principals = {"everyone", "authenticated users", "users"}
+        broad_principals = {"everyone", _AUTH_USERS, "users"}
         rfc1918_prefixes = (
             "10.", "172.16.", "172.17.", "172.18.", "172.19.",
             "172.20.", "172.21.", "172.22.", "172.23.", "172.24.",
@@ -6331,7 +6302,7 @@ def remote_privileged_exec_ws() -> bool:
         # Check audit policy captures remote execution events
         # Process Creation and PowerShell script block logging
         audit_result = subprocess.run(
-            ["auditpol", "/get", "/category:*"],
+            ["auditpol", "/get", _AUDITPOL_CATEGORY],
             capture_output=True, text=True, timeout=30
         )
         if audit_result.returncode == 0:
@@ -6376,7 +6347,7 @@ def remote_security_info_access_ws() -> bool:
     Authorized (Windows Server)
     """
     try:
-        broad_principals = {"everyone", "authenticated users", "users"}
+        broad_principals = {"everyone", _AUTH_USERS, "users"}
 
         # Check SYSVOL share permissions (contains GPO settings)
         sysvol_result = subprocess.run(
@@ -6496,7 +6467,7 @@ def remote_privileged_exec_lx() -> bool:
         # Get standard users for comparison
         passwd_result = subprocess.run(
             ["awk", "-F:", '$3 >= 1000 && $1 != "nobody" {print $1}',
-             "/etc/passwd"],
+             _PASSWD_FILE],
             capture_output=True, text=True, timeout=10
         )
         if passwd_result.returncode != 0:
@@ -6508,7 +6479,7 @@ def remote_privileged_exec_lx() -> bool:
         }
 
         sudoers_result = subprocess.run(
-            ["sudo", "cat", "/etc/sudoers"],
+            ["sudo", "cat", _SUDOERS_FILE],
             capture_output=True, text=True, timeout=30
         )
         if sudoers_result.returncode != 0:
@@ -6522,7 +6493,7 @@ def remote_privileged_exec_lx() -> bool:
         # Flag any standard user with unscoped ALL=(ALL) ALL
         unscoped = [
             l for l in active_lines
-            if re.search(r"ALL\s*=\s*\(ALL(:ALL)?\)\s*ALL", l)
+            if re.search(_RE_SUDOERS_ALL, l)
             and not l.startswith("%")
             and not l.startswith("root")
             and any(u in l for u in standard_users)
@@ -6532,7 +6503,7 @@ def remote_privileged_exec_lx() -> bool:
         # Also check sudoers.d
         sudoersd_result = subprocess.run(
             ["sudo", "grep", "-r",
-             r"ALL=(ALL) ALL", "/etc/sudoers.d/"],
+             r"ALL=(ALL) ALL", _SUDOERS_D_DIR],
             capture_output=True, text=True, timeout=30
         )
         if sudoersd_result.returncode == 0 and sudoersd_result.stdout.strip():
@@ -6617,7 +6588,7 @@ def remote_security_info_access_lx() -> bool:
         # Security-relevant files and their maximum acceptable permissions
         # Format: (path, max_mode_octal, allow_world_read)
         security_files = [
-            ("/etc/sudoers", 0o440, False),
+            (_SUDOERS_FILE, 0o440, False),
             ("/etc/sudoers.d", 0o750, False),
             ("/etc/ssh/sshd_config", 0o600, False),
             ("/etc/ssh/ssh_host_rsa_key", 0o600, False),
@@ -6643,7 +6614,7 @@ def remote_security_info_access_lx() -> bool:
             if len(parts) < 3:
                 continue
 
-            mode_str, owner, group = parts[0], parts[1], parts[2]
+            mode_str, owner, _ = parts[0], parts[1], parts[2]
 
             try:
                 mode_int = int(mode_str, 8)
@@ -6756,7 +6727,7 @@ def wireless_authorization_wc() -> bool:
 
         # Extract profile names
         profile_names = re.findall(
-            r"All User Profile\s*:\s*(.+)",
+            _RE_ALL_USER_PROFILE,
             profile_result.stdout
         )
 
@@ -6776,7 +6747,7 @@ def wireless_authorization_wc() -> bool:
         for profile_name in profile_names:
             profile_detail_result = subprocess.run(
                 ["netsh", "wlan", "show", "profile",
-                 f"name={profile_name.strip()}", "key=clear"],
+                 f"name={profile_name.strip()}", _KEY_CLEAR],
                 capture_output=True, text=True, timeout=30
             )
             if profile_detail_result.returncode != 0:
@@ -6786,7 +6757,7 @@ def wireless_authorization_wc() -> bool:
 
             # Extract authentication type
             auth_match = re.search(
-                r"authentication\s*:\s*(\S+)", detail
+                _RE_AUTH_PATTERN, detail
             )
             if auth_match:
                 auth_type = auth_match.group(1).lower()
@@ -6797,7 +6768,7 @@ def wireless_authorization_wc() -> bool:
 
             # Check cipher is not WEP or TKIP
             cipher_match = re.search(
-                r"cipher\s*:\s*(\S+)", detail
+                _RE_CIPHER_PATTERN, detail
             )
             if cipher_match:
                 cipher = cipher_match.group(1).lower()
@@ -6818,7 +6789,7 @@ def wireless_authorization_wc() -> bool:
             if state_match and state_match.group(1).lower() == "connected":
                 # Check authentication of connected network
                 auth_match = re.search(
-                    r"authentication\s*:\s*(\S+)", output
+                    _RE_AUTH_PATTERN, output
                 )
                 if auth_match:
                     connected_auth = auth_match.group(1).lower()
@@ -6911,7 +6882,7 @@ def wireless_authorization_ws() -> bool:
             return bool(gp_wireless_configured)
 
         profile_names = re.findall(
-            r"All User Profile\s*:\s*(.+)",
+            _RE_ALL_USER_PROFILE,
             profile_result.stdout
         )
 
@@ -6925,7 +6896,7 @@ def wireless_authorization_ws() -> bool:
         for profile_name in profile_names:
             profile_detail_result = subprocess.run(
                 ["netsh", "wlan", "show", "profile",
-                 f"name={profile_name.strip()}", "key=clear"],
+                 f"name={profile_name.strip()}", _KEY_CLEAR],
                 capture_output=True, text=True, timeout=30
             )
             if profile_detail_result.returncode != 0:
@@ -6933,7 +6904,7 @@ def wireless_authorization_ws() -> bool:
 
             detail = profile_detail_result.stdout.lower()
             auth_match = re.search(
-                r"authentication\s*:\s*(\S+)", detail
+                _RE_AUTH_PATTERN, detail
             )
             if auth_match:
                 auth_type = auth_match.group(1).lower()
@@ -6948,177 +6919,112 @@ def wireless_authorization_ws() -> bool:
         return False
 
 
+def _get_wireless_interfaces_lx() -> list:
+    """Detect wireless interfaces via iw dev with iwconfig fallback."""
+    iw_result = subprocess.run(
+        ["iw", "dev"], capture_output=True, text=True, timeout=10
+    )
+    if iw_result.returncode == 0 and iw_result.stdout.strip():
+        return re.findall(r"Interface\s+(\S+)", iw_result.stdout)
+    iwconfig_result = subprocess.run(
+        ["iwconfig"], capture_output=True, text=True, timeout=10
+    )
+    if iwconfig_result.returncode == 0:
+        return re.findall(
+            r"^(\S+)\s+IEEE 802\.11", iwconfig_result.stdout, re.MULTILINE
+        )
+    return []
+
+
+def _is_iface_up_lx(iface: str) -> bool:
+    """Return True if the named wireless interface is UP."""
+    result = subprocess.run(
+        ["ip", "link", "show", iface], capture_output=True, text=True, timeout=10
+    )
+    return result.returncode == 0 and "state down" not in result.stdout.lower()
+
+
+def _check_iface_wpa_authorization_lx(iface: str) -> str:
+    """Check authorization on one wireless interface. Returns '' if OK."""
+    enterprise_types = {
+        "wpa2/ieee802.1x", "wpa/ieee802.1x", "ieee8021x",
+        "wpa-eap", "wpa2-eap", "wpa3-eap",
+    }
+    weak_types = {"none", "wpa-psk", "wpa2-psk", "wpa3-psk"}
+    wpa_result = subprocess.run(
+        ["wpa_cli", "-i", iface, "status"], capture_output=True, text=True, timeout=10
+    )
+    if wpa_result.returncode == 0 and wpa_result.stdout.strip():
+        output = wpa_result.stdout.lower()
+        km_match = re.search(r"key_mgmt\s*=\s*(\S+)", output)
+        if km_match:
+            key_mgmt = km_match.group(1).lower()
+            if key_mgmt in weak_types:
+                return f"{iface}: weak auth ({key_mgmt})"
+            if not any(et in key_mgmt for et in enterprise_types) \
+                    and key_mgmt not in enterprise_types:
+                return f"{iface}: unknown auth ({key_mgmt})"
+        eap_match = re.search(r"eap\s*=\s*(\S+)", output)
+        if not eap_match and "ieee802.1x" not in output:
+            return f"{iface}: no EAP method configured"
+        pairwise_match = re.search(r"pairwise_cipher\s*=\s*(\S+)", output)
+        if pairwise_match and pairwise_match.group(1).lower() in {
+            "none", "wep40", "wep104", "tkip"
+        }:
+            return f"{iface}: weak cipher ({pairwise_match.group(1).lower()})"
+        return ""
+    iwconfig_result = subprocess.run(
+        ["iwconfig", iface], capture_output=True, text=True, timeout=10
+    )
+    if iwconfig_result.returncode == 0:
+        output = iwconfig_result.stdout.lower()
+        if "encryption key:off" in output:
+            return f"{iface}: encryption disabled (open network)"
+        if re.search(r"encryption key:\S{5,13}\s", output):
+            return f"{iface}: possible WEP encryption"
+    return ""
+
+
+def _check_nm_authorization_lx() -> list:
+    """Return list of NM wireless profiles with weak or no authentication."""
+    flagged = []
+    nm_result = subprocess.run(
+        ["nmcli", "-t", "-f",
+         "NAME,TYPE,802-11-WIRELESS-SECURITY.KEY-MGMT",
+         "connection", "show", "--active"],
+        capture_output=True, text=True, timeout=10
+    )
+    if nm_result.returncode == 0 and nm_result.stdout.strip():
+        for line in nm_result.stdout.strip().splitlines():
+            parts = line.split(":")
+            if len(parts) >= 3 and "wireless" in parts[1].lower():
+                key_mgmt = parts[2].lower()
+                if key_mgmt in {"none", "wpa-psk", ""}:
+                    flagged.append(
+                        f"NM profile {parts[0]}: weak or no auth ({key_mgmt})"
+                    )
+    return flagged
+
+
 def wireless_authorization_lx() -> bool:
     """
     AC.L2-3.1.16b - Wireless Access is Authorized Prior to Allowing
     Connections (Linux/Debian)
     """
     try:
-        # Check for wireless interfaces via iw or iwconfig
-        iw_result = subprocess.run(
-            ["iw", "dev"],
-            capture_output=True, text=True, timeout=10
-        )
-
-        wireless_interfaces = []
-        if iw_result.returncode == 0 and iw_result.stdout.strip():
-            # Extract interface names from iw dev output
-            iface_matches = re.findall(
-                r"Interface\s+(\S+)", iw_result.stdout
-            )
-            wireless_interfaces = iface_matches
-
-        # Fall back to iwconfig if iw not available
-        if not wireless_interfaces:
-            iwconfig_result = subprocess.run(
-                ["iwconfig"],
-                capture_output=True, text=True, timeout=10
-            )
-            if iwconfig_result.returncode == 0:
-                iface_matches = re.findall(
-                    r"^(\S+)\s+IEEE 802\.11",
-                    iwconfig_result.stdout,
-                    re.MULTILINE
-                )
-                wireless_interfaces = iface_matches
-
-        # No wireless interfaces present — pass by default
+        wireless_interfaces = _get_wireless_interfaces_lx()
         if not wireless_interfaces:
             return True
 
-        # Check each wireless interface status and authentication
         flagged_interfaces = []
-
         for iface in wireless_interfaces:
-            # Check interface is up
-            ip_result = subprocess.run(
-                ["ip", "link", "show", iface],
-                capture_output=True, text=True, timeout=10
-            )
-            if ip_result.returncode != 0:
+            if not _is_iface_up_lx(iface):
                 continue
+            flag = _check_iface_wpa_authorization_lx(iface)
+            if flag:
+                flagged_interfaces.append(flag)
 
-            # If interface is DOWN skip it
-            if "state down" in ip_result.stdout.lower():
-                continue
-
-            # Interface is UP — check authentication type
-            # via wpa_supplicant status
-            wpa_result = subprocess.run(
-                ["wpa_cli", "-i", iface, "status"],
-                capture_output=True, text=True, timeout=10
-            )
-
-            if wpa_result.returncode == 0 and wpa_result.stdout.strip():
-                output = wpa_result.stdout.lower()
-
-                # Check key management type
-                key_mgmt_match = re.search(
-                    r"key_mgmt\s*=\s*(\S+)", output
-                )
-                if key_mgmt_match:
-                    key_mgmt = key_mgmt_match.group(1).lower()
-
-                    # Acceptable enterprise key management types
-                    enterprise_types = {
-                        "wpa2/ieee802.1x",
-                        "wpa/ieee802.1x",
-                        "ieee8021x",
-                        "wpa-eap",
-                        "wpa2-eap",
-                        "wpa3-eap"
-                    }
-
-                    # Weak or unauthorized key management types
-                    weak_types = {
-                        "none",          # Open network
-                        "wpa-psk",       # WPA personal
-                        "wpa2-psk",      # WPA2 personal
-                        "wpa3-psk",      # WPA3 personal (SAE)
-                    }
-
-                    if key_mgmt in weak_types:
-                        flagged_interfaces.append(
-                            f"{iface}: weak auth ({key_mgmt})"
-                        )
-                        continue
-
-                    if not any(
-                        et in key_mgmt for et in enterprise_types
-                    ) and key_mgmt not in enterprise_types:
-                        flagged_interfaces.append(
-                            f"{iface}: unknown auth ({key_mgmt})"
-                        )
-                        continue
-
-                # Check EAP method is configured for enterprise auth
-                eap_match = re.search(
-                    r"eap\s*=\s*(\S+)", output
-                )
-                if not eap_match and "ieee802.1x" not in output:
-                    flagged_interfaces.append(
-                        f"{iface}: no EAP method configured"
-                    )
-                    continue
-
-                # Check not connected to an open network
-                # by verifying pairwise cipher is not NONE or WEP
-                pairwise_match = re.search(
-                    r"pairwise_cipher\s*=\s*(\S+)", output
-                )
-                if pairwise_match:
-                    cipher = pairwise_match.group(1).lower()
-                    if cipher in {"none", "wep40", "wep104", "tkip"}:
-                        flagged_interfaces.append(
-                            f"{iface}: weak cipher ({cipher})"
-                        )
-                        continue
-
-            else:
-                # wpa_cli not available or failed
-                # Fall back to iwconfig for basic auth check
-                iwconfig_iface_result = subprocess.run(
-                    ["iwconfig", iface],
-                    capture_output=True, text=True, timeout=10
-                )
-                if iwconfig_iface_result.returncode == 0:
-                    output = iwconfig_iface_result.stdout.lower()
-                    # Check encryption is enabled
-                    if "encryption key:off" in output:
-                        flagged_interfaces.append(
-                            f"{iface}: encryption disabled (open network)"
-                        )
-                        continue
-                    # Check it is not using WEP (short key length)
-                    if re.search(
-                        r"encryption key:\S{5,13}\s", output
-                    ):
-                        flagged_interfaces.append(
-                            f"{iface}: possible WEP encryption"
-                        )
-                        continue
-
-        # Check NetworkManager or wpa_supplicant config for
-        # any saved open or PSK profiles
-        nm_result = subprocess.run(
-            ["nmcli", "-t", "-f",
-             "NAME,TYPE,802-11-WIRELESS-SECURITY.KEY-MGMT",
-             "connection", "show", "--active"],
-            capture_output=True, text=True, timeout=10
-        )
-        if nm_result.returncode == 0 and nm_result.stdout.strip():
-            for line in nm_result.stdout.strip().splitlines():
-                parts = line.split(":")
-                if len(parts) >= 3:
-                    conn_type = parts[1].lower()
-                    key_mgmt = parts[2].lower()
-                    if "wireless" in conn_type:
-                        if key_mgmt in {"none", "wpa-psk", ""}:
-                            flagged_interfaces.append(
-                                f"NM profile {parts[0]}: "
-                                f"weak or no auth ({key_mgmt})"
-                            )
-
+        flagged_interfaces.extend(_check_nm_authorization_lx())
         return bool(not flagged_interfaces)
 
     except Exception:
@@ -7157,7 +7063,7 @@ def wireless_auth_wc() -> bool:
             return False
 
         profile_names = re.findall(
-            r"All User Profile\s*:\s*(.+)",
+            _RE_ALL_USER_PROFILE,
             profile_result.stdout
         )
         if not profile_names:
@@ -7169,7 +7075,7 @@ def wireless_auth_wc() -> bool:
         for profile_name in profile_names:
             detail_result = subprocess.run(
                 ["netsh", "wlan", "show", "profile",
-                 f"name={profile_name.strip()}", "key=clear"],
+                 f"name={profile_name.strip()}", _KEY_CLEAR],
                 capture_output=True, text=True, timeout=30
             )
             if detail_result.returncode != 0:
@@ -7179,7 +7085,7 @@ def wireless_auth_wc() -> bool:
 
             # Check authentication type
             auth_match = re.search(
-                r"authentication\s*:\s*(\S+)", detail
+                _RE_AUTH_PATTERN, detail
             )
             if auth_match:
                 auth_type = auth_match.group(1).lower()
@@ -7256,7 +7162,7 @@ def wireless_encryption_wc() -> bool:
             return False
 
         profile_names = re.findall(
-            r"All User Profile\s*:\s*(.+)",
+            _RE_ALL_USER_PROFILE,
             profile_result.stdout
         )
         if not profile_names:
@@ -7269,7 +7175,7 @@ def wireless_encryption_wc() -> bool:
         for profile_name in profile_names:
             detail_result = subprocess.run(
                 ["netsh", "wlan", "show", "profile",
-                 f"name={profile_name.strip()}", "key=clear"],
+                 f"name={profile_name.strip()}", _KEY_CLEAR],
                 capture_output=True, text=True, timeout=30
             )
             if detail_result.returncode != 0:
@@ -7279,7 +7185,7 @@ def wireless_encryption_wc() -> bool:
 
             # Check cipher type
             cipher_match = re.search(
-                r"cipher\s*:\s*(\S+)", detail
+                _RE_CIPHER_PATTERN, detail
             )
             if cipher_match:
                 cipher = cipher_match.group(1).lower()
@@ -7312,7 +7218,7 @@ def wireless_encryption_wc() -> bool:
             state_match = re.search(r"state\s*:\s*(\S+)", output)
             if state_match and state_match.group(1).lower() == "connected":
                 cipher_match = re.search(
-                    r"cipher\s*:\s*(\S+)", output
+                    _RE_CIPHER_PATTERN, output
                 )
                 if cipher_match:
                     active_cipher = cipher_match.group(1).lower()
@@ -7380,7 +7286,7 @@ def wireless_auth_ws() -> bool:
             return False
 
         profile_names = re.findall(
-            r"All User Profile\s*:\s*(.+)",
+            _RE_ALL_USER_PROFILE,
             profile_result.stdout
         )
         if not profile_names:
@@ -7392,7 +7298,7 @@ def wireless_auth_ws() -> bool:
         for profile_name in profile_names:
             detail_result = subprocess.run(
                 ["netsh", "wlan", "show", "profile",
-                 f"name={profile_name.strip()}", "key=clear"],
+                 f"name={profile_name.strip()}", _KEY_CLEAR],
                 capture_output=True, text=True, timeout=30
             )
             if detail_result.returncode != 0:
@@ -7400,7 +7306,7 @@ def wireless_auth_ws() -> bool:
 
             detail = detail_result.stdout.lower()
             auth_match = re.search(
-                r"authentication\s*:\s*(\S+)", detail
+                _RE_AUTH_PATTERN, detail
             )
             if auth_match:
                 auth_type = auth_match.group(1).lower()
@@ -7480,7 +7386,7 @@ def wireless_encryption_ws() -> bool:
             return False
 
         profile_names = re.findall(
-            r"All User Profile\s*:\s*(.+)",
+            _RE_ALL_USER_PROFILE,
             profile_result.stdout
         )
         if not profile_names:
@@ -7493,7 +7399,7 @@ def wireless_encryption_ws() -> bool:
         for profile_name in profile_names:
             detail_result = subprocess.run(
                 ["netsh", "wlan", "show", "profile",
-                 f"name={profile_name.strip()}", "key=clear"],
+                 f"name={profile_name.strip()}", _KEY_CLEAR],
                 capture_output=True, text=True, timeout=30
             )
             if detail_result.returncode != 0:
@@ -7501,7 +7407,7 @@ def wireless_encryption_ws() -> bool:
 
             detail = detail_result.stdout.lower()
             cipher_match = re.search(
-                r"cipher\s*:\s*(\S+)", detail
+                _RE_CIPHER_PATTERN, detail
             )
             if cipher_match:
                 cipher = cipher_match.group(1).lower()
@@ -7517,151 +7423,175 @@ def wireless_encryption_ws() -> bool:
         return False
 
 
+def _check_iface_wpa_authentication_lx(iface: str) -> list:
+    """Check WPA authentication on one interface. Returns list of problems."""
+    weak_eap = {"md5", "leap", "pap", "chap", "mschap"}
+    weak_key_mgmt = {"none", "wpa-psk", "wpa2-psk", "wpa3-psk", "sae"}
+    flagged = []
+
+    wpa_result = subprocess.run(
+        ["wpa_cli", "-i", iface, "status"], capture_output=True, text=True, timeout=10
+    )
+    if wpa_result.returncode == 0 and wpa_result.stdout.strip():
+        output = wpa_result.stdout.lower()
+        km_match = re.search(r"key_mgmt\s*=\s*(\S+)", output)
+        if km_match and km_match.group(1).lower() in weak_key_mgmt:
+            return [f"{iface}: weak key mgmt ({km_match.group(1).lower()})"]
+        eap_match = re.search(r"eap\s*=\s*(\S+)", output)
+        if not eap_match:
+            return [f"{iface}: no EAP method configured"]
+        eap_method = eap_match.group(1).lower()
+        if eap_method in weak_eap:
+            return [f"{iface}: weak EAP method ({eap_method})"]
+
+    for conf_path in [
+        "/etc/wpa_supplicant/wpa_supplicant.conf",
+        f"/etc/wpa_supplicant/wpa_supplicant-{iface}.conf",
+    ]:
+        cat_result = subprocess.run(
+            ["cat", conf_path], capture_output=True, text=True, timeout=10
+        )
+        if cat_result.returncode != 0:
+            continue
+        active_lines = [
+            l.strip() for l in cat_result.stdout.lower().splitlines()
+            if l.strip() and not l.strip().startswith("#")
+        ]
+        ca_cert_lines = [l for l in active_lines if l.startswith("ca_cert")]
+        if not ca_cert_lines:
+            flagged.append(f"{iface}: no CA certificate configured for server validation")
+            break
+        for ca_line in ca_cert_lines:
+            if '""' in ca_line or "=''" in ca_line:
+                flagged.append(f"{iface}: empty CA certificate path")
+    return flagged
+
+
+def _check_nm_authentication_lx() -> list:
+    """Return list of NM profiles with weak or missing EAP configuration."""
+    weak_eap = {"md5", "leap", "pap", "chap", "mschap"}
+    flagged = []
+    nm_result = subprocess.run(
+        ["nmcli", "-t", "-f", "NAME,802-1x.eap,802-1x.ca-cert",
+         "connection", "show", "--active"],
+        capture_output=True, text=True, timeout=10
+    )
+    if nm_result.returncode == 0 and nm_result.stdout.strip():
+        for line in nm_result.stdout.strip().splitlines():
+            parts = line.split(":")
+            if len(parts) >= 3:
+                eap = parts[1].lower()
+                ca_cert = parts[2].strip()
+                if eap in weak_eap:
+                    flagged.append(f"NM {parts[0]}: weak EAP ({eap})")
+                if not ca_cert or ca_cert == "--":
+                    flagged.append(f"NM {parts[0]}: no CA cert configured")
+    return flagged
+
+
 def wireless_auth_lx() -> bool:
     """
     AC.L2-3.1.17a - Wireless Access is Protected Using Authentication
     (Linux/Debian)
     """
     try:
-        # Detect wireless interfaces
-        iw_result = subprocess.run(
-            ["iw", "dev"],
-            capture_output=True, text=True, timeout=10
-        )
-        wireless_interfaces = []
-        if iw_result.returncode == 0 and iw_result.stdout.strip():
-            wireless_interfaces = re.findall(
-                r"Interface\s+(\S+)", iw_result.stdout
-            )
-
-        if not wireless_interfaces:
-            iwconfig_result = subprocess.run(
-                ["iwconfig"],
-                capture_output=True, text=True, timeout=10
-            )
-            if iwconfig_result.returncode == 0:
-                wireless_interfaces = re.findall(
-                    r"^(\S+)\s+IEEE 802\.11",
-                    iwconfig_result.stdout,
-                    re.MULTILINE
-                )
-
+        wireless_interfaces = _get_wireless_interfaces_lx()
         if not wireless_interfaces:
             return True
 
         flagged = []
-        weak_key_mgmt = {"none", "wpa-psk", "wpa2-psk", "wpa3-psk", "sae"}
-
         for iface in wireless_interfaces:
-            # Check interface is UP
-            ip_result = subprocess.run(
-                ["ip", "link", "show", iface],
-                capture_output=True, text=True, timeout=10
-            )
-            if ip_result.returncode != 0:
+            if not _is_iface_up_lx(iface):
                 continue
-            if "state down" in ip_result.stdout.lower():
-                continue
+            flagged.extend(_check_iface_wpa_authentication_lx(iface))
 
-            # Check wpa_supplicant status for auth details
-            wpa_result = subprocess.run(
-                ["wpa_cli", "-i", iface, "status"],
-                capture_output=True, text=True, timeout=10
-            )
-            if wpa_result.returncode == 0 and wpa_result.stdout.strip():
-                output = wpa_result.stdout.lower()
-
-                # Check key management is enterprise
-                key_mgmt_match = re.search(
-                    r"key_mgmt\s*=\s*(\S+)", output
-                )
-                if key_mgmt_match:
-                    key_mgmt = key_mgmt_match.group(1).lower()
-                    if key_mgmt in weak_key_mgmt:
-                        flagged.append(
-                            f"{iface}: weak key mgmt ({key_mgmt})"
-                        )
-                        continue
-
-                # Check EAP method is configured
-                eap_match = re.search(r"eap\s*=\s*(\S+)", output)
-                if not eap_match:
-                    flagged.append(f"{iface}: no EAP method configured")
-                    continue
-
-                # Check EAP method is strong
-                weak_eap = {"md5", "leap", "pap", "chap", "mschap"}
-                eap_method = eap_match.group(1).lower()
-                if eap_method in weak_eap:
-                    flagged.append(
-                        f"{iface}: weak EAP method ({eap_method})"
-                    )
-                    continue
-
-            # Check wpa_supplicant config file for cert validation
-            wpa_conf_paths = [
-                "/etc/wpa_supplicant/wpa_supplicant.conf",
-                f"/etc/wpa_supplicant/wpa_supplicant-{iface}.conf"
-            ]
-            for conf_path in wpa_conf_paths:
-                cat_result = subprocess.run(
-                    ["cat", conf_path],
-                    capture_output=True, text=True, timeout=10
-                )
-                if cat_result.returncode != 0:
-                    continue
-
-                conf = cat_result.stdout.lower()
-                active_lines = [
-                    l.strip() for l in conf.splitlines()
-                    if l.strip() and not l.strip().startswith("#")
-                ]
-
-                # Check ca_cert is configured for server validation
-                ca_cert_lines = [
-                    l for l in active_lines
-                    if l.startswith("ca_cert")
-                ]
-                if not ca_cert_lines:
-                    flagged.append(
-                        f"{iface}: no CA certificate configured "
-                        "for server validation"
-                    )
-                    break
-
-                # Check ca_cert is not empty
-                for ca_line in ca_cert_lines:
-                    if '""' in ca_line or "=''" in ca_line:
-                        flagged.append(
-                            f"{iface}: empty CA certificate path"
-                        )
-
-            # Check NetworkManager EAP config as fallback
-            nm_result = subprocess.run(
-                ["nmcli", "-t", "-f",
-                 "NAME,802-1x.eap,802-1x.ca-cert",
-                 "connection", "show", "--active"],
-                capture_output=True, text=True, timeout=10
-            )
-            if nm_result.returncode == 0 and nm_result.stdout.strip():
-                for line in nm_result.stdout.strip().splitlines():
-                    parts = line.split(":")
-                    if len(parts) >= 3:
-                        eap = parts[1].lower()
-                        ca_cert = parts[2].strip()
-                        if eap in weak_eap if 'weak_eap' in dir() else set():
-                            flagged.append(
-                                f"NM {parts[0]}: weak EAP ({eap})"
-                            )
-                        if not ca_cert or ca_cert == "--":
-                            flagged.append(
-                                f"NM {parts[0]}: no CA cert configured"
-                            )
-
+        flagged.extend(_check_nm_authentication_lx())
         return bool(not flagged)
 
     except Exception:
         return False
+
+
+_WEAK_CIPHERS_LX = frozenset({"wep40", "wep104", "wep", "tkip", "none"})
+_STRONG_CIPHERS_LX = frozenset({"ccmp", "gcmp", "ccmp-256", "gcmp-256"})
+
+
+def _check_iface_cipher_lx(iface: str) -> list:
+    """Check cipher strength on one wireless interface. Returns list of problems."""
+    flagged = []
+
+    wpa_result = subprocess.run(
+        ["wpa_cli", "-i", iface, "status"], capture_output=True, text=True, timeout=10
+    )
+    if wpa_result.returncode == 0 and wpa_result.stdout.strip():
+        output = wpa_result.stdout.lower()
+        pairwise_match = re.search(r"pairwise_cipher\s*=\s*(\S+)", output)
+        if pairwise_match:
+            pairwise = pairwise_match.group(1).lower()
+            if pairwise in _WEAK_CIPHERS_LX:
+                return [f"{iface}: weak pairwise cipher ({pairwise})"]
+            if pairwise not in _STRONG_CIPHERS_LX:
+                return [f"{iface}: unknown pairwise cipher ({pairwise})"]
+        group_match = re.search(r"group_cipher\s*=\s*(\S+)", output)
+        if group_match and group_match.group(1).lower() in _WEAK_CIPHERS_LX:
+            return [f"{iface}: weak group cipher ({group_match.group(1).lower()})"]
+
+    for conf_path in [
+        "/etc/wpa_supplicant/wpa_supplicant.conf",
+        f"/etc/wpa_supplicant/wpa_supplicant-{iface}.conf",
+    ]:
+        cat_result = subprocess.run(
+            ["cat", conf_path], capture_output=True, text=True, timeout=10
+        )
+        if cat_result.returncode != 0:
+            continue
+        active_lines = [
+            l.strip() for l in cat_result.stdout.lower().splitlines()
+            if l.strip() and not l.strip().startswith("#")
+        ]
+        for line in active_lines:
+            for directive in ("pairwise=", "group="):
+                if line.startswith(directive):
+                    label = directive.rstrip("=")
+                    weak_found = [
+                        c for c in line.split("=", 1)[1].split()
+                        if c.lower() in _WEAK_CIPHERS_LX
+                    ]
+                    if weak_found:
+                        flagged.append(f"{iface} conf: weak {label} cipher ({weak_found})")
+
+    iw_link_result = subprocess.run(
+        ["iw", iface, "link"], capture_output=True, text=True, timeout=10
+    )
+    if iw_link_result.returncode == 0 and iw_link_result.stdout.strip():
+        output = iw_link_result.stdout.lower()
+        if "not connected" not in output and re.search(r"wep|wep40|wep104", output):
+            flagged.append(f"{iface}: WEP detected via iw link")
+
+    return flagged
+
+
+def _check_nm_cipher_lx() -> list:
+    """Return list of NM wireless profiles with weak cipher configuration."""
+    flagged = []
+    nm_result = subprocess.run(
+        ["nmcli", "-t", "-f",
+         "NAME,802-11-WIRELESS-SECURITY.PAIRWISE,"
+         "802-11-WIRELESS-SECURITY.GROUP",
+         "connection", "show", "--active"],
+        capture_output=True, text=True, timeout=10
+    )
+    if nm_result.returncode == 0 and nm_result.stdout.strip():
+        for line in nm_result.stdout.strip().splitlines():
+            parts = line.split(":")
+            if len(parts) >= 3:
+                pairwise = parts[1].lower()
+                group = parts[2].lower()
+                if pairwise in _WEAK_CIPHERS_LX:
+                    flagged.append(f"NM {parts[0]}: weak pairwise ({pairwise})")
+                if group in _WEAK_CIPHERS_LX:
+                    flagged.append(f"NM {parts[0]}: weak group ({group})")
+    return flagged
 
 
 def wireless_encryption_lx() -> bool:
@@ -7670,164 +7600,17 @@ def wireless_encryption_lx() -> bool:
     (Linux/Debian)
     """
     try:
-        # Detect wireless interfaces
-        iw_result = subprocess.run(
-            ["iw", "dev"],
-            capture_output=True, text=True, timeout=10
-        )
-        wireless_interfaces = []
-        if iw_result.returncode == 0 and iw_result.stdout.strip():
-            wireless_interfaces = re.findall(
-                r"Interface\s+(\S+)", iw_result.stdout
-            )
-
-        if not wireless_interfaces:
-            iwconfig_result = subprocess.run(
-                ["iwconfig"],
-                capture_output=True, text=True, timeout=10
-            )
-            if iwconfig_result.returncode == 0:
-                wireless_interfaces = re.findall(
-                    r"^(\S+)\s+IEEE 802\.11",
-                    iwconfig_result.stdout,
-                    re.MULTILINE
-                )
-
+        wireless_interfaces = _get_wireless_interfaces_lx()
         if not wireless_interfaces:
             return True
 
-        weak_ciphers = {"wep40", "wep104", "wep", "tkip", "none"}
-        strong_ciphers = {"ccmp", "gcmp", "ccmp-256", "gcmp-256"}
         flagged = []
-
         for iface in wireless_interfaces:
-            # Check interface is UP
-            ip_result = subprocess.run(
-                ["ip", "link", "show", iface],
-                capture_output=True, text=True, timeout=10
-            )
-            if ip_result.returncode != 0:
+            if not _is_iface_up_lx(iface):
                 continue
-            if "state down" in ip_result.stdout.lower():
-                continue
+            flagged.extend(_check_iface_cipher_lx(iface))
 
-            # Check active cipher via wpa_cli
-            wpa_result = subprocess.run(
-                ["wpa_cli", "-i", iface, "status"],
-                capture_output=True, text=True, timeout=10
-            )
-            if wpa_result.returncode == 0 and wpa_result.stdout.strip():
-                output = wpa_result.stdout.lower()
-
-                # Check pairwise cipher
-                pairwise_match = re.search(
-                    r"pairwise_cipher\s*=\s*(\S+)", output
-                )
-                if pairwise_match:
-                    pairwise = pairwise_match.group(1).lower()
-                    if pairwise in weak_ciphers:
-                        flagged.append(
-                            f"{iface}: weak pairwise cipher ({pairwise})"
-                        )
-                        continue
-                    if pairwise not in strong_ciphers:
-                        flagged.append(
-                            f"{iface}: unknown pairwise cipher ({pairwise})"
-                        )
-                        continue
-
-                # Check group cipher
-                group_match = re.search(
-                    r"group_cipher\s*=\s*(\S+)", output
-                )
-                if group_match:
-                    group = group_match.group(1).lower()
-                    if group in weak_ciphers:
-                        flagged.append(
-                            f"{iface}: weak group cipher ({group})"
-                        )
-                        continue
-
-            # Check wpa_supplicant config for weak cipher settings
-            wpa_conf_paths = [
-                "/etc/wpa_supplicant/wpa_supplicant.conf",
-                f"/etc/wpa_supplicant/wpa_supplicant-{iface}.conf"
-            ]
-            for conf_path in wpa_conf_paths:
-                cat_result = subprocess.run(
-                    ["cat", conf_path],
-                    capture_output=True, text=True, timeout=10
-                )
-                if cat_result.returncode != 0:
-                    continue
-
-                conf = cat_result.stdout.lower()
-                active_lines = [
-                    l.strip() for l in conf.splitlines()
-                    if l.strip() and not l.strip().startswith("#")
-                ]
-
-                # Check pairwise and group cipher directives
-                for line in active_lines:
-                    if line.startswith("pairwise="):
-                        ciphers_in_line = line.split("=", 1)[1].split()
-                        weak_found = [
-                            c for c in ciphers_in_line
-                            if c.lower() in weak_ciphers
-                        ]
-                        if weak_found:
-                            flagged.append(
-                                f"{iface} conf: weak pairwise "
-                                f"cipher ({weak_found})"
-                            )
-                    if line.startswith("group="):
-                        ciphers_in_line = line.split("=", 1)[1].split()
-                        weak_found = [
-                            c for c in ciphers_in_line
-                            if c.lower() in weak_ciphers
-                        ]
-                        if weak_found:
-                            flagged.append(
-                                f"{iface} conf: weak group "
-                                f"cipher ({weak_found})"
-                            )
-
-            # Check iw link for active connection cipher details
-            iw_link_result = subprocess.run(
-                ["iw", iface, "link"],
-                capture_output=True, text=True, timeout=10
-            )
-            if iw_link_result.returncode == 0 and \
-                    iw_link_result.stdout.strip():
-                output = iw_link_result.stdout.lower()
-                if "not connected" not in output:
-                    # Check for WEP indicator in iw link output
-                    if re.search(r"wep|wep40|wep104", output):
-                        flagged.append(f"{iface}: WEP detected via iw link")
-
-            # Check NetworkManager for weak cipher configs
-            nm_result = subprocess.run(
-                ["nmcli", "-t", "-f",
-                 "NAME,802-11-WIRELESS-SECURITY.PAIRWISE,"
-                 "802-11-WIRELESS-SECURITY.GROUP",
-                 "connection", "show", "--active"],
-                capture_output=True, text=True, timeout=10
-            )
-            if nm_result.returncode == 0 and nm_result.stdout.strip():
-                for line in nm_result.stdout.strip().splitlines():
-                    parts = line.split(":")
-                    if len(parts) >= 3:
-                        pairwise = parts[1].lower()
-                        group = parts[2].lower()
-                        if pairwise in weak_ciphers:
-                            flagged.append(
-                                f"NM {parts[0]}: weak pairwise ({pairwise})"
-                            )
-                        if group in weak_ciphers:
-                            flagged.append(
-                                f"NM {parts[0]}: weak group ({group})"
-                            )
-
+        flagged.extend(_check_nm_cipher_lx())
         return bool(not flagged)
 
     except Exception:
@@ -7845,7 +7628,7 @@ def mobile_device_monitoring_wc() -> bool:
 
         # Check audit policy captures removable storage events
         audit_result = subprocess.run(
-            ["auditpol", "/get", "/category:*"],
+            ["auditpol", "/get", _AUDITPOL_CATEGORY],
             capture_output=True, text=True, timeout=30
         )
         if audit_result.returncode != 0:
@@ -7964,7 +7747,7 @@ def mobile_device_monitoring_ws() -> bool:
 
         # Check audit policy for removable storage and PnP events
         audit_result = subprocess.run(
-            ["auditpol", "/get", "/category:*"],
+            ["auditpol", "/get", _AUDITPOL_CATEGORY],
             capture_output=True, text=True, timeout=30
         )
         if audit_result.returncode != 0:
@@ -8062,183 +7845,108 @@ def mobile_device_monitoring_ws() -> bool:
         return False
 
 
+def _check_usb_audit_lx() -> bool:
+    """Return True if auditd or udev rules cover USB/removable device events."""
+    auditd_result = subprocess.run(
+        ["systemctl", "is-active", "auditd"], capture_output=True, text=True, timeout=10
+    )
+    if auditd_result.returncode == 0 and auditd_result.stdout.strip().lower() == "active":
+        rules_result = subprocess.run(
+            ["auditctl", "-l"], capture_output=True, text=True, timeout=10
+        )
+        if rules_result.returncode == 0 and rules_result.stdout.strip():
+            if re.search(
+                r"(\/dev\/bus\/usb|usb|removable|\/sys\/bus\/usb|plug)",
+                rules_result.stdout.lower()
+            ):
+                return True
+        udev_result = subprocess.run(
+            ["find", "/etc/udev/rules.d", "/lib/udev/rules.d",
+             "-name", "*.rules", "-type", "f"],
+            capture_output=True, text=True, timeout=10
+        )
+        if udev_result.returncode == 0 and udev_result.stdout.strip():
+            for rule_file in udev_result.stdout.strip().splitlines():
+                grep_result = subprocess.run(
+                    ["grep", "-l", "usb\\|removable\\|storage", rule_file],
+                    capture_output=True, text=True, timeout=10
+                )
+                if grep_result.returncode == 0 and grep_result.stdout.strip():
+                    return True
+    return False
+
+
+def _check_syslog_usb_lx() -> bool:
+    """Return True if syslog or journald contains USB device event entries."""
+    for log_path in ("/var/log/syslog", "/var/log/messages", "/var/log/kern.log"):
+        grep_result = subprocess.run(
+            ["grep", "-c", "-i", "usb\\|mtp\\|removable", log_path],
+            capture_output=True, text=True, timeout=10
+        )
+        if grep_result.returncode == 0:
+            try:
+                if int(grep_result.stdout.strip()) > 0:
+                    return True
+            except ValueError:
+                continue
+    journal_result = subprocess.run(
+        ["journalctl", "-k", "--no-pager", "--grep", "usb|removable|mtp",
+         "--output", "short", "--lines", "10"],
+        capture_output=True, text=True, timeout=10
+    )
+    if journal_result.returncode == 0 and journal_result.stdout.strip():
+        return bool(re.search(r"(usb|removable|mtp)", journal_result.stdout.lower()))
+    return False
+
+
+def _check_bluetooth_controlled_lx() -> bool:
+    """Return True if Bluetooth is inactive or properly restricted and logged."""
+    bt_result = subprocess.run(
+        ["systemctl", "is-active", "bluetooth"],
+        capture_output=True, text=True, timeout=10
+    )
+    if not (bt_result.returncode == 0 and bt_result.stdout.strip().lower() == "active"):
+        return True
+
+    bt_conf_result = subprocess.run(
+        ["cat", "/etc/bluetooth/main.conf"],
+        capture_output=True, text=True, timeout=10
+    )
+    if bt_conf_result.returncode == 0 and bt_conf_result.stdout.strip():
+        active_lines = [
+            l.strip() for l in bt_conf_result.stdout.lower().splitlines()
+            if l.strip() and not l.strip().startswith("#")
+        ]
+        bt_discoverable = True
+        bt_timeout_set = False
+        for line in active_lines:
+            if line.startswith("discoverable") and "=" in line:
+                if line.split("=", 1)[1].strip().lower() == "false":
+                    bt_discoverable = False
+            if line.startswith("discoverabletimeout") and "=" in line:
+                try:
+                    bt_timeout_set = int(line.split("=", 1)[1].strip()) > 0
+                except ValueError:
+                    pass
+        if not bt_discoverable and bt_timeout_set:
+            return True
+
+    bt_log_result = subprocess.run(
+        ["journalctl", "-u", "bluetooth", "--no-pager", "--lines", "20"],
+        capture_output=True, text=True, timeout=10
+    )
+    return bool(bt_log_result.returncode == 0 and bt_log_result.stdout.strip())
+
+
 def mobile_device_monitoring_lx() -> bool:
     """
     AC.L2-3.1.18c - Mobile Device Connections are Monitored and Logged
     (Linux/Debian)
     """
     try:
-        usb_audit_ok = False
-        syslog_usb_ok = False
-        bluetooth_controlled = False
-
-        # Check auditd is active
-        auditd_result = subprocess.run(
-            ["systemctl", "is-active", "auditd"],
-            capture_output=True, text=True, timeout=10
-        )
-        auditd_active = bool(
-            auditd_result.returncode == 0
-            and auditd_result.stdout.strip().lower() == "active"
-        )
-
-        if auditd_active:
-            # Check auditd has rules for USB/removable device events
-            rules_result = subprocess.run(
-                ["auditctl", "-l"],
-                capture_output=True, text=True, timeout=10
-            )
-            if rules_result.returncode == 0 and rules_result.stdout.strip():
-                rules = rules_result.stdout.lower()
-                # Check for rules watching USB device paths or
-                # kernel USB subsystem events
-                usb_audit_ok = bool(
-                    re.search(
-                        r"(\/dev\/bus\/usb|usb|removable"
-                        r"|\/sys\/bus\/usb|plug)",
-                        rules
-                    )
-                )
-
-                # Also check for udev rule watching as alternative
-                if not usb_audit_ok:
-                    udev_result = subprocess.run(
-                        ["find", "/etc/udev/rules.d",
-                         "/lib/udev/rules.d",
-                         "-name", "*.rules",
-                         "-type", "f"],
-                        capture_output=True, text=True, timeout=10
-                    )
-                    if udev_result.returncode == 0 and \
-                            udev_result.stdout.strip():
-                        rule_files = udev_result.stdout.strip().splitlines()
-                        for rule_file in rule_files:
-                            cat_result = subprocess.run(
-                                ["grep", "-l",
-                                 "usb\\|removable\\|storage",
-                                 rule_file],
-                                capture_output=True, text=True, timeout=10
-                            )
-                            if cat_result.returncode == 0 and \
-                                    cat_result.stdout.strip():
-                                usb_audit_ok = True
-                                break
-
-        # Check system log records USB connection events
-        # Check /var/log/syslog or /var/log/messages for USB entries
-        syslog_paths = [
-            "/var/log/syslog",
-            "/var/log/messages",
-            "/var/log/kern.log"
-        ]
-        for log_path in syslog_paths:
-            grep_result = subprocess.run(
-                ["grep", "-c", "-i",
-                 "usb\\|mtp\\|removable",
-                 log_path],
-                capture_output=True, text=True, timeout=10
-            )
-            if grep_result.returncode == 0:
-                try:
-                    count = int(grep_result.stdout.strip())
-                    if count > 0:
-                        syslog_usb_ok = True
-                        break
-                except ValueError:
-                    continue
-
-        # Fall back to journald if syslog not present
-        if not syslog_usb_ok:
-            journal_result = subprocess.run(
-                ["journalctl", "-k", "--no-pager",
-                 "--grep", "usb|removable|mtp",
-                 "--output", "short",
-                 "--lines", "10"],
-                capture_output=True, text=True, timeout=10
-            )
-            if journal_result.returncode == 0 and \
-                    journal_result.stdout.strip():
-                syslog_usb_ok = bool(
-                    re.search(
-                        r"(usb|removable|mtp)",
-                        journal_result.stdout.lower()
-                    )
-                )
-
-        # Check Bluetooth is disabled or logging is configured
-        # Check if Bluetooth service is active
-        bt_result = subprocess.run(
-            ["systemctl", "is-active", "bluetooth"],
-            capture_output=True, text=True, timeout=10
-        )
-        bt_active = bool(
-            bt_result.returncode == 0
-            and bt_result.stdout.strip().lower() == "active"
-        )
-
-        if not bt_active:
-            # Bluetooth service not running — controlled
-            bluetooth_controlled = True
-        else:
-            # BT is active — check bluetoothd logging is configured
-            bt_conf_result = subprocess.run(
-                ["cat", "/etc/bluetooth/main.conf"],
-                capture_output=True, text=True, timeout=10
-            )
-            if bt_conf_result.returncode == 0 and \
-                    bt_conf_result.stdout.strip():
-                conf = bt_conf_result.stdout.lower()
-                active_lines = [
-                    l.strip() for l in conf.splitlines()
-                    if l.strip() and not l.strip().startswith("#")
-                ]
-
-                # Check DiscoverableTimeout is set (non-zero)
-                # and Discoverable is false to prevent rogue pairing
-                discoverable_lines = [
-                    l for l in active_lines
-                    if l.startswith("discoverable")
-                ]
-                timeout_lines = [
-                    l for l in active_lines
-                    if l.startswith("discoverabletimeout")
-                ]
-
-                bt_discoverable = True
-                bt_timeout_set = False
-
-                for line in discoverable_lines:
-                    if "=" in line:
-                        val = line.split("=", 1)[1].strip().lower()
-                        if val == "false":
-                            bt_discoverable = False
-
-                for line in timeout_lines:
-                    if "=" in line:
-                        try:
-                            timeout_val = int(
-                                line.split("=", 1)[1].strip()
-                            )
-                            bt_timeout_set = bool(timeout_val > 0)
-                        except ValueError:
-                            pass
-
-                bluetooth_controlled = bool(
-                    not bt_discoverable and bt_timeout_set
-                )
-
-            # Check journald logs BT connection events
-            if not bluetooth_controlled:
-                bt_log_result = subprocess.run(
-                    ["journalctl", "-u", "bluetooth",
-                     "--no-pager", "--lines", "20"],
-                    capture_output=True, text=True, timeout=10
-                )
-                if bt_log_result.returncode == 0 and \
-                        bt_log_result.stdout.strip():
-                    # BT is logging — treat as monitored
-                    bluetooth_controlled = True
-
+        usb_audit_ok = _check_usb_audit_lx()
+        syslog_usb_ok = _check_syslog_usb_lx()
+        bluetooth_controlled = _check_bluetooth_controlled_lx()
         return bool(usb_audit_ok and syslog_usb_ok and bluetooth_controlled)
 
     except Exception:
@@ -8461,156 +8169,112 @@ def mobile_encryption_ws() -> bool:
         return False
 
 
+def _luks_in_devices(devices: list) -> bool:
+    """Recursively check if any device in the lsblk tree is LUKS/crypt."""
+    for dev in devices:
+        if (dev.get("fstype") or "").lower() == "crypto_luks" \
+                or (dev.get("type") or "").lower() == "crypt":
+            return True
+        if _luks_in_devices(dev.get("children") or []):
+            return True
+    return False
+
+
+def _find_luks_devices_lx() -> bool:
+    """Return True if any active LUKS encrypted block device is present."""
+    lsblk_result = subprocess.run(
+        ["lsblk", "-o", "NAME,TYPE,FSTYPE,MOUNTPOINT", "--json"],
+        capture_output=True, text=True, timeout=30
+    )
+    if lsblk_result.returncode == 0 and lsblk_result.stdout.strip():
+        try:
+            data = json.loads(lsblk_result.stdout)
+            if _luks_in_devices(data.get("blockdevices", [])):
+                return True
+        except (json.JSONDecodeError, KeyError):
+            pass
+    dmsetup_result = subprocess.run(
+        ["dmsetup", "ls", "--target", "crypt"],
+        capture_output=True, text=True, timeout=10
+    )
+    return bool(
+        dmsetup_result.returncode == 0
+        and dmsetup_result.stdout.strip()
+        and "No devices found" not in dmsetup_result.stdout
+    )
+
+
+def _check_luks_cipher_strong_lx() -> bool:
+    """Return True if the active LUKS cipher is AES-256 or stronger."""
+    dm_result = subprocess.run(
+        ["dmsetup", "ls", "--target", "crypt"],
+        capture_output=True, text=True, timeout=10
+    )
+    if dm_result.returncode != 0 or not dm_result.stdout.strip():
+        return False
+    crypt_devices = [
+        line.split()[0]
+        for line in dm_result.stdout.strip().splitlines()
+        if line.strip() and "No devices" not in line
+    ]
+    for crypt_dev in crypt_devices[:3]:
+        status_result = subprocess.run(
+            ["cryptsetup", "status", crypt_dev],
+            capture_output=True, text=True, timeout=10
+        )
+        if status_result.returncode != 0:
+            continue
+        output = status_result.stdout.lower()
+        cipher_match = re.search(_RE_CIPHER_PATTERN, output)
+        if cipher_match:
+            cipher = cipher_match.group(1).lower()
+            if re.search(r"aes.*(256|512|xts)", cipher) or "aes-xts" in cipher:
+                return True
+        keysize_match = re.search(r"keysize\s*:\s*(\d+)", output)
+        if keysize_match and int(keysize_match.group(1)) >= 256:
+            return True
+    return False
+
+
+def _check_home_encrypted_lx() -> bool:
+    """Return True if /home is encrypted via LUKS, eCryptfs, fscrypt, or similar."""
+    home_mount_result = subprocess.run(
+        ["findmnt", "-n", "-o", "SOURCE,FSTYPE", "/home"],
+        capture_output=True, text=True, timeout=10
+    )
+    if home_mount_result.returncode == 0 and home_mount_result.stdout.strip():
+        source = home_mount_result.stdout.strip().split()[0]
+        if source.startswith("/dev/dm-") or source.startswith("/dev/mapper/"):
+            return True
+
+    mount_result = subprocess.run(["mount"], capture_output=True, text=True, timeout=10)
+    if mount_result.returncode == 0 \
+            and re.search(r"ecryptfs.*\/home", mount_result.stdout.lower()):
+        return True
+
+    fscrypt_result = subprocess.run(
+        ["fscrypt", "status", "/home"], capture_output=True, text=True, timeout=10
+    )
+    if fscrypt_result.returncode == 0 \
+            and "encryption enabled" in fscrypt_result.stdout.lower():
+        return True
+
+    home_result = subprocess.run(
+        ["find", "/home", "-maxdepth", "2", "-name", ".ecryptfs", "-type", "d"],
+        capture_output=True, text=True, timeout=10
+    )
+    return bool(home_result.returncode == 0 and home_result.stdout.strip())
+
+
 def mobile_encryption_lx() -> bool:
     """
     AC.L2-3.1.19b - Encryption is Employed to Protect CUI on Mobile
     Devices (Linux/Debian)
     """
     try:
-        luks_active = False
-        home_encrypted = False
-        strong_cipher = False
-
-        # Check for LUKS encrypted block devices via lsblk
-        lsblk_result = subprocess.run(
-            ["lsblk", "-o", "NAME,TYPE,FSTYPE,MOUNTPOINT",
-             "--json"],
-            capture_output=True, text=True, timeout=30
-        )
-        if lsblk_result.returncode == 0 and lsblk_result.stdout.strip():
-            try:
-                lsblk_data = json.loads(lsblk_result.stdout)
-                block_devices = lsblk_data.get("blockdevices", [])
-
-                def find_luks(devices):
-                    for dev in devices:
-                        fstype = (dev.get("fstype") or "").lower()
-                        dev_type = (dev.get("type") or "").lower()
-                        if fstype == "crypto_luks" or dev_type == "crypt":
-                            return True
-                        children = dev.get("children", [])
-                        if children and find_luks(children):
-                            return True
-                    return False
-
-                luks_active = find_luks(block_devices)
-            except (json.JSONDecodeError, KeyError):
-                luks_active = False
-
-        # Fall back to cryptsetup if lsblk JSON not available
-        if not luks_active:
-            cryptsetup_result = subprocess.run(
-                ["cryptsetup", "status",
-                 "$(lsblk -o NAME,TYPE | "
-                 "awk '$2==\"crypt\"{print $1}' | head -1)"],
-                capture_output=True, text=True,
-                shell=False, timeout=30
-            )
-            # Check dmsetup for active crypt devices
-            dmsetup_result = subprocess.run(
-                ["dmsetup", "ls", "--target", "crypt"],
-                capture_output=True, text=True, timeout=10
-            )
-            if dmsetup_result.returncode == 0 and \
-                    dmsetup_result.stdout.strip():
-                if "No devices found" not in dmsetup_result.stdout:
-                    luks_active = True
-
-        # Check LUKS cipher is AES-256 or stronger
-        # Get first LUKS device name from dmsetup
-        if luks_active:
-            dm_result = subprocess.run(
-                ["dmsetup", "ls", "--target", "crypt"],
-                capture_output=True, text=True, timeout=10
-            )
-            if dm_result.returncode == 0 and dm_result.stdout.strip():
-                crypt_devices = [
-                    line.split()[0]
-                    for line in dm_result.stdout.strip().splitlines()
-                    if line.strip() and "No devices" not in line
-                ]
-                for crypt_dev in crypt_devices[:3]:
-                    # Check underlying device for LUKS header
-                    status_result = subprocess.run(
-                        ["cryptsetup", "status", crypt_dev],
-                        capture_output=True, text=True, timeout=10
-                    )
-                    if status_result.returncode == 0:
-                        output = status_result.stdout.lower()
-                        cipher_match = re.search(
-                            r"cipher\s*:\s*(\S+)", output
-                        )
-                        if cipher_match:
-                            cipher = cipher_match.group(1).lower()
-                            # AES-256 variants are acceptable
-                            # aes-xts-plain64 with 512-bit key = AES-256
-                            if re.search(
-                                r"aes.*(256|512|xts)", cipher
-                            ) or "aes-xts" in cipher:
-                                strong_cipher = True
-                                break
-                            # Check key size via cryptsetup luksDump
-                            keysize_match = re.search(
-                                r"keysize\s*:\s*(\d+)", output
-                            )
-                            if keysize_match:
-                                key_size = int(keysize_match.group(1))
-                                # AES-XTS uses 512-bit key for AES-256
-                                strong_cipher = bool(key_size >= 256)
-                                if strong_cipher:
-                                    break
-
-        # Check home directory encryption
-        # Method 1: Check if /home is a LUKS-encrypted mount
-        home_mount_result = subprocess.run(
-            ["findmnt", "-n", "-o", "SOURCE,FSTYPE", "/home"],
-            capture_output=True, text=True, timeout=10
-        )
-        if home_mount_result.returncode == 0 and \
-                home_mount_result.stdout.strip():
-            parts = home_mount_result.stdout.strip().split()
-            if len(parts) >= 1:
-                source = parts[0]
-                # Check if source is a dm-crypt device
-                if source.startswith("/dev/dm-") or \
-                        source.startswith("/dev/mapper/"):
-                    home_encrypted = True
-
-        # Method 2: Check for eCryptfs mounts on home directories
-        if not home_encrypted:
-            mount_result = subprocess.run(
-                ["mount"],
-                capture_output=True, text=True, timeout=10
-            )
-            if mount_result.returncode == 0:
-                output = mount_result.stdout.lower()
-                if re.search(r"ecryptfs.*\/home", output):
-                    home_encrypted = True
-
-        # Method 3: Check for fscrypt on home filesystem
-        if not home_encrypted:
-            fscrypt_result = subprocess.run(
-                ["fscrypt", "status", "/home"],
-                capture_output=True, text=True, timeout=10
-            )
-            if fscrypt_result.returncode == 0 and \
-                    fscrypt_result.stdout.strip():
-                if "encryption enabled" in \
-                        fscrypt_result.stdout.lower():
-                    home_encrypted = True
-
-        # Method 4: Check individual user home dirs for
-        # eCryptfs Private directory structure
-        if not home_encrypted:
-            home_result = subprocess.run(
-                ["find", "/home", "-maxdepth", "2",
-                 "-name", ".ecryptfs", "-type", "d"],
-                capture_output=True, text=True, timeout=10
-            )
-            if home_result.returncode == 0 and \
-                    home_result.stdout.strip():
-                home_encrypted = True
-
+        luks_active = _find_luks_devices_lx()
+        strong_cipher = _check_luks_cipher_strong_lx() if luks_active else False
+        home_encrypted = _check_home_encrypted_lx()
         return bool(luks_active and home_encrypted and strong_cipher)
 
     except Exception:
@@ -8686,7 +8350,7 @@ def external_system_use_verify_wc() -> bool:
         # Check audit policy captures filtering platform connection events
         # which records outbound network connections
         audit_result = subprocess.run(
-            ["auditpol", "/get", "/category:*"],
+            ["auditpol", "/get", _AUDITPOL_CATEGORY],
             capture_output=True, text=True, timeout=30
         )
         if audit_result.returncode != 0:
@@ -8948,7 +8612,7 @@ def external_system_use_verify_ws() -> bool:
 
         # Check audit policy captures filtering platform connection events
         audit_result = subprocess.run(
-            ["auditpol", "/get", "/category:*"],
+            ["auditpol", "/get", _AUDITPOL_CATEGORY],
             capture_output=True, text=True, timeout=30
         )
         if audit_result.returncode != 0:
@@ -9306,13 +8970,6 @@ def external_connection_control_lx() -> bool:
     try:
         default_output_drop = False
         approved_exceptions = False
-
-        rfc1918_prefixes = (
-            "10.", "172.16.", "172.17.", "172.18.", "172.19.",
-            "172.20.", "172.21.", "172.22.", "172.23.", "172.24.",
-            "172.25.", "172.26.", "172.27.", "172.28.", "172.29.",
-            "172.30.", "172.31.", "192.168."
-        )
 
         # Check iptables OUTPUT chain default policy
         ipt_result = subprocess.run(
@@ -9937,407 +9594,407 @@ def portable_storage_limit_lx() -> bool:
     except Exception:
         return False
 
-    def cui_removal_mechanism_wc() -> bool:
-        """
-        AC.L2-3.1.22e - Mechanisms are in Place to Remove and Address
-        Improper Posting of CUI (Windows Client)
-        Checks three technical mechanisms:
-        1. Audit policy captures file system change events on sensitive paths
-        2. Removable storage write is restricted to prevent unauthorized
-           transfer of CUI to public systems
-        3. Object access auditing is enabled to detect unauthorized
-           file modifications
-        Returns True if all three mechanisms are active.
-        """
-        try:
-            file_audit_ok = False
-            removable_restricted = False
-            object_access_audited = False
+def cui_removal_mechanism_wc() -> bool:
+    """
+    AC.L2-3.1.22e - Mechanisms are in Place to Remove and Address
+    Improper Posting of CUI (Windows Client)
+    Checks three technical mechanisms:
+    1. Audit policy captures file system change events on sensitive paths
+    2. Removable storage write is restricted to prevent unauthorized
+       transfer of CUI to public systems
+    3. Object access auditing is enabled to detect unauthorized
+       file modifications
+    Returns True if all three mechanisms are active.
+    """
+    try:
+        file_audit_ok = False
+        removable_restricted = False
+        object_access_audited = False
 
-            # Check audit policy captures file system changes
-            audit_result = subprocess.run(
-                ["auditpol", "/get", "/category:*"],
-                capture_output=True, text=True, timeout=30
+        # Check audit policy captures file system changes
+        audit_result = subprocess.run(
+            ["auditpol", "/get", _AUDITPOL_CATEGORY],
+            capture_output=True, text=True, timeout=30
+        )
+        if audit_result.returncode != 0:
+            return False
+
+        output = audit_result.stdout.lower()
+
+        # Check file system and object access auditing
+        file_audit_ok = bool(
+            re.search(
+                r"file system\s+(success|failure|success and failure)",
+                output
             )
-            if audit_result.returncode != 0:
-                return False
+        )
 
-            output = audit_result.stdout.lower()
+        object_access_audited = bool(
+            re.search(
+                r"object access\s+(success|failure|success and failure)",
+                output
+            )
+        )
 
-            # Check file system and object access auditing
-            file_audit_ok = bool(
-                re.search(
-                    r"file system\s+(success|failure|success and failure)",
-                    output
-                )
+        # Check removable storage write restriction
+        removable_result = subprocess.run(
+            ["powershell", "-Command",
+             "Get-ItemProperty -Path "
+             "'HKLM:\\SOFTWARE\\Policies\\Microsoft\\Windows\\"
+             "RemovableStorageDevices' "
+             "-ErrorAction SilentlyContinue | "
+             "Select-Object Deny_Write, Deny_All | ConvertTo-Json"],
+            capture_output=True, text=True, timeout=30
+        )
+        if removable_result.returncode == 0 and \
+                removable_result.stdout.strip():
+            rem_data = json.loads(removable_result.stdout)
+            removable_restricted = bool(
+                rem_data.get("Deny_Write", 0) == 1
+                or rem_data.get("Deny_All", 0) == 1
             )
 
-            object_access_audited = bool(
-                re.search(
-                    r"object access\s+(success|failure|success and failure)",
-                    output
-                )
-            )
-
-            # Check removable storage write restriction
-            removable_result = subprocess.run(
+        # Check BitLocker To Go as additional removable restriction
+        if not removable_restricted:
+            rdv_result = subprocess.run(
                 ["powershell", "-Command",
                  "Get-ItemProperty -Path "
-                 "'HKLM:\\SOFTWARE\\Policies\\Microsoft\\Windows\\"
-                 "RemovableStorageDevices' "
+                 "'HKLM:\\SOFTWARE\\Policies\\Microsoft\\FVE' "
                  "-ErrorAction SilentlyContinue | "
-                 "Select-Object Deny_Write, Deny_All | ConvertTo-Json"],
+                 "Select-Object RDVDenyWriteAccess | ConvertTo-Json"],
                 capture_output=True, text=True, timeout=30
             )
-            if removable_result.returncode == 0 and \
-                    removable_result.stdout.strip():
-                rem_data = json.loads(removable_result.stdout)
+            if rdv_result.returncode == 0 and rdv_result.stdout.strip():
+                rdv_data = json.loads(rdv_result.stdout)
                 removable_restricted = bool(
-                    rem_data.get("Deny_Write", 0) == 1
-                    or rem_data.get("Deny_All", 0) == 1
+                    rdv_data.get("RDVDenyWriteAccess", 0) == 1
                 )
 
-            # Check BitLocker To Go as additional removable restriction
-            if not removable_restricted:
-                rdv_result = subprocess.run(
-                    ["powershell", "-Command",
-                     "Get-ItemProperty -Path "
-                     "'HKLM:\\SOFTWARE\\Policies\\Microsoft\\FVE' "
-                     "-ErrorAction SilentlyContinue | "
-                     "Select-Object RDVDenyWriteAccess | ConvertTo-Json"],
-                    capture_output=True, text=True, timeout=30
-                )
-                if rdv_result.returncode == 0 and rdv_result.stdout.strip():
-                    rdv_data = json.loads(rdv_result.stdout)
-                    removable_restricted = bool(
-                        rdv_data.get("RDVDenyWriteAccess", 0) == 1
-                    )
+        return bool(
+            file_audit_ok
+            and removable_restricted
+            and object_access_audited
+        )
 
-            return bool(
-                file_audit_ok
-                and removable_restricted
-                and object_access_audited
-            )
+    except Exception:
+        return False
 
-        except Exception:
+def cui_removal_mechanism_ws() -> bool:
+    """
+    AC.L2-3.1.22e - Mechanisms are in Place to Remove and Address
+    Improper Posting of CUI (Windows Server)
+    Checks three technical mechanisms:
+    1. File integrity monitoring or audit logging covers web content
+       directories for unauthorized changes
+    2. Access controls restrict write permissions on public content
+       paths to named authorized accounts only
+    3. Object access and file system auditing is enabled with
+       sufficient log retention
+    Returns True if all three mechanisms are active.
+    """
+    try:
+        content_audited = False
+        access_restricted = False
+        audit_retention_ok = False
+
+        # Common web content directories on Windows Server
+        web_content_paths = [
+            "C:\\inetpub\\wwwroot",
+            "C:\\inetpub\\ftproot",
+            "C:\\WebContent"
+        ]
+
+        # Check audit policy captures file system and object access
+        audit_result = subprocess.run(
+            ["auditpol", "/get", _AUDITPOL_CATEGORY],
+            capture_output=True, text=True, timeout=30
+        )
+        if audit_result.returncode != 0:
             return False
 
-    def cui_removal_mechanism_ws() -> bool:
-        """
-        AC.L2-3.1.22e - Mechanisms are in Place to Remove and Address
-        Improper Posting of CUI (Windows Server)
-        Checks three technical mechanisms:
-        1. File integrity monitoring or audit logging covers web content
-           directories for unauthorized changes
-        2. Access controls restrict write permissions on public content
-           paths to named authorized accounts only
-        3. Object access and file system auditing is enabled with
-           sufficient log retention
-        Returns True if all three mechanisms are active.
-        """
-        try:
-            content_audited = False
-            access_restricted = False
-            audit_retention_ok = False
+        output = audit_result.stdout.lower()
 
-            # Common web content directories on Windows Server
-            web_content_paths = [
-                "C:\\inetpub\\wwwroot",
-                "C:\\inetpub\\ftproot",
-                "C:\\WebContent"
-            ]
-
-            # Check audit policy captures file system and object access
-            audit_result = subprocess.run(
-                ["auditpol", "/get", "/category:*"],
-                capture_output=True, text=True, timeout=30
+        file_system_audited = bool(
+            re.search(
+                r"file system\s+(success|failure|success and failure)",
+                output
             )
-            if audit_result.returncode != 0:
-                return False
-
-            output = audit_result.stdout.lower()
-
-            file_system_audited = bool(
-                re.search(
-                    r"file system\s+(success|failure|success and failure)",
-                    output
-                )
+        )
+        object_access_audited = bool(
+            re.search(
+                r"object access\s+(success|failure|success and failure)",
+                output
             )
-            object_access_audited = bool(
-                re.search(
-                    r"object access\s+(success|failure|success and failure)",
-                    output
-                )
-            )
-            content_audited = bool(file_system_audited and object_access_audited)
+        )
+        content_audited = bool(file_system_audited and object_access_audited)
 
-            # Check access controls on web content directories
-            broad_principals = {"everyone", "authenticated users", "users"}
-            for web_path in web_content_paths:
-                # Check if path exists
-                path_check = subprocess.run(
-                    ["powershell", "-Command",
-                     f"Test-Path '{web_path}'"],
-                    capture_output=True, text=True, timeout=10
-                )
-                if path_check.returncode != 0 or \
-                        path_check.stdout.strip().lower() != "true":
-                    continue
-
-                # Check ACL on web content path
-                acl_result = subprocess.run(
-                    ["powershell", "-Command",
-                     f"Get-Acl -Path '{web_path}' | "
-                     "Select-Object -ExpandProperty Access | "
-                     "Select-Object IdentityReference, "
-                     "FileSystemRights, AccessControlType | ConvertTo-Json"],
-                    capture_output=True, text=True, timeout=30
-                )
-                if acl_result.returncode != 0 or not acl_result.stdout.strip():
-                    continue
-
-                acls = json.loads(acl_result.stdout)
-                if isinstance(acls, dict):
-                    acls = [acls]
-
-                # Flag broad principals with write or modify access
-                flagged = [
-                    a for a in acls
-                    if (a.get("IdentityReference") or "")
-                       .lower().split("\\")[-1]
-                       in broad_principals
-                       and (a.get("AccessControlType") or "").lower() == "allow"
-                       and any(
-                        right in (a.get("FileSystemRights") or "").lower()
-                        for right in ["write", "modify", "fullcontrol"]
-                    )
-                ]
-                if not flagged:
-                    access_restricted = True
-                break
-
-            # If no web content path found check IIS is not installed
-            # or access restricted at IIS level
-            if not access_restricted:
-                iis_result = subprocess.run(
-                    ["powershell", "-Command",
-                     "Get-WindowsFeature -Name Web-Server "
-                     "-ErrorAction SilentlyContinue | "
-                     "Select-Object InstallState | ConvertTo-Json"],
-                    capture_output=True, text=True, timeout=30
-                )
-                if iis_result.returncode == 0 and iis_result.stdout.strip():
-                    iis_data = json.loads(iis_result.stdout)
-                    install_state = (
-                            iis_data.get("InstallState") or ""
-                    ).lower()
-                    # If IIS not installed public content risk is lower
-                    if install_state != "installed":
-                        access_restricted = True
-
-            # Check Security log size for retention
-            log_result = subprocess.run(
+        # Check access controls on web content directories
+        broad_principals = {"everyone", _AUTH_USERS, "users"}
+        for web_path in web_content_paths:
+            # Check if path exists
+            path_check = subprocess.run(
                 ["powershell", "-Command",
-                 "Get-WinEvent -ListLog Security | "
-                 "Select-Object MaximumSizeInBytes | ConvertTo-Json"],
-                capture_output=True, text=True, timeout=30
-            )
-            if log_result.returncode == 0 and log_result.stdout.strip():
-                log_data = json.loads(log_result.stdout)
-                max_size = int(log_data.get("MaximumSizeInBytes", 0))
-                audit_retention_ok = bool(max_size >= 134217728)
-
-            return bool(
-                content_audited
-                and access_restricted
-                and audit_retention_ok
-            )
-
-        except Exception:
-            return False
-
-    def cui_removal_mechanism_lx() -> bool:
-        """
-        AC.L2-3.1.22e - Mechanisms are in Place to Remove and Address
-        Improper Posting of CUI (Linux/Debian)
-        Checks three technical mechanisms:
-        1. auditd monitors web content directories for unauthorized changes
-        2. File permissions on public content paths restrict write access
-           to named authorized accounts only
-        3. SELinux or AppArmor confines web server processes to prevent
-           unauthorized content access or modification
-        Returns True if all three mechanisms are active.
-        """
-        try:
-            web_dir_audited = False
-            content_permissions_ok = False
-            mac_confines_webserver = False
-
-            # Common web content directories on Linux
-            web_content_paths = [
-                "/var/www/html",
-                "/var/www",
-                "/srv/www",
-                "/usr/share/nginx/html",
-                "/var/www/public"
-            ]
-
-            # Check auditd monitors web content directories
-            auditd_result = subprocess.run(
-                ["systemctl", "is-active", "auditd"],
+                 f"Test-Path '{web_path}'"],
                 capture_output=True, text=True, timeout=10
             )
-            if auditd_result.returncode == 0 and \
-                    auditd_result.stdout.strip().lower() == "active":
-                rules_result = subprocess.run(
-                    ["auditctl", "-l"],
-                    capture_output=True, text=True, timeout=10
+            if path_check.returncode != 0 or \
+                    path_check.stdout.strip().lower() != "true":
+                continue
+
+            # Check ACL on web content path
+            acl_result = subprocess.run(
+                ["powershell", "-Command",
+                 f"Get-Acl -Path '{web_path}' | "
+                 "Select-Object -ExpandProperty Access | "
+                 "Select-Object IdentityReference, "
+                 "FileSystemRights, AccessControlType | ConvertTo-Json"],
+                capture_output=True, text=True, timeout=30
+            )
+            if acl_result.returncode != 0 or not acl_result.stdout.strip():
+                continue
+
+            acls = json.loads(acl_result.stdout)
+            if isinstance(acls, dict):
+                acls = [acls]
+
+            # Flag broad principals with write or modify access
+            flagged = [
+                a for a in acls
+                if (a.get("IdentityReference") or "")
+                   .lower().split("\\")[-1]
+                   in broad_principals
+                   and (a.get("AccessControlType") or "").lower() == "allow"
+                   and any(
+                    right in (a.get("FileSystemRights") or "").lower()
+                    for right in ["write", "modify", "fullcontrol"]
                 )
-                if rules_result.returncode == 0 and rules_result.stdout.strip():
-                    rules = rules_result.stdout.lower()
-                    if "no rules" not in rules:
-                        # Check for rules watching web content paths
+            ]
+            if not flagged:
+                access_restricted = True
+            break
+
+        # If no web content path found check IIS is not installed
+        # or access restricted at IIS level
+        if not access_restricted:
+            iis_result = subprocess.run(
+                ["powershell", "-Command",
+                 "Get-WindowsFeature -Name Web-Server "
+                 "-ErrorAction SilentlyContinue | "
+                 "Select-Object InstallState | ConvertTo-Json"],
+                capture_output=True, text=True, timeout=30
+            )
+            if iis_result.returncode == 0 and iis_result.stdout.strip():
+                iis_data = json.loads(iis_result.stdout)
+                install_state = (
+                        iis_data.get("InstallState") or ""
+                ).lower()
+                # If IIS not installed public content risk is lower
+                if install_state != "installed":
+                    access_restricted = True
+
+        # Check Security log size for retention
+        log_result = subprocess.run(
+            ["powershell", "-Command",
+             "Get-WinEvent -ListLog Security | "
+             "Select-Object MaximumSizeInBytes | ConvertTo-Json"],
+            capture_output=True, text=True, timeout=30
+        )
+        if log_result.returncode == 0 and log_result.stdout.strip():
+            log_data = json.loads(log_result.stdout)
+            max_size = int(log_data.get("MaximumSizeInBytes", 0))
+            audit_retention_ok = bool(max_size >= 134217728)
+
+        return bool(
+            content_audited
+            and access_restricted
+            and audit_retention_ok
+        )
+
+    except Exception:
+        return False
+
+def cui_removal_mechanism_lx() -> bool:
+    """
+    AC.L2-3.1.22e - Mechanisms are in Place to Remove and Address
+    Improper Posting of CUI (Linux/Debian)
+    Checks three technical mechanisms:
+    1. auditd monitors web content directories for unauthorized changes
+    2. File permissions on public content paths restrict write access
+       to named authorized accounts only
+    3. SELinux or AppArmor confines web server processes to prevent
+       unauthorized content access or modification
+    Returns True if all three mechanisms are active.
+    """
+    try:
+        web_dir_audited = False
+        content_permissions_ok = False
+        mac_confines_webserver = False
+
+        # Common web content directories on Linux
+        web_content_paths = [
+            "/var/www/html",
+            "/var/www",
+            "/srv/www",
+            "/usr/share/nginx/html",
+            "/var/www/public"
+        ]
+
+        # Check auditd monitors web content directories
+        auditd_result = subprocess.run(
+            ["systemctl", "is-active", "auditd"],
+            capture_output=True, text=True, timeout=10
+        )
+        if auditd_result.returncode == 0 and \
+                auditd_result.stdout.strip().lower() == "active":
+            rules_result = subprocess.run(
+                ["auditctl", "-l"],
+                capture_output=True, text=True, timeout=10
+            )
+            if rules_result.returncode == 0 and rules_result.stdout.strip():
+                rules = rules_result.stdout.lower()
+                if "no rules" not in rules:
+                    # Check for rules watching web content paths
+                    web_dir_audited = bool(
+                        re.search(
+                            r"(\/var\/www|\/srv\/www|"
+                            r"\/usr\/share\/nginx|\/web)",
+                            rules
+                        )
+                    )
+
+                    # Fall back to checking for general file write rules
+                    if not web_dir_audited:
                         web_dir_audited = bool(
                             re.search(
-                                r"(\/var\/www|\/srv\/www|"
-                                r"\/usr\/share\/nginx|\/web)",
+                                r"(-w\s+\/var|path=\/var|"
+                                r"write,execute|perm=wa)",
                                 rules
                             )
                         )
 
-                        # Fall back to checking for general file write rules
-                        if not web_dir_audited:
-                            web_dir_audited = bool(
-                                re.search(
-                                    r"(-w\s+\/var|path=\/var|"
-                                    r"write,execute|perm=wa)",
-                                    rules
-                                )
-                            )
+        # Check file permissions on web content directories
+        for web_path in web_content_paths:
+            stat_result = subprocess.run(
+                ["stat", "-c", "%a %U %G", web_path],
+                capture_output=True, text=True, timeout=10
+            )
+            if stat_result.returncode != 0:
+                continue
 
-            # Check file permissions on web content directories
-            for web_path in web_content_paths:
-                stat_result = subprocess.run(
-                    ["stat", "-c", "%a %U %G", web_path],
+            parts = stat_result.stdout.strip().split()
+            if len(parts) < 3:
+                continue
+
+            mode_str, owner, _ = parts[0], parts[1], parts[2]
+
+            try:
+                mode_int = int(mode_str, 8)
+            except ValueError:
+                continue
+
+            # Check world-writable bit is not set
+            world_writable = bool(mode_int & 0o002)
+            if world_writable:
+                content_permissions_ok = False
+                break
+
+            # Check owner is root or named web service account
+            # not a generic or anonymous account
+            insecure_owners = {"nobody", "anonymous", ""}
+            if owner.lower() not in insecure_owners:
+                content_permissions_ok = True
+                break
+
+        # If no web content path found check web server is not running
+        if not content_permissions_ok:
+            for web_svc in ["apache2", "nginx", "httpd", "lighttpd"]:
+                svc_result = subprocess.run(
+                    ["systemctl", "is-active", web_svc],
                     capture_output=True, text=True, timeout=10
                 )
-                if stat_result.returncode != 0:
-                    continue
-
-                parts = stat_result.stdout.strip().split()
-                if len(parts) < 3:
-                    continue
-
-                mode_str, owner, group = parts[0], parts[1], parts[2]
-
-                try:
-                    mode_int = int(mode_str, 8)
-                except ValueError:
-                    continue
-
-                # Check world-writable bit is not set
-                world_writable = bool(mode_int & 0o002)
-                if world_writable:
+                if svc_result.returncode == 0 and \
+                        svc_result.stdout.strip().lower() == "active":
+                    # Web server is running but no content path found
+                    # This is a fail — web server with no
+                    # monitored content directory
                     content_permissions_ok = False
                     break
+            else:
+                # No web server running — content risk is lower
+                content_permissions_ok = True
 
-                # Check owner is root or named web service account
-                # not a generic or anonymous account
-                insecure_owners = {"nobody", "anonymous", ""}
-                if owner.lower() not in insecure_owners:
-                    content_permissions_ok = True
-                    break
-
-            # If no web content path found check web server is not running
-            if not content_permissions_ok:
-                for web_svc in ["apache2", "nginx", "httpd", "lighttpd"]:
-                    svc_result = subprocess.run(
-                        ["systemctl", "is-active", web_svc],
-                        capture_output=True, text=True, timeout=10
-                    )
-                    if svc_result.returncode == 0 and \
-                            svc_result.stdout.strip().lower() == "active":
-                        # Web server is running but no content path found
-                        # This is a fail — web server with no
-                        # monitored content directory
-                        content_permissions_ok = False
-                        break
-                else:
-                    # No web server running — content risk is lower
-                    content_permissions_ok = True
-
-            # Check SELinux or AppArmor confines web server processes
-            selinux_result = subprocess.run(
-                ["getenforce"], capture_output=True, text=True, timeout=10
+        # Check SELinux or AppArmor confines web server processes
+        selinux_result = subprocess.run(
+            ["getenforce"], capture_output=True, text=True, timeout=10
+        )
+        if selinux_result.returncode == 0 and \
+                selinux_result.stdout.strip().lower() == "enforcing":
+            # Check httpd_t or nginx_t SELinux context is active
+            ps_result = subprocess.run(
+                ["ps", "-eZ"],
+                capture_output=True, text=True, timeout=10
             )
-            if selinux_result.returncode == 0 and \
-                    selinux_result.stdout.strip().lower() == "enforcing":
-                # Check httpd_t or nginx_t SELinux context is active
-                ps_result = subprocess.run(
-                    ["ps", "-eZ"],
-                    capture_output=True, text=True, timeout=10
-                )
-                if ps_result.returncode == 0 and ps_result.stdout.strip():
-                    output = ps_result.stdout.lower()
-                    mac_confines_webserver = bool(
-                        re.search(
-                            r"(httpd_t|nginx_t|apache_t|www_t)",
-                            output
-                        )
+            if ps_result.returncode == 0 and ps_result.stdout.strip():
+                output = ps_result.stdout.lower()
+                mac_confines_webserver = bool(
+                    re.search(
+                        r"(httpd_t|nginx_t|apache_t|www_t)",
+                        output
                     )
-                # If no web process running SELinux is still enforcing
-                if not mac_confines_webserver:
-                    mac_confines_webserver = True
-
-            # Check AppArmor confines web server
+                )
+            # If no web process running SELinux is still enforcing
             if not mac_confines_webserver:
-                aa_result = subprocess.run(
-                    ["aa-status"],
-                    capture_output=True, text=True, timeout=10
-                )
-                if aa_result.returncode == 0 and aa_result.stdout.strip():
-                    output = aa_result.stdout.lower()
-                    # Check for apache or nginx AppArmor profiles in enforce
-                    mac_confines_webserver = bool(
-                        re.search(
-                            r"(apache2|nginx|httpd|lighttpd)"
-                            r".*enforce",
-                            output
-                        )
-                        or re.search(
-                            r"enforce.*"
-                            r"(apache2|nginx|httpd|lighttpd)",
-                            output
-                        )
-                    )
-                    # If no web profile but AppArmor is enabled
-                    # and no web server is running treat as ok
-                    if not mac_confines_webserver:
-                        for web_svc in [
-                            "apache2", "nginx", "httpd", "lighttpd"
-                        ]:
-                            svc_result = subprocess.run(
-                                ["systemctl", "is-active", web_svc],
-                                capture_output=True, text=True, timeout=10
-                            )
-                            if svc_result.returncode == 0 and \
-                                    svc_result.stdout.strip().lower() \
-                                    == "active":
-                                # Web server running without AppArmor profile
-                                mac_confines_webserver = False
-                                break
-                        else:
-                            # No web server running
-                            mac_confines_webserver = True
+                mac_confines_webserver = True
 
-            return bool(
-                web_dir_audited
-                and content_permissions_ok
-                and mac_confines_webserver
+        # Check AppArmor confines web server
+        if not mac_confines_webserver:
+            aa_result = subprocess.run(
+                ["aa-status"],
+                capture_output=True, text=True, timeout=10
             )
+            if aa_result.returncode == 0 and aa_result.stdout.strip():
+                output = aa_result.stdout.lower()
+                # Check for apache or nginx AppArmor profiles in enforce
+                mac_confines_webserver = bool(
+                    re.search(
+                        r"(apache2|nginx|httpd|lighttpd)"
+                        r".*enforce",
+                        output
+                    )
+                    or re.search(
+                        r"enforce.*"
+                        r"(apache2|nginx|httpd|lighttpd)",
+                        output
+                    )
+                )
+                # If no web profile but AppArmor is enabled
+                # and no web server is running treat as ok
+                if not mac_confines_webserver:
+                    for web_svc in [
+                        "apache2", "nginx", "httpd", "lighttpd"
+                    ]:
+                        svc_result = subprocess.run(
+                            ["systemctl", "is-active", web_svc],
+                            capture_output=True, text=True, timeout=10
+                        )
+                        if svc_result.returncode == 0 and \
+                                svc_result.stdout.strip().lower() \
+                                == "active":
+                            # Web server running without AppArmor profile
+                            mac_confines_webserver = False
+                            break
+                    else:
+                        # No web server running
+                        mac_confines_webserver = True
 
-        except Exception:
-            return False
+        return bool(
+            web_dir_audited
+            and content_permissions_ok
+            and mac_confines_webserver
+        )
+
+    except Exception:
+        return False
 
 
 _normalize_check_outputs()

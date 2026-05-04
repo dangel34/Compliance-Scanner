@@ -219,7 +219,7 @@ def named_service_accounts_lx() -> tuple[bool, str]:
     services = [s.strip() for s in out.splitlines() if s.strip()]
     root_services = []
     for svc in services[:20]:  # sample first 20 to avoid excessive checks
-        rc2, out2, _ = _run(
+        _, out2, _ = _run(
             f"systemctl show {shlex.quote(svc)} -p User 2>/dev/null | cut -d= -f2"
         )
         if out2.strip() in ("", "root"):
@@ -628,7 +628,7 @@ def inactive_accounts_disabled_lx() -> tuple[bool, str]:
         except ValueError:
             pass
     # Check useradd defaults
-    rc, out, _ = _run("useradd -D 2>/dev/null | grep INACTIVE")
+    _, out, _ = _run("useradd -D 2>/dev/null | grep INACTIVE")
     m = re.search(r'INACTIVE=(\d+)', out)
     if m:
         days = int(m.group(1))
@@ -648,7 +648,7 @@ def guest_account_disabled_lx() -> tuple[bool, str]:
     accounts = out.strip().splitlines()
     unlocked = []
     for acct in accounts:
-        rc2, out2, _ = _run(
+        _, out2, _ = _run(
             f"passwd -S {shlex.quote(acct.strip())} 2>/dev/null | awk '{{print $2}}'"
         )
         if out2.strip() not in ("L", "LK"):
@@ -682,7 +682,7 @@ def password_expiration_wc() -> tuple[bool, str]:
 
 def force_password_change_wc() -> tuple[bool, str]:
     """Confirm new accounts are flagged to require password change at next logon on Windows Client."""
-    rc, out, err = _ps(
+    rc, _, err = _ps(
         "Get-LocalUser | Where-Object {$_.PasswordExpired -eq $true} "
         "| Measure-Object | Select-Object -ExpandProperty Count"
     )
@@ -946,10 +946,10 @@ def password_history_lx() -> tuple[bool, str]:
 
 def new_account_expired_lx() -> tuple[bool, str]:
     """Verify default useradd configuration expires passwords immediately on Linux/Debian."""
-    rc, out, _ = _run("useradd -D 2>/dev/null | grep EXPIRE")
+    _, out, _ = _run("useradd -D 2>/dev/null | grep EXPIRE")
     # Check if EXPIRE is set or if accounts can be created with chage -d 0
     # Also verify no accounts have a last change date in the future (permanent bypass)
-    rc2, out2, _ = _run(
+    rc2, _, _ = _run(
         "awk -F: '$3 == 0 {print $1}' /etc/shadow 2>/dev/null | head -1"
     )
     # If accounts exist with last changed = 0, they must change on next login
@@ -1098,10 +1098,6 @@ def ssh_encryption_lx() -> tuple[bool, str]:
 def password_masking_wc() -> tuple[bool, str]:
     """Verify password masking is enabled (default Windows behavior — check no bypass exists)."""
     # Windows masks passwords by default; check for any registry override
-    val = _reg_get(
-        r"HKCU:\Control Panel\Accessibility",
-        "SerialKeys"
-    )
     # No known registry key disables masking; return True unless evidence of bypass
     return (True, "Password masking active — no known registry bypass detected (Windows default behavior)")
 
@@ -1167,7 +1163,7 @@ def ssh_generic_auth_error_lx() -> tuple[bool, str]:
 
 def pam_auth_obscured_lx() -> tuple[bool, str]:
     """Confirm PAM does not output verbose failure messages on Linux/Debian."""
-    rc, out, _ = _run("grep -r 'debug\\|verbose' /etc/pam.d/ 2>/dev/null | grep -v '^#'")
+    _, out, _ = _run("grep -r 'debug\\|verbose' /etc/pam.d/ 2>/dev/null | grep -v '^#'")
     if not out.strip():
         return (True, "No debug/verbose PAM options found in /etc/pam.d/")
     return (False, f"PAM debug/verbose options found (may expose auth details): {out.strip()[:100]}")
