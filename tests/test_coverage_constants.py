@@ -10,8 +10,16 @@ from __future__ import annotations
 
 from unittest.mock import MagicMock, patch
 
-MOD_CM = "core.custom_functions.configuration_management"
+MOD_AA  = "core.custom_functions.audit_accountability"
+MOD_CM  = "core.custom_functions.configuration_management"
 MOD_SCP = "core.custom_functions.system_communications_protection"
+
+
+def _absent_path():
+    """Return a mock Path whose .exists() is False."""
+    m = MagicMock()
+    m.exists.return_value = False
+    return m
 
 
 # ---------------------------------------------------------------------------
@@ -237,3 +245,163 @@ class TestBitlockerKeyProtectorWc:
     def test_empty_output_fails(self):
         ok, _ = self._call(0, "", "")
         assert not ok
+
+
+# ---------------------------------------------------------------------------
+# audit_accountability.py — _AUDITD_CONF / _AUDITD_NOT_FOUND
+# Four functions follow the same "conf not found" pattern; one test each.
+# ---------------------------------------------------------------------------
+
+class TestAuditdConfNotFound:
+    """Exercise the Path(_AUDITD_CONF).exists() == False branch in each function."""
+
+    def _absent(self):
+        m = MagicMock()
+        m.exists.return_value = False
+        return m
+
+    def test_log_retention_lx_conf_missing(self):
+        with patch(f"{MOD_AA}.Path", return_value=self._absent()):
+            from core.custom_functions.audit_accountability import log_retention_lx
+            ok, msg = log_retention_lx()
+        assert not ok
+        assert "auditd.conf" in msg
+
+    def test_disk_full_action_lx_conf_missing(self):
+        with patch(f"{MOD_AA}.Path", return_value=self._absent()):
+            from core.custom_functions.audit_accountability import auditd_disk_full_action_lx
+            ok, msg = auditd_disk_full_action_lx()
+        assert not ok
+        assert "auditd.conf" in msg
+
+    def test_space_left_action_lx_conf_missing(self):
+        with patch(f"{MOD_AA}.Path", return_value=self._absent()):
+            from core.custom_functions.audit_accountability import auditd_space_left_action_lx
+            ok, msg = auditd_space_left_action_lx()
+        assert not ok
+        assert "auditd.conf" in msg
+
+    def test_audit_conf_permissions_lx_conf_missing(self):
+        with patch(f"{MOD_AA}.Path", return_value=self._absent()):
+            from core.custom_functions.audit_accountability import audit_conf_permissions_lx
+            ok, msg = audit_conf_permissions_lx()
+        assert not ok
+        assert "auditd.conf" in msg
+
+
+# ---------------------------------------------------------------------------
+# configuration_management.py — _AIDE_DB (fim functions)
+# ---------------------------------------------------------------------------
+
+class TestFimEnabledLxAideDb:
+    """fim_enabled_lx() uses _AIDE_DB in both the found and not-found messages."""
+
+    def _call(self, aide_rc: int, db_exists: bool):
+        mock_db = MagicMock()
+        mock_db.exists.return_value = db_exists
+        with patch(f"{MOD_CM}._run", return_value=(aide_rc, "", "")), \
+             patch(f"{MOD_CM}.Path", return_value=mock_db):
+            from core.custom_functions.configuration_management import fim_enabled_lx
+            return fim_enabled_lx()
+
+    def test_aide_installed_db_present_passes(self):
+        ok, msg = self._call(aide_rc=0, db_exists=True)
+        assert ok
+        assert "/var/lib/aide/aide.db" in msg
+
+    def test_aide_installed_db_missing_fails(self):
+        ok, msg = self._call(aide_rc=0, db_exists=False)
+        assert not ok
+        assert "/var/lib/aide/aide.db" in msg
+
+
+class TestFimBaselineCurrentLxAideDb:
+    """fim_baseline_current_lx() uses _AIDE_DB when the database is absent."""
+
+    def test_db_not_found_fails(self):
+        with patch(f"{MOD_CM}.Path", return_value=_absent_path()):
+            from core.custom_functions.configuration_management import fim_baseline_current_lx
+            ok, msg = fim_baseline_current_lx()
+        assert not ok
+        assert "/var/lib/aide/aide.db" in msg
+
+
+# ---------------------------------------------------------------------------
+# configuration_management.py — remaining _NOT_SET use-sites
+# ---------------------------------------------------------------------------
+
+class TestUacEnabledWcNotSet:
+    def test_lua_disabled_shows_not_set(self):
+        with patch(f"{MOD_CM}._reg_get", return_value=None):
+            from core.custom_functions.configuration_management import uac_enabled_wc
+            ok, msg = uac_enabled_wc()
+        assert not ok
+        assert "not set" in msg
+
+    def test_lua_zero_shows_value(self):
+        with patch(f"{MOD_CM}._reg_get", return_value="0"):
+            from core.custom_functions.configuration_management import uac_enabled_wc
+            ok, msg = uac_enabled_wc()
+        assert not ok
+        assert "0" in msg
+
+
+class TestRootAccessRestrictedLxNotSet:
+    """root_access_restricted_lx() uses _NOT_SET when PermitRootLogin output is empty."""
+
+    def test_missing_permitrootlogin_shows_not_set(self):
+        with patch(f"{MOD_CM}._run", side_effect=[
+            (0, "", ""),    # sshd grep returns empty → not disabled
+            (1, "", ""),    # sudoers grep fails → not unrestricted
+        ]):
+            from core.custom_functions.configuration_management import root_access_restricted_lx
+            ok, msg = root_access_restricted_lx()
+        assert not ok
+        assert "not set" in msg
+
+
+class TestInsecureProtocolsDisabledWcNotSet:
+    """insecure_protocols_disabled_wc() uses _NOT_SET for absent SMB1/TLS registry keys."""
+
+    def test_both_keys_absent_shows_not_set(self):
+        with patch(f"{MOD_CM}._reg_get", side_effect=[None, None]):
+            from core.custom_functions.configuration_management import insecure_protocols_disabled_wc
+            ok, msg = insecure_protocols_disabled_wc()
+        assert not ok
+        assert "not set" in msg
+
+    def test_smb1_absent_tls_disabled(self):
+        with patch(f"{MOD_CM}._reg_get", side_effect=[None, "0"]):
+            from core.custom_functions.configuration_management import insecure_protocols_disabled_wc
+            ok, msg = insecure_protocols_disabled_wc()
+        assert not ok
+        assert "not set" in msg
+
+
+class TestRdpControlledWcNotSet:
+    """rdp_controlled_wc() uses _NOT_SET when both registry keys are absent."""
+
+    def test_both_keys_absent_shows_not_set(self):
+        with patch(f"{MOD_CM}._reg_get", side_effect=[None, None]):
+            from core.custom_functions.configuration_management import rdp_controlled_wc
+            ok, msg = rdp_controlled_wc()
+        assert not ok
+        assert "not set" in msg
+
+
+class TestPsExecutionPolicyWcNotSet:
+    """ps_execution_policy_wc() uses _NOT_SET when Get-ExecutionPolicy returns empty."""
+
+    def test_empty_policy_shows_not_set(self):
+        with patch(f"{MOD_CM}._ps", return_value=(0, "", "")):
+            from core.custom_functions.configuration_management import ps_execution_policy_wc
+            ok, msg = ps_execution_policy_wc()
+        assert not ok
+        assert "not set" in msg
+
+    def test_unrestricted_policy_shows_value(self):
+        with patch(f"{MOD_CM}._ps", return_value=(0, "Unrestricted", "")):
+            from core.custom_functions.configuration_management import ps_execution_policy_wc
+            ok, msg = ps_execution_policy_wc()
+        assert not ok
+        assert "Unrestricted" in msg
