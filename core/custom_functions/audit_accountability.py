@@ -7,13 +7,7 @@ _RUN_CACHE: dict[tuple[object, bool, int], tuple[int, str, str]] = {}
 _AUDITD_CONF = "/etc/audit/auditd.conf"
 _AUDITD_NOT_FOUND = f"auditd.conf not found: {_AUDITD_CONF} does not exist"
 
-# Matches time.nist.gov or pool.ntp.org (and their subdomains) as complete
-# hostname tokens — lookbehind/lookahead prevent substring false-positives like
-# "eviltime.nist.gov.attacker.com".
-_TRUSTED_NTP_RE = re.compile(
-    r"(?<![.\w])(?:[\w-]+\.)*(?:time\.nist\.gov|pool\.ntp\.org)(?![.\w])",
-    re.IGNORECASE,
-)
+_TRUSTED_NTP_DOMAINS: frozenset[str] = frozenset({"time.nist.gov", "pool.ntp.org"})
 
 
 def clear_cache() -> None:
@@ -75,6 +69,19 @@ def _ps(cmd: str) -> tuple[int, str, str]:
         output = (-1, "", "command timed out")
     _RUN_CACHE[cache_key] = output
     return output
+
+
+def _is_trusted_ntp_host(token: str) -> bool:
+    """Return True if token (e.g. 'time.nist.gov,0x1') is a trusted NTP hostname.
+
+    Strips the w32tm flag suffix after the comma, then checks for an exact match
+    or a valid subdomain of a trusted domain.  Uses string operations only to
+    avoid any regex ReDoS concern (SonarQube hotspot RSPEC-2631).
+    """
+    host = token.split(",")[0].lower()
+    return host in _TRUSTED_NTP_DOMAINS or any(
+        host.endswith("." + d) for d in _TRUSTED_NTP_DOMAINS
+    )
 
 
 # ===========================================================================
@@ -797,7 +804,8 @@ def pdc_ntp_source_ws() -> tuple[bool, str]:
     if not out.strip():
         return (False, "NtpServer is not configured in w32tm configuration")
     # Ensure it's not pointing only to itself (Local CMOS Clock or VM IC)
-    if _TRUSTED_NTP_RE.search(out) or re.search(r'\b\d{1,3}(?:\.\d{1,3}){3}\b', out):
+    tokens = out.split()
+    if any(_is_trusted_ntp_host(t) for t in tokens) or re.search(r'\b\d{1,3}(?:\.\d{1,3}){3}\b', out):
         return (True, f"PDC NTP source points to an external authoritative server: {out.strip()}")
     return (False, f"PDC NTP source may not be an external authoritative server: {out.strip()}")
 

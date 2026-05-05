@@ -83,19 +83,57 @@ class TestPdcNtpSourceWs:
         ok, _ = _call_pdc_ntp("", rc=1)
         assert not ok
 
-    # --- trusted NTP regex constant ---
+    # --- trusted NTP domains constant ---
 
-    def test_trusted_ntp_regex_is_compiled(self):
-        from core.custom_functions.audit_accountability import _TRUSTED_NTP_RE
-        import re
-        assert isinstance(_TRUSTED_NTP_RE, re.Pattern)
+    def test_trusted_ntp_domains_is_frozenset(self):
+        from core.custom_functions.audit_accountability import _TRUSTED_NTP_DOMAINS
+        assert isinstance(_TRUSTED_NTP_DOMAINS, frozenset)
 
-    def test_trusted_ntp_regex_matches_exact_domain(self):
-        from core.custom_functions.audit_accountability import _TRUSTED_NTP_RE
-        assert _TRUSTED_NTP_RE.search("time.nist.gov")
-        assert _TRUSTED_NTP_RE.search("pool.ntp.org")
+    def test_trusted_ntp_domains_contains_nist(self):
+        from core.custom_functions.audit_accountability import _TRUSTED_NTP_DOMAINS
+        assert "time.nist.gov" in _TRUSTED_NTP_DOMAINS
 
-    def test_trusted_ntp_regex_rejects_spoof(self):
-        from core.custom_functions.audit_accountability import _TRUSTED_NTP_RE
-        assert not _TRUSTED_NTP_RE.search("eviltime.nist.gov")
-        assert not _TRUSTED_NTP_RE.search("time.nist.gov.evil.com")
+    def test_trusted_ntp_domains_contains_ntp_org(self):
+        from core.custom_functions.audit_accountability import _TRUSTED_NTP_DOMAINS
+        assert "pool.ntp.org" in _TRUSTED_NTP_DOMAINS
+
+
+class TestIsTrustedNtpHost:
+    """Unit tests for the _is_trusted_ntp_host() helper function."""
+
+    def _check(self, token: str) -> bool:
+        from core.custom_functions.audit_accountability import _is_trusted_ntp_host
+        return _is_trusted_ntp_host(token)
+
+    def test_exact_time_nist_gov(self):
+        assert self._check("time.nist.gov")
+
+    def test_exact_pool_ntp_org(self):
+        assert self._check("pool.ntp.org")
+
+    def test_subdomain_of_pool_ntp_org(self):
+        assert self._check("0.pool.ntp.org")
+
+    def test_flag_suffix_stripped(self):
+        """Token 'time.nist.gov,0x1' — comma-suffix must be stripped before check."""
+        assert self._check("time.nist.gov,0x1")
+
+    def test_flag_suffix_pool(self):
+        assert self._check("pool.ntp.org,0x8")
+
+    def test_prefix_spoof_rejected(self):
+        """'eviltime.nist.gov' shares the trusted domain but is not a subdomain."""
+        assert not self._check("eviltime.nist.gov")
+
+    def test_suffix_spoof_rejected(self):
+        """'time.nist.gov.attacker.com' has the trusted string as a prefix."""
+        assert not self._check("time.nist.gov.attacker.com")
+
+    def test_unrelated_domain_rejected(self):
+        assert not self._check("time.windows.com")
+
+    def test_empty_token_rejected(self):
+        assert not self._check("")
+
+    def test_just_flag_stripped_to_empty(self):
+        assert not self._check(",0x1")
