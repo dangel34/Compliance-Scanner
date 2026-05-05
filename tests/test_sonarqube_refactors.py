@@ -1216,5 +1216,5 @@ class TestRunFilePermissionsCheck:
         scanner = MagicMock()
         scanner.check_file_permissions.return_value = "ok"
         check = {"path": "/etc/shadow", "name": "Shadow", "sub_control": "SC-2"}
-        result = runner._run_file_permissions_check(check, "Shadow", "SC-2", scanner)
+        runner._run_file_permissions_check(check, "Shadow", "SC-2", scanner)
         scanner.check_file_permissions.assert_called_once_with("/etc/shadow")
