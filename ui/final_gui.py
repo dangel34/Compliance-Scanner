@@ -53,10 +53,6 @@ from core.rule_runner import RuleRunner
 
 
 # ---------------------------------------------------------------------------
-# Misc helpers
-# ---------------------------------------------------------------------------
-
-# ---------------------------------------------------------------------------
 # Rule discovery helpers — defined at module level so they are not
 # recreated on every call to discover_rule_files()
 # ---------------------------------------------------------------------------
@@ -131,82 +127,83 @@ def _validate_rule(data: Dict[str, Any]) -> List[str]:
         return []
 
 
-def discover_rule_files(rules_dir: str) -> Dict[str, List[Dict[str, str]]]:
-    """
-    Walk rules_dir, read each JSON once, and return:
-        { category: [ {path, rule_id, title}, ... ], ... }
+_SKIP_RULE_FILES = frozenset({"rule_template.json", "rule_schema.json"})
 
-    Security: every discovered path is validated to be inside rules_dir
-    (prevents path-traversal attacks via symlinks or crafted filenames).
-    """
-    folders: Dict[str, Dict[str, List[Dict[str, str]]]] = {}
-    if not os.path.isdir(rules_dir):
-        return folders
 
-    rules_dir_real = os.path.realpath(rules_dir)
+def _resolve_rule_path(full_path: str, rules_dir_real: str) -> str | None:
+    """Return the realpath of *full_path* if it is inside *rules_dir_real*, else None."""
+    try:
+        real = os.path.realpath(full_path)
+    except OSError:
+        return None
+    if not real.startswith(rules_dir_real + os.sep) and real != rules_dir_real:
+        return None
+    return real
 
+
+def _read_rule_entry(
+    real_path: str, rel_parts: list[str], name: str
+) -> Dict[str, str] | None:
+    """Load and validate a rule file. Returns a metadata dict or None on error."""
+    try:
+        with open(real_path, "r", encoding="utf-8") as f:
+            data = json.load(f)
+        mtime_ns = os.stat(real_path).st_mtime_ns
+        cache_key = (real_path, mtime_ns)
+        cached_errors = _RULE_VALIDATION_CACHE.get(cache_key)
+        if cached_errors is None:
+            cached_errors = _validate_rule(data)
+            _RULE_VALIDATION_CACHE[cache_key] = cached_errors
+        for err in cached_errors:
+            _log.warning("Schema validation error in %s: %s", real_path, err)
+        # Use the category subdirectory name when present (depth >= 3),
+        # otherwise fall back to the JSON category field.
+        category = rel_parts[1] if len(rel_parts) >= 3 else (
+            _safe_str(data.get("category") or "Uncategorised") or "Uncategorised"
+        )
+        folder_label = "_root_" if len(rel_parts) == 1 else rel_parts[0]
+        return {
+            "path":     real_path,
+            "rule_id":  _safe_str(data.get("id") or data.get("rule_id") or name),
+            "title":    _safe_str(data.get("title") or data.get("control_number") or name),
+            "severity": _safe_str(data.get("severity", "")),
+            "category": category,
+            "folder":   folder_label,
+        }
+    except json.JSONDecodeError:
+        _log.warning("Skipping malformed JSON: %s", real_path)
+        return None
+    except OSError as exc:
+        _log.warning("Could not read rule file %s: %s", real_path, exc)
+        return None
+
+
+def _process_rule_file(
+    name: str, root: str, rules_dir_real: str, folders: Dict
+) -> None:
+    if not name.lower().endswith(_EXT_JSON) or name.lower() in _SKIP_RULE_FILES:
+        return
+    real_path = _resolve_rule_path(os.path.join(root, name), rules_dir_real)
+    if real_path is None:
+        return
+    try:
+        rel = os.path.relpath(real_path, rules_dir_real)
+    except ValueError:
+        rel = name
+    entry = _read_rule_entry(real_path, rel.split(os.sep), name)
+    if entry is not None:
+        folders.setdefault(entry["folder"], {}).setdefault(entry["category"], []).append(entry)
+
+
+def _walk_rule_dir(rules_dir: str, rules_dir_real: str) -> Dict:
+    folders: Dict[str, Dict[str, List]] = {}
     for root, _, files in os.walk(rules_dir):
         for name in sorted(files):
-            if not name.lower().endswith(_EXT_JSON):
-                continue
-            if name.lower() in ("rule_template.json", "rule_schema.json"):
-                continue
+            _process_rule_file(name, root, rules_dir_real, folders)
+    return folders
 
-            full_path = os.path.join(root, name)
-            try:
-                real_path = os.path.realpath(full_path)
-            except OSError:
-                continue
-            if not real_path.startswith(rules_dir_real + os.sep) and real_path != rules_dir_real:
-                continue
 
-            try:
-                rel = os.path.relpath(real_path, rules_dir_real)
-            except ValueError:
-                rel = name
-            rel_parts = rel.split(os.sep)
-            if len(rel_parts) == 1:
-                folder_label = "_root_"
-            else:
-                folder_label = rel_parts[0]
-
-            try:
-                with open(real_path, "r", encoding="utf-8") as f:
-                    data = json.load(f)
-                mtime_ns = os.stat(real_path).st_mtime_ns
-                cache_key = (real_path, mtime_ns)
-                cached_errors = _RULE_VALIDATION_CACHE.get(cache_key)
-                if cached_errors is None:
-                    cached_errors = _validate_rule(data)
-                    _RULE_VALIDATION_CACHE[cache_key] = cached_errors
-                for err in cached_errors:
-                    _log.warning("Schema validation error in %s: %s", real_path, err)
-                # Use the category subdirectory name when present (depth >= 3),
-                # otherwise fall back to the JSON category field.
-                if len(rel_parts) >= 3:
-                    category = rel_parts[1]
-                else:
-                    category = _safe_str(data.get("category") or "Uncategorised") or "Uncategorised"
-                rule_id = _safe_str(data.get("id") or data.get("rule_id") or name)
-                title = _safe_str(data.get("title") or data.get("control_number") or name)
-                severity = _safe_str(data.get("severity", ""))
-            except json.JSONDecodeError:
-                _log.warning("Skipping malformed JSON: %s", real_path)
-                continue
-            except OSError as exc:
-                _log.warning("Could not read rule file %s: %s", real_path, exc)
-                continue
-
-            (
-                folders
-                .setdefault(folder_label, {})
-                .setdefault(category, [])
-                .append({
-                    "path": real_path, "rule_id": rule_id, "title": title,
-                    "severity": severity, "category": category, "folder": folder_label,
-                })
-            )
-
+def _sort_folders(folders: Dict) -> Dict:
     return {
         folder: {
             cat: sorted(metas, key=_natural_key)
@@ -216,69 +213,79 @@ def discover_rule_files(rules_dir: str) -> Dict[str, List[Dict[str, str]]]:
     }
 
 
+def discover_rule_files(rules_dir: str) -> Dict[str, Dict[str, List[Dict[str, str]]]]:
+    """
+    Walk rules_dir, read each JSON once, and return:
+        { folder: { category: [ {path, rule_id, title}, ... ] } }
+
+    Security: every discovered path is validated to be inside rules_dir
+    (prevents path-traversal attacks via symlinks or crafted filenames).
+    """
+    if not os.path.isdir(rules_dir):
+        return {}
+    rules_dir_real = os.path.realpath(rules_dir)
+    return _sort_folders(_walk_rule_dir(rules_dir, rules_dir_real))
+
+
 # ---------------------------------------------------------------------------
 # Blocking rule runner (called from background thread)
 # ---------------------------------------------------------------------------
 
-def run_rules_blocking(
+def _make_error_result(path: str, exc: Exception, detected_os: str) -> RunResult:
+    error_msg = _safe_str(type(exc).__name__ + ": " + str(exc), max_len=256)
+    _log.error("Rule execution error: %s: %s", os.path.basename(path), error_msg)
+    return {
+        "rule_id":        os.path.basename(path),
+        "title":          os.path.basename(path),
+        "os":             detected_os,
+        "checks_run":     0,
+        "checks_skipped": 0,
+        "checks_policy":  0,
+        "checks":         [],
+        "error":          error_msg,
+    }
+
+
+def _execute_rule(path: str, detected_os: str) -> RunResult:
+    try:
+        return RuleRunner(rule_path=path, os_type=detected_os).run_checks()
+    except Exception as e:
+        return _make_error_result(path, e, detected_os)
+
+
+def _run_rules_serial(
     rule_paths: List[str],
-    progress_cb:  Optional[callable] = None,
-    result_cb:    Optional[callable] = None,
-    cancel_event: Optional[threading.Event] = None,
-    max_workers: int = 2,
-) -> Dict[str, RunResult]:
-    from core.custom_functions import clear_all_caches
-    clear_all_caches()
-
-    results: Dict[str, RunResult] = {}
+    results: Dict[str, RunResult],
+    cancel_event: Optional[threading.Event],
+    progress_cb: Optional[callable],
+    result_cb: Optional[callable],
+    detected_os: str,
+) -> None:
     total = len(rule_paths)
-    detected_os = os_scan()
-    if max_workers <= 1 or total <= 1:
-        for i, path in enumerate(rule_paths, start=1):
-            if cancel_event and cancel_event.is_set():
-                break
-            if progress_cb:
-                progress_cb(i, total, path)
-            try:
-                r = RuleRunner(rule_path=path, os_type=detected_os).run_checks()
-            except Exception as e:
-                error_msg = _safe_str(type(e).__name__ + ": " + str(e), max_len=256)
-                _log.error("Rule execution error: %s: %s", os.path.basename(path), error_msg)
-                r = {
-                    "rule_id":        os.path.basename(path),
-                    "title":          os.path.basename(path),
-                    "os":             detected_os,
-                    "checks_run":     0,
-                    "checks_skipped": 0,
-                    "checks_policy":  0,
-                    "checks":         [],
-                    "error":          error_msg,
-                }
-            results[path] = r
-            if result_cb:
-                result_cb(path, r)
-        return results
+    for i, path in enumerate(rule_paths, start=1):
+        if cancel_event and cancel_event.is_set():
+            break
+        if progress_cb:
+            progress_cb(i, total, path)
+        r = _execute_rule(path, detected_os)
+        results[path] = r
+        if result_cb:
+            result_cb(path, r)
 
-    def _run_one(path: str) -> RunResult:
-        try:
-            return RuleRunner(rule_path=path, os_type=detected_os).run_checks()
-        except Exception as e:
-            error_msg = _safe_str(type(e).__name__ + ": " + str(e), max_len=256)
-            _log.error("Rule execution error: %s: %s", os.path.basename(path), error_msg)
-            return {
-                "rule_id":        os.path.basename(path),
-                "title":          os.path.basename(path),
-                "os":             detected_os,
-                "checks_run":     0,
-                "checks_skipped": 0,
-                "checks_policy":  0,
-                "checks":         [],
-                "error":          error_msg,
-            }
 
+def _run_rules_parallel(
+    rule_paths: List[str],
+    results: Dict[str, RunResult],
+    cancel_event: Optional[threading.Event],
+    progress_cb: Optional[callable],
+    result_cb: Optional[callable],
+    detected_os: str,
+    max_workers: int,
+) -> None:
+    total = len(rule_paths)
     completed = 0
     with concurrent.futures.ThreadPoolExecutor(max_workers=max_workers) as executor:
-        future_to_path = {executor.submit(_run_one, path): path for path in rule_paths}
+        future_to_path = {executor.submit(_execute_rule, path, detected_os): path for path in rule_paths}
         for future in concurrent.futures.as_completed(future_to_path):
             if cancel_event and cancel_event.is_set():
                 for pending in future_to_path:
@@ -291,6 +298,24 @@ def run_rules_blocking(
             results[path] = future.result()
             if result_cb:
                 result_cb(path, results[path])
+
+
+def run_rules_blocking(
+    rule_paths: List[str],
+    progress_cb:  Optional[callable] = None,
+    result_cb:    Optional[callable] = None,
+    cancel_event: Optional[threading.Event] = None,
+    max_workers: int = 2,
+) -> Dict[str, RunResult]:
+    from core.custom_functions import clear_all_caches
+    clear_all_caches()
+
+    results: Dict[str, RunResult] = {}
+    detected_os = os_scan()
+    if max_workers <= 1 or len(rule_paths) <= 1:
+        _run_rules_serial(rule_paths, results, cancel_event, progress_cb, result_cb, detected_os)
+    else:
+        _run_rules_parallel(rule_paths, results, cancel_event, progress_cb, result_cb, detected_os, max_workers)
     return results
 
 
@@ -1233,32 +1258,15 @@ class RuleForgeApp(ctk.CTk):
     def _section_for_path(self, path: str) -> Optional[AccordionSection]:
         return self._path_to_section.get(path)
 
-    # ------------------------------------------------------------------
-    def refresh_rules(self):
-        rules_dir = os.path.join(PROJECT_ROOT, "rulesets")
-        folders = discover_rule_files(rules_dir)  # folder → category → [metas]
-
-        # Merge any user-loaded custom rule directories
+    def _merge_custom_rules(self, folders: Dict) -> None:
         for custom_dir in self._custom_rules_dirs:
             custom_folders = discover_rule_files(custom_dir)
             for folder_label, categories in custom_folders.items():
-                if folder_label == "_root_":
-                    key = "Custom Rules"
-                else:
-                    key = f"Custom: {folder_label}"
+                key = "Custom Rules" if folder_label == "_root_" else f"Custom: {folder_label}"
                 for cat, metas in categories.items():
                     folders.setdefault(key, {}).setdefault(cat, []).extend(metas)
 
-        # Keep a flat category view for exports and the category filter dropdown
-        self.rules_by_folder = folders
-        self.rules_by_category = {
-            cat: metas
-            for cats in folders.values()
-            for cat, metas in cats.items()
-        }
-        self.rules = [m for metas in self.rules_by_category.values() for m in metas]
-
-        # Tear down old UI tree
+    def _rebuild_rule_tree(self, folders: Dict) -> None:
         for fs in self.folder_sections.values():
             fs.wrapper.destroy()
         self.folder_sections.clear()
@@ -1268,11 +1276,9 @@ class RuleForgeApp(ctk.CTk):
         self._reset_summary_counts()
         self._update_progress(0.0)
 
-        # Rebuild folder → category accordion tree
         for folder_label, categories in folders.items():
             fs = FolderSection(parent=self.rules_scroll, folder_label=folder_label)
             self.folder_sections[folder_label] = fs
-
             for category, metas in categories.items():
                 section = AccordionSection(
                     parent=fs.body_frame,
@@ -1286,6 +1292,22 @@ class RuleForgeApp(ctk.CTk):
                     self._path_to_section[meta["path"]] = section
                 if self._settings.get("auto_expand_categories"):
                     section.toggle()
+
+    # ------------------------------------------------------------------
+    def refresh_rules(self):
+        rules_dir = os.path.join(PROJECT_ROOT, "rulesets")
+        folders = discover_rule_files(rules_dir)
+        self._merge_custom_rules(folders)
+
+        self.rules_by_folder = folders
+        self.rules_by_category = {
+            cat: metas
+            for cats in folders.values()
+            for cat, metas in cats.items()
+        }
+        self.rules = [m for metas in self.rules_by_category.values() for m in metas]
+
+        self._rebuild_rule_tree(folders)
 
         cat_names = ["All"] + sorted(self.rules_by_category.keys())
         if self._filter_category_menu:
@@ -1327,6 +1349,24 @@ class RuleForgeApp(ctk.CTk):
         self._filter_status = value
         self._apply_filters()
 
+    def _rule_matches_filters(
+        self, meta: dict, cat_filter: str, sev_filter: str, search_text: str, status_filter: str
+    ) -> bool:
+        if cat_filter != "All" and meta.get("category", "") != cat_filter:
+            return False
+        if sev_filter != "All" and meta.get("severity", "") != sev_filter:
+            return False
+        if search_text:
+            lower_id    = meta.get("rule_id", "").lower()
+            lower_title = meta.get("title",   "").lower()
+            if search_text not in lower_id and search_text not in lower_title:
+                return False
+        if status_filter != "All":
+            result = self.results_by_path.get(meta["path"])
+            if result is None or get_rule_status(result) != status_filter:
+                return False
+        return True
+
     def _apply_filters(self):
         """
         Compute the set of rule paths that match the active category, severity,
@@ -1341,23 +1381,7 @@ class RuleForgeApp(ctk.CTk):
         status_filter = self._filter_status
         visible: set = set()
         for meta in self.rules:
-            cat_match = (cat_filter == "All" or meta.get("category", "") == cat_filter)
-            sev_match = (sev_filter == "All" or meta.get("severity", "") == sev_filter)
-
-            if search_text:
-                rule_id_lower = meta.get("rule_id", "").lower()
-                title_lower   = meta.get("title",   "").lower()
-                search_match  = search_text in rule_id_lower or search_text in title_lower
-            else:
-                search_match  = True
-
-            if status_filter != "All":
-                result = self.results_by_path.get(meta["path"])
-                status_match = result is not None and get_rule_status(result) == status_filter
-            else:
-                status_match  = True
-
-            if cat_match and sev_match and search_match and status_match:
+            if self._rule_matches_filters(meta, cat_filter, sev_filter, search_text, status_filter):
                 visible.add(meta["path"])
 
         # Re-pack folder wrappers in order, hiding any that have no visible rules
@@ -2077,78 +2101,79 @@ MINIMAL EXAMPLE
             return
         self._create_scheduled_task(freq, day, time_str, output_path)
 
+    def _create_windows_task(
+        self, _sp, task_name: str, freq: str, day: str, time_str: str, output_path: str
+    ) -> None:
+        exe_path = os.path.join(PROJECT_ROOT, "cli.exe")
+        if not os.path.isfile(exe_path):
+            exe_path = None
+        tr = (
+            f'"{exe_path}" --format json --output "{output_path}" --no-fail'
+            if exe_path else
+            f'"{sys.executable}" "{os.path.join(PROJECT_ROOT, "cli.py")}"'
+            f' --format json --output "{output_path}" --no-fail'
+        )
+        cmd = [
+            "schtasks", "/create", "/tn", task_name, "/tr", tr,
+            "/sc", "WEEKLY" if freq == "weekly" else "DAILY",
+            "/st", time_str, "/f", "/rl", "HIGHEST",
+        ]
+        if freq == "weekly":
+            _day_abbr = {
+                "Monday": "MON", "Tuesday": "TUE", "Wednesday": "WED",
+                "Thursday": "THU", "Friday": "FRI", "Saturday": "SAT", "Sunday": "SUN",
+            }
+            cmd += ["/d", _day_abbr.get(day, "MON")]
+        try:
+            r = _sp.run(cmd, capture_output=True, text=True, timeout=15)
+            if r.returncode == 0:
+                self._sched_status_var.set(f"Task created: {freq} at {time_str}.")
+                _log.info("Scheduled task created: %s", task_name)
+            else:
+                err = (r.stderr or r.stdout).strip()
+                self._sched_status_var.set(f"Error: {err[:100]}")
+                _log.warning("schtasks create failed: %s", err)
+        except (OSError, _sp.TimeoutExpired) as exc:
+            self._sched_status_var.set(f"Error: {exc}")
+
+    def _create_linux_cron_job(
+        self, _sp, freq: str, day: str, time_str: str, output_path: str
+    ) -> None:
+        try:
+            h, m = time_str.split(":")
+            cli_py = os.path.join(PROJECT_ROOT, "cli.py")
+            out_q  = output_path.replace("'", r"\'")
+            _dow = {
+                "Monday": "1", "Tuesday": "2", "Wednesday": "3",
+                "Thursday": "4", "Friday": "5", "Saturday": "6", "Sunday": "0",
+            }
+            dow   = _dow.get(day, "1") if freq == "weekly" else "*"
+            entry = (
+                f"{m} {h} * * {dow} "
+                f"{sys.executable} {cli_py} --format json --output '{out_q}' --no-fail"
+                f"  # RuleForge"
+            )
+            existing = _sp.run(["crontab", "-l"], capture_output=True, text=True)
+            lines = [ln for ln in existing.stdout.splitlines() if "# RuleForge" not in ln]
+            lines.append(entry)
+            _sp.run(
+                ["crontab", "-"],
+                input="\n".join(lines) + "\n",
+                capture_output=True, text=True, timeout=10,
+            )
+            self._sched_status_var.set(f"Cron job created: {freq} at {time_str}.")
+        except Exception as exc:
+            self._sched_status_var.set(f"Error: {exc}")
+
     def _create_scheduled_task(
         self, freq: str, day: str, time_str: str, output_path: str
     ) -> None:
         import subprocess as _sp
         task_name = "RuleForgeComplianceScan"
-
         if sys.platform == "win32":
-            exe_path = os.path.join(PROJECT_ROOT, "cli.exe")
-            if not os.path.isfile(exe_path):
-                exe_path = None
-
-            if exe_path:
-                tr = f'"{exe_path}" --format json --output "{output_path}" --no-fail'
-            else:
-                tr = (
-                    f'"{sys.executable}" "{os.path.join(PROJECT_ROOT, "cli.py")}"'
-                    f' --format json --output "{output_path}" --no-fail'
-                )
-
-            cmd = [
-                "schtasks", "/create",
-                "/tn", task_name,
-                "/tr", tr,
-                "/sc", "WEEKLY" if freq == "weekly" else "DAILY",
-                "/st", time_str,
-                "/f", "/rl", "HIGHEST",
-            ]
-            if freq == "weekly":
-                _day_abbr = {
-                    "Monday": "MON", "Tuesday": "TUE", "Wednesday": "WED",
-                    "Thursday": "THU", "Friday": "FRI", "Saturday": "SAT", "Sunday": "SUN",
-                }
-                cmd += ["/d", _day_abbr.get(day, "MON")]
-
-            try:
-                r = _sp.run(cmd, capture_output=True, text=True, timeout=15)
-                if r.returncode == 0:
-                    self._sched_status_var.set(f"Task created: {freq} at {time_str}.")
-                    _log.info("Scheduled task created: %s", task_name)
-                else:
-                    err = (r.stderr or r.stdout).strip()
-                    self._sched_status_var.set(f"Error: {err[:100]}")
-                    _log.warning("schtasks create failed: %s", err)
-            except (OSError, _sp.TimeoutExpired) as exc:
-                self._sched_status_var.set(f"Error: {exc}")
-
+            self._create_windows_task(_sp, task_name, freq, day, time_str, output_path)
         elif sys.platform in ("linux", "darwin"):
-            try:
-                h, m = time_str.split(":")
-                cli_py = os.path.join(PROJECT_ROOT, "cli.py")
-                out_q  = output_path.replace("'", r"\'")
-                _dow = {
-                    "Monday": "1", "Tuesday": "2", "Wednesday": "3",
-                    "Thursday": "4", "Friday": "5", "Saturday": "6", "Sunday": "0",
-                }
-                dow = _dow.get(day, "1") if freq == "weekly" else "*"
-                entry = (
-                    f"{m} {h} * * {dow} "
-                    f"{sys.executable} {cli_py} --format json --output '{out_q}' --no-fail"
-                    f"  # RuleForge"
-                )
-                existing = _sp.run(["crontab", "-l"], capture_output=True, text=True)
-                lines = [ln for ln in existing.stdout.splitlines() if "# RuleForge" not in ln]
-                lines.append(entry)
-                _sp.run(
-                    ["crontab", "-"],
-                    input="\n".join(lines) + "\n",
-                    capture_output=True, text=True, timeout=10,
-                )
-                self._sched_status_var.set(f"Cron job created: {freq} at {time_str}.")
-            except Exception as exc:
-                self._sched_status_var.set(f"Error: {exc}")
+            self._create_linux_cron_job(_sp, freq, day, time_str, output_path)
         else:
             self._sched_status_var.set("Scheduled scan is not supported on this platform.")
 

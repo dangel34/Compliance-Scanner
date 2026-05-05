@@ -14,11 +14,9 @@
     "windows_client": {
       "checks": [
         {
-          "check_type": "command",
+          "check_type": "policy",
           "name": "Media Containing Diagnostic and Test Programs are Checked for Malicious Code",
           "sub_control": "a",
-          "command": "NA",
-          "expected_result": "NA",
           "purpose": "Scanning of diagnostic and test media for malicious code prior to use is an organizational process concern requiring manual or tool-assisted verification before media is connected to CUI systems and is not technically verifiable via automated check on Windows Client"
         }
       ]
@@ -26,11 +24,9 @@
     "windows_server": {
       "checks": [
         {
-          "check_type": "command",
+          "check_type": "policy",
           "name": "Media Containing Diagnostic and Test Programs are Checked for Malicious Code",
           "sub_control": "a",
-          "command": "NA",
-          "expected_result": "NA",
           "purpose": "Scanning of diagnostic and test media for malicious code prior to use is an organizational process concern and is not technically verifiable via automated check on Windows Server"
         }
       ]
@@ -38,11 +34,9 @@
     "linux": {
       "checks": [
         {
-          "check_type": "command",
+          "check_type": "policy",
           "name": "Media Containing Diagnostic and Test Programs are Checked for Malicious Code",
           "sub_control": "a",
-          "command": "NA",
-          "expected_result": "NA",
           "purpose": "Scanning of diagnostic and test media for malicious code prior to use is an organizational process concern and is not technically verifiable via automated check on Linux"
         }
       ]
@@ -50,11 +44,9 @@
     "debian": {
       "checks": [
         {
-          "check_type": "command",
+          "check_type": "policy",
           "name": "Media Containing Diagnostic and Test Programs are Checked for Malicious Code",
           "sub_control": "a",
-          "command": "NA",
-          "expected_result": "NA",
           "purpose": "Scanning of diagnostic and test media for malicious code prior to use is an organizational process concern and is not technically verifiable via automated check on Debian"
         }
       ]

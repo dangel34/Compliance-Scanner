@@ -118,6 +118,39 @@ def _get_styles() -> Dict[str, ParagraphStyle]:
 _TRIVIAL_OUTPUT = frozenset({"true", "false", "0", "1", "yes", "no"})
 
 
+def _maybe_add_detail_row(check: dict, chk_stat: str, rows: list, style: list, styles: dict) -> None:
+    stdout = check.get("stdout", "").strip()
+    stderr = check.get("stderr", "").strip()
+    stdout_useful = stdout and stdout.lower() not in _TRIVIAL_OUTPUT
+    stderr_useful = stderr and stderr.lower() not in _TRIVIAL_OUTPUT
+    if not (stdout_useful or stderr_useful):
+        return
+    parts = []
+    if stdout_useful:
+        parts.append(f"<b>Output:</b> {_escape_xml(stdout[:400])}")
+    if stderr_useful:
+        parts.append(f"<b>Error:</b> {_escape_xml(stderr[:300])}")
+    if chk_stat in ("FAIL", "ERROR"):
+        detail_bg = colors.HexColor("#fff0f0")
+    elif chk_stat == "PASS":
+        detail_bg = colors.HexColor("#f0fff4")
+    else:
+        detail_bg = _COL_ROW_ALT
+    detail_row = len(rows)
+    rows.append([
+        Paragraph("", styles["cell"]),
+        Paragraph("  ".join(parts), styles["cell_mono"]),
+        Paragraph("", styles["cell"]),
+        Paragraph("", styles["cell"]),
+        Paragraph("", styles["cell"]),
+        Paragraph("", styles["cell"]),
+    ])
+    style.append(("SPAN",          (1, detail_row), (5, detail_row)))
+    style.append(("BACKGROUND",    (0, detail_row), (-1, detail_row), detail_bg))
+    style.append(("LEFTPADDING",   (1, detail_row), (1, detail_row), 8))
+    style.append(("BOTTOMPADDING", (0, detail_row), (-1, detail_row), 6))
+
+
 def _build_automated_table(
     automated_checks: list,
     content_w: float,
@@ -171,35 +204,7 @@ def _build_automated_table(
             aut_style.append(("BACKGROUND", (0, row_num), (-2, row_num), _COL_ROW_ALT))
         aut_style.append(("BACKGROUND", (5, row_num), (5, row_num), chk_bg))
 
-        stdout = check.get("stdout", "").strip()
-        stderr = check.get("stderr", "").strip()
-        stdout_useful = stdout and stdout.lower() not in _TRIVIAL_OUTPUT
-        stderr_useful = stderr and stderr.lower() not in _TRIVIAL_OUTPUT
-        if stdout_useful or stderr_useful:
-            parts = []
-            if stdout_useful:
-                parts.append(f"<b>Output:</b> {_escape_xml(stdout[:400])}")
-            if stderr_useful:
-                parts.append(f"<b>Error:</b> {_escape_xml(stderr[:300])}")
-            detail_row = len(aut_rows)
-            if chk_stat in ("FAIL", "ERROR"):
-                detail_bg = colors.HexColor("#fff0f0")
-            elif chk_stat == "PASS":
-                detail_bg = colors.HexColor("#f0fff4")
-            else:
-                detail_bg = _COL_ROW_ALT
-            aut_rows.append([
-                Paragraph("", styles["cell"]),
-                Paragraph("  ".join(parts), styles["cell_mono"]),
-                Paragraph("", styles["cell"]),
-                Paragraph("", styles["cell"]),
-                Paragraph("", styles["cell"]),
-                Paragraph("", styles["cell"]),
-            ])
-            aut_style.append(("SPAN",           (1, detail_row), (5, detail_row)))
-            aut_style.append(("BACKGROUND",     (0, detail_row), (-1, detail_row), detail_bg))
-            aut_style.append(("LEFTPADDING",    (1, detail_row), (1, detail_row), 8))
-            aut_style.append(("BOTTOMPADDING",  (0, detail_row), (-1, detail_row), 6))
+        _maybe_add_detail_row(check, chk_stat, aut_rows, aut_style, styles)
 
     tbl = Table(aut_rows, colWidths=aut_cols, repeatRows=1)
     tbl.setStyle(TableStyle(aut_style))

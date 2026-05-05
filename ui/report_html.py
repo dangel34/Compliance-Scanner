@@ -57,6 +57,36 @@ def _badge(status: str) -> str:
     return f'<span class="badge" style="color:{fg};background:{bg}">{html.escape(status)}</span>'
 
 
+_SUMMARY_CARDS = [
+    ("PASS",    "PASS",    "#1f6f43", "#d4edda"),
+    ("FAIL",    "FAIL",    "#721c24", "#f8d7da"),
+    ("PARTIAL", "PARTIAL", "#856404", "#fff3cd"),
+    ("POLICY",  "POLICY",  "#4a2a7a", "#e8d5ff"),
+    ("SKIP",    "SKIP",    "#555e65", "#e2e3e5"),
+    ("ERROR",   "ERROR",   "#721c24", "#f8d7da"),
+]
+
+
+def _check_detail_html(check: dict) -> str:
+    cmd      = html.escape(_safe_str(check.get("command",         ""), max_len=1000))
+    expected = html.escape(_safe_str(check.get("expected_result", "")))
+    rc       = check.get("returncode", "")
+    stdout   = html.escape(_safe_str(check.get("stdout", ""), max_len=4000))
+    stderr   = html.escape(_safe_str(check.get("stderr", ""), max_len=4000))
+    parts = ['<div class="detail">']
+    if cmd:
+        parts.append(f"<div><b>Command:</b> <code>{cmd}</code></div>")
+    if expected:
+        parts.append(f"<div><b>Expected:</b> {expected}</div>")
+    parts.append(f"<div><b>Return code:</b> {rc}</div>")
+    if stdout:
+        parts.append(f"<div><b>stdout:</b><pre>{stdout}</pre></div>")
+    if stderr:
+        parts.append(f"<div><b>stderr:</b><pre>{stderr}</pre></div>")
+    parts.append("</div>")
+    return "".join(parts)
+
+
 def generate_report_html(save_path: str, results: Dict[str, RunResult]) -> None:
     """Write a self-contained single-file HTML compliance report to *save_path*."""
     now = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
@@ -70,23 +100,14 @@ def generate_report_html(save_path: str, results: Dict[str, RunResult]) -> None:
     automated   = counts["PASS"] + counts["FAIL"] + counts["PARTIAL"]
     score_ratio = int(score_ratio_f * 100)
 
-    # --- summary cards ---
     cards_html = ""
-    for label, key, fg, bg in [
-        ("PASS",    "PASS",    "#1f6f43", "#d4edda"),
-        ("FAIL",    "FAIL",    "#721c24", "#f8d7da"),
-        ("PARTIAL", "PARTIAL", "#856404", "#fff3cd"),
-        ("POLICY",  "POLICY",  "#4a2a7a", "#e8d5ff"),
-        ("SKIP",    "SKIP",    "#555e65", "#e2e3e5"),
-        ("ERROR",   "ERROR",   "#721c24", "#f8d7da"),
-    ]:
+    for label, key, fg, bg in _SUMMARY_CARDS:
         cards_html += (
             f'<div class="card" style="background:{bg};color:{fg}">'
             f'<div class="cnt">{counts[key]}</div>'
             f'<div class="lbl">{label}</div></div>'
         )
 
-    # --- rule sections ---
     rules_html_parts: list[str] = []
     for result in results.values():
         rule_id = html.escape(_safe_str(result.get("rule_id", "")))
@@ -95,31 +116,13 @@ def generate_report_html(save_path: str, results: Dict[str, RunResult]) -> None:
 
         check_rows = ""
         for idx, check in enumerate(result.get("checks", []), start=1):
-            c_status  = _safe_str(check.get("status",         ""))
-            c_name    = html.escape(_safe_str(check.get("check_name",  "")))
-            cmd       = html.escape(_safe_str(check.get("command",      ""), max_len=1000))
-            expected  = html.escape(_safe_str(check.get("expected_result", "")))
-            rc        = check.get("returncode", "")
-            stdout    = html.escape(_safe_str(check.get("stdout", ""), max_len=4000))
-            stderr    = html.escape(_safe_str(check.get("stderr", ""), max_len=4000))
-
-            detail = '<div class="detail">'
-            if cmd:
-                detail += f"<div><b>Command:</b> <code>{cmd}</code></div>"
-            if expected:
-                detail += f"<div><b>Expected:</b> {expected}</div>"
-            detail += f"<div><b>Return code:</b> {rc}</div>"
-            if stdout:
-                detail += f"<div><b>stdout:</b><pre>{stdout}</pre></div>"
-            if stderr:
-                detail += f"<div><b>stderr:</b><pre>{stderr}</pre></div>"
-            detail += "</div>"
-
+            c_status = _safe_str(check.get("status",        ""))
+            c_name   = html.escape(_safe_str(check.get("check_name", "")))
             check_rows += (
                 f"<tr><td>{idx}</td>"
                 f"<td>{_badge(c_status)}</td>"
                 f"<td>{c_name}</td>"
-                f"<td>{detail}</td></tr>"
+                f"<td>{_check_detail_html(check)}</td></tr>"
             )
 
         error_row = ""

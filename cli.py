@@ -70,6 +70,20 @@ def _load_settings() -> dict[str, object]:
 # Rule discovery (no GUI dependency — standalone version)
 # ---------------------------------------------------------------------------
 
+_SKIP_RULE_NAMES = frozenset({"rule_template.json", "rule_schema.json"})
+
+
+def _resolve_rule_path(full: str, rules_dir_real: str) -> str | None:
+    """Return the realpath of *full* if it is inside *rules_dir_real*, else None."""
+    try:
+        real = os.path.realpath(full)
+    except OSError:
+        return None
+    if not real.startswith(rules_dir_real + os.sep):
+        return None
+    return real
+
+
 def _discover_rule_paths(rules_dir: str) -> list[str]:
     """
     Walk *rules_dir* recursively and return a sorted list of absolute paths to
@@ -86,17 +100,11 @@ def _discover_rule_paths(rules_dir: str) -> list[str]:
         for name in sorted(files):
             if not name.lower().endswith(".json"):
                 continue
-            if name.lower() in ("rule_template.json", "rule_schema.json"):
+            if name.lower() in _SKIP_RULE_NAMES:
                 continue
-            full = os.path.join(root, name)
-            try:
-                real = os.path.realpath(full)
-            except OSError:
-                continue
-            # Path-traversal guard
-            if not real.startswith(rules_dir_real + os.sep):
-                continue
-            paths.append(real)
+            real = _resolve_rule_path(os.path.join(root, name), rules_dir_real)
+            if real is not None:
+                paths.append(real)
 
     return sorted(paths, key=_natural_key)
 
@@ -212,6 +220,46 @@ def run_scan(
 # Output formatters
 # ---------------------------------------------------------------------------
 
+_STATUS_LABEL = {
+    "PASS":    "PASS   ",
+    "FAIL":    "FAIL   ",
+    "PARTIAL": "PARTIAL",
+    "POLICY":  "POLICY ",
+    "SKIP":    "SKIP   ",
+    "ERROR":   "ERROR  ",
+    "NOT_RUN": "NOT_RUN",
+}
+
+_STATUS_LABEL_SHORT = {
+    "PASS":    "True ",
+    "FAIL":    "False",
+    "PARTIAL": "Part ",
+    "SKIP":    "Skip ",
+    "ERROR":   "Error",
+}
+
+
+def _print_check_detail(check: dict) -> None:
+    command    = _safe_str(check.get("command",        ""), max_len=4096).strip()
+    expected   = _safe_str(check.get("expected_result",""), max_len=4096).strip()
+    stdout     = _safe_str(check.get("stdout",         ""), max_len=20000).strip()
+    stderr     = _safe_str(check.get("stderr",         ""), max_len=20000).strip()
+    returncode = check.get("returncode", "")
+    if command:
+        print(f"    command: {command}")
+    if expected:
+        print(f"    expected: {expected}")
+    print(f"    returncode: {returncode}")
+    if stdout:
+        print("    stdout:")
+        for line in stdout.splitlines():
+            print(f"      {line}")
+    if stderr:
+        print("    stderr:")
+        for line in stderr.splitlines():
+            print(f"      {line}")
+
+
 def _print_text_summary(
     results: dict[str, RunResult],
     detail_mode: str = "status_only",
@@ -229,17 +277,6 @@ def _print_text_summary(
         title   = _safe_str(result.get("title",   ""))
         rows.append((rule_id, title, status))
 
-    # Status column
-    _STATUS_LABEL = {
-        "PASS":    "PASS   ",
-        "FAIL":    "FAIL   ",
-        "PARTIAL": "PARTIAL",
-        "POLICY":  "POLICY ",
-        "SKIP":    "SKIP   ",
-        "ERROR":   "ERROR  ",
-        "NOT_RUN": "NOT_RUN",
-    }
-
     print()
     print("=" * 72)
     print("  RuleForge Compliance Scan Results")
@@ -250,7 +287,6 @@ def _print_text_summary(
 
     automated = counts["PASS"] + counts["FAIL"] + counts["PARTIAL"]
     _, score_str = compute_score(counts["PASS"], counts["FAIL"], counts["PARTIAL"])
-
     duration_str = f"  Scan time: {_fmt_duration(elapsed)}" if elapsed is not None else ""
 
     print()
@@ -264,49 +300,21 @@ def _print_text_summary(
     print("=" * 72)
     print()
 
-    _STATUS_LABEL_SHORT = {
-        "PASS":    "True ",
-        "FAIL":    "False",
-        "PARTIAL": "Part ",
-        "SKIP":    "Skip ",
-        "ERROR":   "Error",
-    }
-
     for result in results.values():
         rule_id = _safe_str(result.get("rule_id", ""))
-        title = _safe_str(result.get("title", ""))
+        title   = _safe_str(result.get("title",   ""))
         print(f"Rule: {rule_id} — {title}")
         print("-" * 72)
         for idx, check in enumerate(result.get("checks", []), start=1):
             status = _safe_str(check.get("status", ""))
-            name = _safe_str(check.get("check_name", ""))
+            name   = _safe_str(check.get("check_name", ""))
             if status == "POLICY":
                 print(f"[{idx}] POLICY  {name}")
                 continue
-
             bool_text = _STATUS_LABEL_SHORT.get(status, status[:5])
             print(f"[{idx}] {bool_text:<5} ({status})  {name}")
-
-            if detail_mode != "full":
-                continue
-            command = _safe_str(check.get("command", ""), max_len=4096).strip()
-            expected = _safe_str(check.get("expected_result", ""), max_len=4096).strip()
-            stdout = _safe_str(check.get("stdout", ""), max_len=20000).strip()
-            stderr = _safe_str(check.get("stderr", ""), max_len=20000).strip()
-            returncode = check.get("returncode", "")
-            if command:
-                print(f"    command: {command}")
-            if expected:
-                print(f"    expected: {expected}")
-            print(f"    returncode: {returncode}")
-            if stdout:
-                print("    stdout:")
-                for line in stdout.splitlines():
-                    print(f"      {line}")
-            if stderr:
-                print("    stderr:")
-                for line in stderr.splitlines():
-                    print(f"      {line}")
+            if detail_mode == "full":
+                _print_check_detail(check)
         print()
 
 
@@ -335,6 +343,41 @@ def _write_pdf(save_path: str, results: dict[str, RunResult], page_size: str = "
 def _write_html(save_path: str, results: dict[str, RunResult]) -> None:
     from ui.report_html import generate_report_html
     generate_report_html(save_path, results)
+
+
+def _write_single(fmt: str, out_file: str, results: dict[str, RunResult], page_size: str = "A4") -> None:
+    if fmt == "json":
+        _write_json(out_file, results)
+    elif fmt == "csv":
+        _write_csv(out_file, results)
+    elif fmt == "pdf":
+        _write_pdf(out_file, results, page_size=page_size)
+    elif fmt == "html":
+        _write_html(out_file, results)
+
+
+def _dispatch_output(
+    args,
+    results: dict[str, RunResult],
+    detail_mode: str,
+    elapsed: float,
+) -> None:
+    if args.format == "text":
+        _print_text_summary(results, detail_mode=detail_mode, elapsed=elapsed)
+        return
+
+    if args.output_dir:
+        os.makedirs(args.output_dir, exist_ok=True)
+        for path, result in results.items():
+            rule_id = _safe_str(result.get("rule_id", os.path.basename(path)))
+            safe_id = rule_id.replace("/", "_").replace("\\", "_").replace(":", "_")
+            out_file = os.path.join(args.output_dir, f"{safe_id}.{args.format}")
+            _write_single(args.format, out_file, {path: result}, page_size=args.page_size)
+        print(f"Per-rule {args.format.upper()} reports written to {args.output_dir}", file=sys.stderr)
+        return
+
+    _write_single(args.format, args.output, results, page_size=args.page_size)
+    print(f"{args.format.upper()} report written to {args.output}", file=sys.stderr)
 
 
 # ---------------------------------------------------------------------------
@@ -458,6 +501,36 @@ def _build_parser() -> argparse.ArgumentParser:
     return parser
 
 
+def _validate_output_args(parser: argparse.ArgumentParser, args: argparse.Namespace) -> None:
+    if args.output and args.output_dir:
+        parser.error("--output and --output-dir are mutually exclusive")
+    if args.output_dir and args.format == "text":
+        parser.error("--output-dir requires --format json, csv, pdf, or html")
+    if args.format != "text" and not args.output and not args.output_dir and not args.dry_run:
+        parser.error(f"--output is required when --format is {args.format}")
+
+
+def _resolve_scan_workers(args: argparse.Namespace, settings: dict) -> int:
+    scan_workers = settings.get("scan_workers", 2)
+    try:
+        scan_workers = max(1, int(scan_workers))
+    except (TypeError, ValueError):
+        scan_workers = 2
+    if args.workers is not None:
+        scan_workers = max(1, args.workers)
+    return scan_workers
+
+
+def _print_dry_run(rule_paths: list[str]) -> None:
+    print(f"Dry run — {len(rule_paths)} rule(s) would be scanned:\n", file=sys.stderr)
+    for path in rule_paths:
+        meta = _load_rule_meta(path)
+        label = os.path.basename(path)
+        sev = meta["severity"] or "?"
+        cat = meta["category"] or "?"
+        print(f"  [{cat}] [{sev:<8}] {label}")
+
+
 def main() -> None:
     import time
     setup_logging()
@@ -471,92 +544,36 @@ def main() -> None:
     if detail_mode not in ("status_only", "full"):
         detail_mode = "status_only"
 
-    # Validate output / output-dir arguments
-    if args.output and args.output_dir:
-        parser.error("--output and --output-dir are mutually exclusive")
-    if args.output_dir and args.format == "text":
-        parser.error("--output-dir requires --format json, csv, pdf, or html")
-    if args.format != "text" and not args.output and not args.output_dir and not args.dry_run:
-        parser.error(f"--output is required when --format is {args.format}")
+    _validate_output_args(parser, args)
 
-    # Discover rules
     ruleset_dir = os.path.abspath(args.ruleset)
     rule_paths = _discover_rule_paths(ruleset_dir)
-
     if not rule_paths:
         print(f"Error: no rule files found in {ruleset_dir}", file=sys.stderr)
         sys.exit(2)
 
-    # Apply severity / category filters
     rule_paths = _filter_rule_paths(
         rule_paths,
         severities=args.filter_severity,
         categories=args.filter_category,
     )
-
     if not rule_paths:
         print("Error: no rule files matched the specified filters.", file=sys.stderr)
         sys.exit(2)
 
-    # --dry-run: list matching rules and exit without executing any checks
     if args.dry_run:
-        print(f"Dry run — {len(rule_paths)} rule(s) would be scanned:\n", file=sys.stderr)
-        for path in rule_paths:
-            meta = _load_rule_meta(path)
-            label = os.path.basename(path)
-            sev = meta["severity"] or "?"
-            cat = meta["category"] or "?"
-            print(f"  [{cat}] [{sev:<8}] {label}")
+        _print_dry_run(rule_paths)
         sys.exit(0)
 
     print(f"Found {len(rule_paths)} rule file(s) in {ruleset_dir}", file=sys.stderr)
     print(f"Detected OS: {os_scan()}", file=sys.stderr)
     print(file=sys.stderr)
 
-    # Run scan — --workers flag overrides settings.json value
-    scan_workers = settings.get("scan_workers", 2)
-    try:
-        scan_workers = max(1, int(scan_workers))
-    except (TypeError, ValueError):
-        scan_workers = 2
-    if args.workers is not None:
-        scan_workers = max(1, args.workers)
-
+    scan_workers = _resolve_scan_workers(args, settings)
     t0 = time.monotonic()
     results = run_scan(rule_paths, verbose=args.verbose, max_workers=scan_workers)
     elapsed = time.monotonic() - t0
-
-    # Output
-    if args.format == "text":
-        _print_text_summary(results, detail_mode=detail_mode, elapsed=elapsed)
-    elif args.output_dir:
-        os.makedirs(args.output_dir, exist_ok=True)
-        for path, result in results.items():
-            rule_id = _safe_str(result.get("rule_id", os.path.basename(path)))
-            safe_id = rule_id.replace("/", "_").replace("\\", "_").replace(":", "_")
-            out_file = os.path.join(args.output_dir, f"{safe_id}.{args.format}")
-            single = {path: result}
-            if args.format == "json":
-                _write_json(out_file, single)
-            elif args.format == "csv":
-                _write_csv(out_file, single)
-            elif args.format == "pdf":
-                _write_pdf(out_file, single, page_size=args.page_size)
-            elif args.format == "html":
-                _write_html(out_file, single)
-        print(f"Per-rule {args.format.upper()} reports written to {args.output_dir}", file=sys.stderr)
-    elif args.format == "json":
-        _write_json(args.output, results)
-        print(f"JSON report written to {args.output}", file=sys.stderr)
-    elif args.format == "csv":
-        _write_csv(args.output, results)
-        print(f"CSV report written to {args.output}", file=sys.stderr)
-    elif args.format == "pdf":
-        _write_pdf(args.output, results, page_size=args.page_size)
-        print(f"PDF report written to {args.output}", file=sys.stderr)
-    elif args.format == "html":
-        _write_html(args.output, results)
-        print(f"HTML report written to {args.output}", file=sys.stderr)
+    _dispatch_output(args, results, detail_mode=detail_mode, elapsed=elapsed)
 
     if args.no_fail:
         sys.exit(0)

@@ -96,13 +96,11 @@ class RuleRunner:
             }
 
     def _get_scanner(self):
-        """Use injected scanner or get_scanner() from core"""
         if self._scanner is not None:
             return self._scanner
         return get_scanner()
 
     def get_checks(self) -> List[Dict[str, Any]]:
-        """Gets checks"""
         return (
             self.rule
             .get("check_details", {})
@@ -182,6 +180,55 @@ class RuleRunner:
             return True
         return str(cmd).strip().upper() == "NA"
 
+    def _run_service_check(self, check: Dict[str, Any], name: str, sub_control: str, scanner) -> Dict[str, Any]:
+        service_name = check.get("command") or check.get("name")
+        base = {
+            "check_name": name, "sub_control": sub_control,
+            "purpose": check.get("purpose", ""),
+            "command": f"check_service({service_name})",
+            "expected_result": check.get("expected_result", ""),
+        }
+        try:
+            out = scanner.check_service(service_name)
+            # "Running" on Windows, "active" on Debian/Linux.
+            # A non-empty but non-running string (e.g. "Stopped", "inactive")
+            # must not be treated as PASS.
+            is_running = out.lower() in ("running", "active")
+            return {**base, "status": "PASS" if is_running else "FAIL",
+                    "returncode": 0 if is_running else 1, "stdout": out or "", "stderr": ""}
+        except Exception as e:
+            return {**base, "status": "FAIL", "returncode": -1, "stdout": "", "stderr": str(e)}
+
+    def _run_file_permissions_check(self, check: Dict[str, Any], name: str, sub_control: str, scanner) -> Dict[str, Any]:
+        path = check.get("path") or check.get("command")
+        base = {
+            "check_name": name, "sub_control": sub_control,
+            "purpose": check.get("purpose", ""),
+            "command": f"check_file_permissions({path})",
+            "expected_result": check.get("expected_result", ""),
+        }
+        try:
+            out = scanner.check_file_permissions(path)
+            return {**base, "status": "PASS" if out else "FAIL",
+                    "returncode": 0 if out else -1, "stdout": out or "", "stderr": ""}
+        except Exception as e:
+            return {**base, "status": "FAIL", "returncode": -1, "stdout": "", "stderr": str(e)}
+
+    def _run_command_check(self, check: Dict[str, Any], name: str, sub_control: str) -> Dict[str, Any]:
+        cmd = check.get("command")
+        execution = self.run_custom_function(cmd) if (cmd and cmd.startswith("cs_f(")) else self.run_command(cmd)
+        passed = execution["returncode"] == 0
+        return {
+            "check_name": name, "sub_control": sub_control,
+            "purpose": check.get("purpose", ""),
+            "command": cmd,
+            "expected_result": check.get("expected_result", ""),
+            "status": "PASS" if passed else "FAIL",
+            "returncode": execution["returncode"],
+            "stdout": execution.get("stdout", ""),
+            "stderr": execution.get("stderr", ""),
+        }
+
     def run_checks(self) -> Dict[str, Any]:
         results = []
         scanner = self._get_scanner()
@@ -189,9 +236,9 @@ class RuleRunner:
         checks_policy  = 0
 
         for check in self.get_checks():
-            name = check.get("name", "Unnamed Check")
+            name       = check.get("name", "Unnamed Check")
             sub_control = check.get("sub_control", "Unnamed Subcontrol")
-            check_type = check.get("check_type", "command")
+            check_type  = check.get("check_type", "command")
 
             # Policy subcontrols require human review — record them but don't execute.
             # Must be checked before _is_na_check() because policy checks may still
@@ -210,98 +257,25 @@ class RuleRunner:
                 })
                 continue
 
-            # Skip NA subcontrols for speed (no executable command)
+            # Skip NA subcontrols (no executable command)
             if self._is_na_check(check):
                 checks_skipped += 1
                 continue
 
             if check_type == "service" and scanner is not None:
-                service_name = check.get("command") or check.get("name")
-                try:
-                    out = scanner.check_service(service_name)
-                    # "Running" on Windows, "active" on Debian/Linux.
-                    # A non-empty but non-running string (e.g. "Stopped", "inactive")
-                    # must not be treated as PASS.
-                    is_running = out.lower() in ("running", "active")
-                    results.append({
-                        "check_name": name,
-                        "sub_control": sub_control,
-                        "purpose": check.get("purpose", ""),
-                        "command": f"check_service({service_name})",
-                        "expected_result": check.get("expected_result", ""),
-                        "status": "PASS" if is_running else "FAIL",
-                        "returncode": 0 if is_running else 1,
-                        "stdout": out or "",
-                        "stderr": ""
-                    })
-                except Exception as e:
-                    results.append({
-                        "check_name": name,
-                        "sub_control": sub_control,
-                        "purpose": check.get("purpose", ""),
-                        "command": f"check_service({service_name})",
-                        "expected_result": check.get("expected_result", ""),
-                        "status": "FAIL",
-                        "returncode": -1,
-                        "stdout": "",
-                        "stderr": str(e)
-                    })
+                results.append(self._run_service_check(check, name, sub_control, scanner))
             elif check_type == "file_permissions" and scanner is not None:
-                path = check.get("path") or check.get("command")
-                try:
-                    out = scanner.check_file_permissions(path)
-                    results.append({
-                        "check_name": name,
-                        "sub_control": sub_control,
-                        "purpose": check.get("purpose", ""),
-                        "command": f"check_file_permissions({path})",
-                        "expected_result": check.get("expected_result", ""),
-                        "status": "PASS" if out else "FAIL",
-                        "returncode": 0 if out else -1,
-                        "stdout": out or "",
-                        "stderr": ""
-                    })
-                except Exception as e:
-                    results.append({
-                        "check_name": name,
-                        "sub_control": sub_control,
-                        "purpose": check.get("purpose", ""),
-                        "command": f"check_file_permissions({path})",
-                        "expected_result": check.get("expected_result", ""),
-                        "status": "FAIL",
-                        "returncode": -1,
-                        "stdout": "",
-                        "stderr": str(e)
-                    })
+                results.append(self._run_file_permissions_check(check, name, sub_control, scanner))
             else:
-                # command (default): run via OS-appropriate scanner (Windows CMD/PowerShell, Linux bash)
-                cmd = check.get("command")
-
-                if cmd and cmd.startswith("cs_f("):
-                    execution = self.run_custom_function(cmd)
-                else:
-                    execution = self.run_command(cmd)
-
-                passed = execution["returncode"] == 0
-                results.append({
-                    "check_name": name,
-                    "sub_control": sub_control,
-                    "purpose": check.get("purpose", ""),
-                    "command": cmd,
-                    "expected_result": check.get("expected_result", ""),
-                    "status": "PASS" if passed else "FAIL",
-                    "returncode": execution["returncode"],
-                    "stdout": execution.get("stdout", ""),
-                    "stderr": execution.get("stderr", "")
-                })
+                results.append(self._run_command_check(check, name, sub_control))
 
         automated = [c for c in results if c["status"] != "POLICY"]
         return {
-            "rule_id":       self.rule.get("rule_id") or self.rule.get("id"),
-            "title":         self.rule.get("title"),
-            "os":            self.os_type,
-            "severity":      self.rule.get("severity", ""),
-            "remediation":   self.rule.get("remediation", ""),
+            "rule_id":        self.rule.get("rule_id") or self.rule.get("id"),
+            "title":          self.rule.get("title"),
+            "os":             self.os_type,
+            "severity":       self.rule.get("severity", ""),
+            "remediation":    self.rule.get("remediation", ""),
             "checks_run":     len(automated),
             "checks_skipped": checks_skipped,
             "checks_policy":  checks_policy,

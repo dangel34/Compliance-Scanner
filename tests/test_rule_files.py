@@ -68,11 +68,12 @@ def test_rule_check_details_structure(path):
         assert isinstance(os_block["checks"], list)
         for check in os_block["checks"]:
             assert "name" in check, f"Check in '{os_key}' missing 'name'"
-            assert "command" in check, f"Check in '{os_key}' missing 'command'"
             assert "check_type" in check, f"Check in '{os_key}' missing 'check_type'"
             assert check["check_type"] in _VALID_CHECK_TYPES, (
                 f"Invalid check_type '{check['check_type']}' in '{os_key}'"
             )
+            if check["check_type"] != "policy":
+                assert "command" in check, f"Non-policy check in '{os_key}' missing 'command'"
 
 
 @pytest.mark.parametrize("path", _ALL_RULES, ids=os.path.basename)
