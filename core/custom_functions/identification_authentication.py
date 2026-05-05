@@ -18,6 +18,8 @@ from pathlib import Path
 
 _RUN_CACHE: dict[tuple[object, object, int], tuple[int, str, str]] = {}
 
+_HKLM_POLICIES_SYSTEM = r"HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\System"
+
 
 def clear_cache() -> None:
     """Clear the command result cache so the next scan gets fresh results."""
@@ -352,7 +354,7 @@ def ssh_auth_required_lx() -> tuple[bool, str]:
 def mfa_privileged_local_wc() -> tuple[bool, str]:
     """Verify MFA or smart card is required for local privileged logon on Windows Client."""
     val = _reg_get(
-        r"HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\System",
+        _HKLM_POLICIES_SYSTEM,
         "scforceoption"
     )
     if val == "1":
@@ -390,7 +392,7 @@ def smartcard_or_whfb_wc() -> tuple[bool, str]:
         "Enabled"
     )
     sc = _reg_get(
-        r"HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\System",
+        _HKLM_POLICIES_SYSTEM,
         "scforceoption"
     )
     if whfb == "1":
@@ -418,7 +420,7 @@ def mfa_nonprivileged_network_ws() -> tuple[bool, str]:
 def smartcard_required_ws() -> tuple[bool, str]:
     """Confirm Interactive logon: Require smart card is enabled on Windows Server."""
     val = _reg_get(
-        r"HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\System",
+        _HKLM_POLICIES_SYSTEM,
         "scforceoption"
     )
     if val == "1":
@@ -1105,7 +1107,7 @@ def password_masking_wc() -> tuple[bool, str]:
 def no_last_username_wc() -> tuple[bool, str]:
     """Confirm Do not display last user name is enabled on Windows Client."""
     val = _reg_get(
-        r"HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\System",
+        _HKLM_POLICIES_SYSTEM,
         "DontDisplayLastUserName"
     )
     if val == "1":
@@ -1116,7 +1118,7 @@ def no_last_username_wc() -> tuple[bool, str]:
 def auth_error_suppressed_wc() -> tuple[bool, str]:
     """Verify authentication failure messages do not reveal account existence on Windows Client."""
     val = _reg_get(
-        r"HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\System",
+        _HKLM_POLICIES_SYSTEM,
         "DontDisplayLockedUserId"
     )
     if val in ("1", "2", "3"):
@@ -1137,7 +1139,7 @@ def auth_error_suppressed_ws() -> tuple[bool, str]:
 def logon_banner_safe_ws() -> tuple[bool, str]:
     """Confirm the logon banner does not reveal system details on Windows Server."""
     rc, out, _ = _ps(
-        "Get-ItemProperty 'HKLM:\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Policies\\System' "
+        f"Get-ItemProperty '{_HKLM_POLICIES_SYSTEM}' "
         "-Name LegalNoticeText -ErrorAction SilentlyContinue "
         "| Select-Object -ExpandProperty LegalNoticeText"
     )

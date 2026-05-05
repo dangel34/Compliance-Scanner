@@ -18,6 +18,13 @@ from pathlib import Path
 
 _RUN_CACHE: dict[tuple[object, bool, int], tuple[int, str, str]] = {}
 
+_DENY_INCOMING = "deny (incoming)"
+_UFW_DENY_MSG = "ufw default incoming policy is deny"
+_SSHD_CONFIG = "/etc/ssh/sshd_config"
+_CONF_GLOB = "*.conf"
+_MANAGE_BDE_C = "manage-bde -status C: 2>nul"
+_PROTECTION_ON = "protection on"
+
 
 def clear_cache() -> None:
     """Clear the command result cache so the next scan gets fresh results."""
@@ -222,8 +229,8 @@ def default_input_policy_lx() -> tuple[bool, str]:
                 return (True, "nftables input hook has a drop policy")
         # Check ufw
         rc4, out4, _ = _run("ufw status verbose 2>/dev/null | grep 'Default:'")
-        if rc4 == 0 and "deny (incoming)" in out4.lower():
-            return (True, "ufw default incoming policy is deny")
+        if rc4 == 0 and _DENY_INCOMING in out4.lower():
+            return (True, _UFW_DENY_MSG)
         return (False, "No default DROP/REJECT INPUT policy found (checked iptables, nftables, ufw)")
     except Exception as e:
         return (False, f"Exception while checking default input policy: {e}")
@@ -495,7 +502,7 @@ def root_login_disabled_lx() -> tuple[bool, str]:
             if "no" in out.lower():
                 return (True, f"SSH PermitRootLogin is disabled: {out.strip()}")
             return (False, f"SSH PermitRootLogin is not disabled: {out.strip()}")
-        p = Path("/etc/ssh/sshd_config")
+        p = Path(_SSHD_CONFIG)
         if p.exists():
             text = p.read_text()
             m = re.search(r"^\s*PermitRootLogin\s+(\S+)", text, re.MULTILINE | re.IGNORECASE)
@@ -622,7 +629,7 @@ def usb_storage_blocked_lx() -> tuple[bool, str]:
     """Verify the usb-storage kernel module is blacklisted on Linux/Debian."""
     try:
         # Check modprobe.d blacklist
-        for conf_file in Path("/etc/modprobe.d").glob("*.conf"):
+        for conf_file in Path("/etc/modprobe.d").glob(_CONF_GLOB):
             try:
                 text = conf_file.read_text()
                 if re.search(r"^\s*blacklist\s+usb[_-]storage", text, re.MULTILINE):
@@ -720,8 +727,8 @@ def iptables_default_drop_lx() -> tuple[bool, str]:
                 return (False, f"Some iptables chains do not have DROP/REJECT policy: {non_drop}")
         # Check ufw default deny
         rc2, out2, _ = _run("ufw status verbose 2>/dev/null")
-        if rc2 == 0 and "deny (incoming)" in out2.lower():
-            return (True, "ufw default incoming policy is deny")
+        if rc2 == 0 and _DENY_INCOMING in out2.lower():
+            return (True, _UFW_DENY_MSG)
         # Check firewalld default zone
         rc3, out3, _ = _run("firewall-cmd --get-default-zone 2>/dev/null")
         if rc3 == 0 and out3.strip() in ("drop", "block"):
@@ -735,8 +742,8 @@ def ufw_default_deny_lx() -> tuple[bool, str]:
     """Verify ufw or firewalld default policy denies incoming connections on Linux/Debian."""
     try:
         rc, out, _ = _run("ufw status verbose 2>/dev/null")
-        if rc == 0 and "deny (incoming)" in out.lower():
-            return (True, "ufw default incoming policy is deny")
+        if rc == 0 and _DENY_INCOMING in out.lower():
+            return (True, _UFW_DENY_MSG)
         rc2, out2, _ = _run("firewall-cmd --get-default-zone 2>/dev/null")
         if rc2 == 0 and out2.strip() in ("drop", "block"):
             return (True, f"firewalld default zone is '{out2.strip()}' (deny by default)")
@@ -819,7 +826,7 @@ def vpn_no_split_tunnel_lx() -> tuple[bool, str]:
     try:
         openvpn_dir = Path("/etc/openvpn")
         if openvpn_dir.exists():
-            for conf in openvpn_dir.glob("*.conf"):
+            for conf in openvpn_dir.glob(_CONF_GLOB):
                 try:
                     text = conf.read_text()
                     if "redirect-gateway def1" in text or "redirect-gateway local def1" in text:
@@ -828,7 +835,7 @@ def vpn_no_split_tunnel_lx() -> tuple[bool, str]:
                     continue
         wg_dir = Path("/etc/wireguard")
         if wg_dir.exists():
-            for conf in wg_dir.glob("*.conf"):
+            for conf in wg_dir.glob(_CONF_GLOB):
                 try:
                     text = conf.read_text()
                     if re.search(r"AllowedIPs\s*=\s*0\.0\.0\.0/0", text):
@@ -1070,7 +1077,7 @@ def screen_lock_timeout_ws() -> tuple[bool, str]:
 def ssh_client_alive_lx() -> tuple[bool, str]:
     """Verify SSH ClientAliveInterval and ClientAliveCountMax are configured to terminate idle sessions on Linux/Debian."""
     try:
-        p = Path("/etc/ssh/sshd_config")
+        p = Path(_SSHD_CONFIG)
         if not p.exists():
             return (False, "sshd_config not found: /etc/ssh/sshd_config does not exist")
         text = p.read_text()
@@ -1125,13 +1132,13 @@ def shell_timeout_lx() -> tuple[bool, str]:
 def bitlocker_key_protector_wc() -> tuple[bool, str]:
     """Verify BitLocker key protector is TPM+PIN or TPM+Recovery (not recovery-only) on Windows Client."""
     try:
-        rc, out, err = _run("manage-bde -status C: 2>nul")
+        rc, out, err = _run(_MANAGE_BDE_C)
         if rc != 0 or not out:
             return (False, f"Could not query BitLocker status: {err}")
         # Look for TPM as a key protector
-        if "tpm" in out.lower() and "protection on" in out.lower():
+        if "tpm" in out.lower() and _PROTECTION_ON in out.lower():
             return (True, "BitLocker is on and TPM is a key protector on C:")
-        if "protection on" in out.lower():
+        if _PROTECTION_ON in out.lower():
             return (False, "BitLocker protection is on but TPM is not listed as a key protector")
         return (False, "BitLocker is not protecting C: (protection is not on)")
     except Exception as e:
@@ -1565,7 +1572,7 @@ def ssh_hostbased_disabled_lx() -> tuple[bool, str]:
             if "no" in out.lower():
                 return (True, f"SSH HostbasedAuthentication is disabled: {out.strip()}")
             return (False, f"SSH HostbasedAuthentication is not disabled: {out.strip()}")
-        p = Path("/etc/ssh/sshd_config")
+        p = Path(_SSHD_CONFIG)
         if p.exists():
             text = p.read_text()
             m = re.search(r"^\s*HostbasedAuthentication\s+(\S+)", text, re.MULTILINE | re.IGNORECASE)
@@ -1608,10 +1615,10 @@ def ssh_strict_host_lx() -> tuple[bool, str]:
 def bitlocker_enabled_wc() -> tuple[bool, str]:
     """Verify BitLocker is enabled and protection is On for the C: drive on Windows Client."""
     try:
-        rc, out, err = _run("manage-bde -status C: 2>nul")
+        rc, out, err = _run(_MANAGE_BDE_C)
         if rc != 0 or not out:
             return (False, f"Could not query BitLocker status: {err}")
-        if "protection on" in out.lower():
+        if _PROTECTION_ON in out.lower():
             return (True, "BitLocker protection is On for C:")
         return (False, "BitLocker protection is not On for C: (drive may be unencrypted or suspended)")
     except Exception as e:
@@ -1621,7 +1628,7 @@ def bitlocker_enabled_wc() -> tuple[bool, str]:
 def bitlocker_full_encryption_wc() -> tuple[bool, str]:
     """Verify BitLocker encryption percentage is 100% on the system drive on Windows Client."""
     try:
-        rc, out, err = _run("manage-bde -status C: 2>nul")
+        rc, out, err = _run(_MANAGE_BDE_C)
         if rc != 0 or not out:
             return (False, f"Could not query BitLocker status: {err}")
         m = re.search(r"Percentage Encrypted[:\s]+(\d+)[\.,]", out, re.IGNORECASE)

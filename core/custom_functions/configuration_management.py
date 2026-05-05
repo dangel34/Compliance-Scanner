@@ -5,6 +5,9 @@ from pathlib import Path
 
 _RUN_CACHE: dict[tuple[object, object, int], tuple[int, str, str]] = {}
 
+_AIDE_DB = "/var/lib/aide/aide.db"
+_NOT_SET = "not set"
+
 
 def clear_cache() -> None:
     """Clear the command result cache so the next scan gets fresh results."""
@@ -192,11 +195,11 @@ def firmware_inventory_lx() -> tuple[bool, str]:
 def baseline_config_exists_lx() -> tuple[bool, str]:
     """Verify a hardening baseline has been applied on Linux/Debian."""
     # Check for AIDE database (post-hardening baseline), Ansible facts, or OSCAP results
-    aide_db = Path("/var/lib/aide/aide.db")
+    aide_db = Path(_AIDE_DB)
     oscap_result = Path("/var/lib/oscap")
     ansible_facts = Path("/etc/ansible")
     if aide_db.exists():
-        return (True, "AIDE baseline database found at /var/lib/aide/aide.db")
+        return (True, f"AIDE baseline database found at {_AIDE_DB}")
     if oscap_result.exists():
         return (True, "OpenSCAP result directory found at /var/lib/oscap")
     if ansible_facts.exists():
@@ -315,7 +318,7 @@ def smb_signing_ws() -> tuple[bool, str]:
     )
     if val == "1":
         return (True, "SMB server signing required (RequireSecuritySignature = 1)")
-    return (False, f"SMB server signing not required (RequireSecuritySignature = {val or 'not set'})")
+    return (False, f"SMB server signing not required (RequireSecuritySignature = {val or _NOT_SET})")
 
 
 def hardening_baseline_lx() -> tuple[bool, str]:
@@ -331,11 +334,11 @@ def password_policy_lx() -> tuple[bool, str]:
     content = pwquality_path.read_text()
     minlen = re.search(r'^\s*minlen\s*=\s*(\d+)', content, re.MULTILINE)
     if not minlen or int(minlen.group(1)) < 14:
-        length = minlen.group(1) if minlen else "not set"
+        length = minlen.group(1) if minlen else _NOT_SET
         return (False, f"pwquality minlen = {length} (required: >= 14)")
     minclass = re.search(r'^\s*minclass\s*=\s*(\d+)', content, re.MULTILINE)
     if not minclass or int(minclass.group(1)) < 3:
-        classes = minclass.group(1) if minclass else "not set"
+        classes = minclass.group(1) if minclass else _NOT_SET
         return (False, f"pwquality minclass = {classes} (required: >= 3)")
     return (True, f"Password policy: minlen = {minlen.group(1)}, minclass = {minclass.group(1)}")
 
@@ -354,7 +357,7 @@ def ssh_hardening_lx() -> tuple[bool, str]:
     for key, expected in checks.items():
         match = re.search(rf'^{key}\s+(\S+)', out, re.MULTILINE | re.IGNORECASE)
         if not match or match.group(1).lower() != expected:
-            actual = match.group(1) if match else "not set"
+            actual = match.group(1) if match else _NOT_SET
             failures.append(f"{key} = {actual} (expected: {expected})")
     if not failures:
         return (True, "SSH hardened settings verified: PermitRootLogin=no, PermitEmptyPasswords=no, Protocol=2")
@@ -466,10 +469,10 @@ def fim_enabled_lx() -> tuple[bool, str]:
     """Verify AIDE or equivalent FIM tool is installed and initialized on Linux/Debian."""
     rc_aide, _, _ = _run("which aide 2>/dev/null")
     if rc_aide == 0:
-        aide_db = Path("/var/lib/aide/aide.db")
+        aide_db = Path(_AIDE_DB)
         if aide_db.exists():
-            return (True, "AIDE is installed and database exists at /var/lib/aide/aide.db")
-        return (False, "AIDE is installed but database not found at /var/lib/aide/aide.db")
+            return (True, f"AIDE is installed and database exists at {_AIDE_DB}")
+        return (False, f"AIDE is installed but database not found at {_AIDE_DB}")
     # Check for Tripwire
     rc_tw, _, _ = _run("which tripwire 2>/dev/null")
     if rc_tw == 0:
@@ -558,9 +561,9 @@ def patch_test_env_ws() -> tuple[bool, str]:
 
 def fim_baseline_current_lx() -> tuple[bool, str]:
     """Verify the AIDE FIM database exists and has been updated recently on Linux/Debian."""
-    aide_db = Path("/var/lib/aide/aide.db")
+    aide_db = Path(_AIDE_DB)
     if not aide_db.exists():
-        return (False, "AIDE database not found at /var/lib/aide/aide.db")
+        return (False, f"AIDE database not found at {_AIDE_DB}")
     import time
     age_days = (time.time() - aide_db.stat().st_mtime) / 86400
     if age_days <= 90:
@@ -641,7 +644,7 @@ def uac_enabled_wc() -> tuple[bool, str]:
     )
     if val == "1":
         return (True, "UAC is enabled (EnableLUA = 1)")
-    return (False, f"UAC is disabled (EnableLUA = {val or 'not set'})")
+    return (False, f"UAC is disabled (EnableLUA = {val or _NOT_SET})")
 
 
 def software_install_restricted_ws() -> tuple[bool, str]:
@@ -679,7 +682,7 @@ def root_access_restricted_lx() -> tuple[bool, str]:
         return (True, "SSH PermitRootLogin=no and root sudoers is not unrestricted")
     failures = []
     if not root_ssh_disabled:
-        actual = out.strip() if out.strip() else "not set"
+        actual = out.strip() if out.strip() else _NOT_SET
         failures.append(f"SSH PermitRootLogin = {actual} (should be no)")
     if root_sudo_unrestricted:
         failures.append("root has unrestricted ALL=(ALL) ALL in /etc/sudoers")
@@ -863,9 +866,9 @@ def insecure_protocols_disabled_wc() -> tuple[bool, str]:
         return (True, "SMBv1 disabled (SMB1 = 0) and TLS 1.0 disabled (Enabled = 0)")
     failures = []
     if not smb1_disabled:
-        failures.append(f"SMBv1 not disabled (SMB1 = {smb1 or 'not set'})")
+        failures.append(f"SMBv1 not disabled (SMB1 = {smb1 or _NOT_SET})")
     if not tls10_disabled:
-        failures.append(f"TLS 1.0 not disabled (Enabled = {tls10 or 'not set'})")
+        failures.append(f"TLS 1.0 not disabled (Enabled = {tls10 or _NOT_SET})")
     return (False, "; ".join(failures))
 
 
@@ -898,7 +901,7 @@ def rdp_controlled_wc() -> tuple[bool, str]:
     )
     if nla_val == "1":
         return (True, "RDP is enabled with NLA required (UserAuthentication = 1)")
-    return (False, f"RDP is enabled without NLA (fDenyTSConnections = {rdp_val or 'not set'}, UserAuthentication = {nla_val or 'not set'})")
+    return (False, f"RDP is enabled without NLA (fDenyTSConnections = {rdp_val or _NOT_SET}, UserAuthentication = {nla_val or _NOT_SET})")
 
 
 def ps_execution_policy_wc() -> tuple[bool, str]:
@@ -907,7 +910,7 @@ def ps_execution_policy_wc() -> tuple[bool, str]:
     policy = out.strip().lower()
     if rc == 0 and policy in ("remotesigned", "allsigned"):
         return (True, f"PowerShell execution policy = {out.strip()} (LocalMachine)")
-    return (False, f"PowerShell execution policy = {out.strip() or 'not set'} (required: RemoteSigned or AllSigned)")
+    return (False, f"PowerShell execution policy = {out.strip() or _NOT_SET} (required: RemoteSigned or AllSigned)")
 
 
 def insecure_protocols_disabled_ws() -> tuple[bool, str]:

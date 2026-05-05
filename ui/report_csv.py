@@ -11,10 +11,17 @@ from typing import Dict
 
 from ui.utils import RunResult, _safe_str, get_rule_status
 
+_COL_RULE_ID = "Rule ID"
+_COL_OVERALL_STATUS = "Overall Status"
+_COL_CHECK_NUM = "Check #"
+_COL_CHECK_NAME = "Check Name"
+_COL_EXPECTED = "Expected Result"
+_COL_RETURN_CODE = "Return Code"
+
 _CSV_FIELDS = [
-    "Rule ID", "Title", "OS", "Overall Status",
-    "Check #", "Check Name", "Subcontrol", "Status",
-    "Expected Result", "Return Code", "Stdout", "Stderr", "Error",
+    _COL_RULE_ID, "Title", "OS", _COL_OVERALL_STATUS,
+    _COL_CHECK_NUM, _COL_CHECK_NAME, "Subcontrol", "Status",
+    _COL_EXPECTED, _COL_RETURN_CODE, "Stdout", "Stderr", "Error",
 ]
 
 
@@ -41,16 +48,16 @@ def generate_report_csv(
             checks = result.get("checks", [])
             if not checks:
                 writer.writerow({
-                    "Rule ID":         rule_id,
+                    _COL_RULE_ID:         rule_id,
                     "Title":           title,
                     "OS":              detected_os,
-                    "Overall Status":  overall_status,
-                    "Check #":         "",
-                    "Check Name":      "",
+                    _COL_OVERALL_STATUS:  overall_status,
+                    _COL_CHECK_NUM:         "",
+                    _COL_CHECK_NAME:      "",
                     "Subcontrol":      "",
                     "Status":          "",
-                    "Expected Result": "",
-                    "Return Code":     "",
+                    _COL_EXPECTED: "",
+                    _COL_RETURN_CODE:     "",
                     "Stdout":          "",
                     "Stderr":          "",
                     "Error":           error,
@@ -58,16 +65,16 @@ def generate_report_csv(
             else:
                 for i, check in enumerate(checks, start=1):
                     writer.writerow({
-                        "Rule ID":         rule_id,
+                        _COL_RULE_ID:         rule_id,
                         "Title":           title,
                         "OS":              detected_os,
-                        "Overall Status":  overall_status,
-                        "Check #":         i,
-                        "Check Name":      _safe_str(check.get("check_name",      ""), max_len=256),
+                        _COL_OVERALL_STATUS:  overall_status,
+                        _COL_CHECK_NUM:         i,
+                        _COL_CHECK_NAME:      _safe_str(check.get("check_name",      ""), max_len=256),
                         "Subcontrol":      _safe_str(check.get("sub_control",     ""), max_len=64),
                         "Status":          _safe_str(check.get("status",          ""), max_len=32),
-                        "Expected Result": _safe_str(check.get("expected_result", ""), max_len=256),
-                        "Return Code":     _safe_str(str(check.get("returncode",  "")), max_len=32),
+                        _COL_EXPECTED: _safe_str(check.get("expected_result", ""), max_len=256),
+                        _COL_RETURN_CODE:     _safe_str(str(check.get("returncode",  "")), max_len=32),
                         "Stdout":          _safe_str(check.get("stdout",          ""), max_len=1024),
                         "Stderr":          _safe_str(check.get("stderr",          ""), max_len=1024),
                         "Error":           error,

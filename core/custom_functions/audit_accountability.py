@@ -4,6 +4,17 @@ from pathlib import Path
 
 _RUN_CACHE: dict[tuple[object, bool, int], tuple[int, str, str]] = {}
 
+_AUDITD_CONF = "/etc/audit/auditd.conf"
+_AUDITD_NOT_FOUND = f"auditd.conf not found: {_AUDITD_CONF} does not exist"
+
+# Matches time.nist.gov or pool.ntp.org (and their subdomains) as complete
+# hostname tokens — lookbehind/lookahead prevent substring false-positives like
+# "eviltime.nist.gov.attacker.com".
+_TRUSTED_NTP_RE = re.compile(
+    r"(?<![.\w])(?:[\w-]+\.)*(?:time\.nist\.gov|pool\.ntp\.org)(?![.\w])",
+    re.IGNORECASE,
+)
+
 
 def clear_cache() -> None:
     """Clear the command result cache so the next scan gets fresh results."""
@@ -190,9 +201,9 @@ def audit_log_active_lx() -> tuple[bool, str]:
 
 def log_retention_lx() -> tuple[bool, str]:
     """Check auditd.conf for max_log_file, num_logs, and max_log_file_action."""
-    conf_path = Path("/etc/audit/auditd.conf")
+    conf_path = Path(_AUDITD_CONF)
     if not conf_path.exists():
-        return (False, "auditd.conf not found: /etc/audit/auditd.conf does not exist")
+        return (False, _AUDITD_NOT_FOUND)
     content = conf_path.read_text()
     has_max = re.search(r'^\s*max_log_file\s*=\s*\d+', content, re.MULTILINE)
     has_num = re.search(r'^\s*num_logs\s*=\s*\d+', content, re.MULTILINE)
@@ -528,9 +539,9 @@ def siem_audit_alert_ws() -> tuple[bool, str]:
 
 def auditd_disk_full_action_lx() -> tuple[bool, str]:
     """Verify disk_full_action in auditd.conf is set to halt, syslog, or email."""
-    conf_path = Path("/etc/audit/auditd.conf")
+    conf_path = Path(_AUDITD_CONF)
     if not conf_path.exists():
-        return (False, "auditd.conf not found: /etc/audit/auditd.conf does not exist")
+        return (False, _AUDITD_NOT_FOUND)
     content = conf_path.read_text()
     match = re.search(r'^\s*disk_full_action\s*=\s*(\S+)', content, re.MULTILINE | re.IGNORECASE)
     if not match:
@@ -544,9 +555,9 @@ def auditd_disk_full_action_lx() -> tuple[bool, str]:
 
 def auditd_space_left_action_lx() -> tuple[bool, str]:
     """Confirm space_left_action and admin_space_left_action are configured in auditd.conf."""
-    conf_path = Path("/etc/audit/auditd.conf")
+    conf_path = Path(_AUDITD_CONF)
     if not conf_path.exists():
-        return (False, "auditd.conf not found: /etc/audit/auditd.conf does not exist")
+        return (False, _AUDITD_NOT_FOUND)
     content = conf_path.read_text()
     space_left = re.search(
         r'^\s*space_left_action\s*=\s*(\S+)', content, re.MULTILINE | re.IGNORECASE
@@ -786,7 +797,7 @@ def pdc_ntp_source_ws() -> tuple[bool, str]:
     if not out.strip():
         return (False, "NtpServer is not configured in w32tm configuration")
     # Ensure it's not pointing only to itself (Local CMOS Clock or VM IC)
-    if "time.nist.gov" in out or "pool.ntp.org" in out or re.search(r'\d+\.\d+\.\d+\.\d+', out):
+    if _TRUSTED_NTP_RE.search(out) or re.search(r'\b\d{1,3}(?:\.\d{1,3}){3}\b', out):
         return (True, f"PDC NTP source points to an external authoritative server: {out.strip()}")
     return (False, f"PDC NTP source may not be an external authoritative server: {out.strip()}")
 
@@ -922,10 +933,10 @@ def audit_log_permissions_lx() -> tuple[bool, str]:
 
 def audit_conf_permissions_lx() -> tuple[bool, str]:
     """Confirm /etc/audit/ config files are owned by root with restrictive permissions."""
-    audit_conf = Path("/etc/audit/auditd.conf")
+    audit_conf = Path(_AUDITD_CONF)
     rules_dir = Path("/etc/audit/rules.d/")
     if not audit_conf.exists():
-        return (False, "auditd.conf not found: /etc/audit/auditd.conf does not exist")
+        return (False, _AUDITD_NOT_FOUND)
     s = audit_conf.stat()
     mode = oct(s.st_mode)[-3:]
     conf_ok = s.st_uid == 0 and mode in ("600", "640", "400")
