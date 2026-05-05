@@ -709,27 +709,34 @@ def outbound_rules_exist_ws() -> tuple[bool, str]:
     return outbound_rules_exist_wc()
 
 
+def _iptables_policies() -> tuple[bool, str] | None:
+    """Return result if iptables chain policies are definitive, else None."""
+    rc, out, _ = _run("iptables -L 2>/dev/null | grep '^Chain'")
+    if rc != 0 or not out:
+        return None
+    policies = [
+        m.group(1).upper()
+        for line in out.splitlines()
+        for m in [re.search(r"policy\s+(\w+)", line, re.IGNORECASE)]
+        if m
+    ]
+    if not policies:
+        return None
+    non_drop = [p for p in policies if p not in ("DROP", "REJECT")]
+    if not non_drop:
+        return (True, f"All iptables chain default policies are DROP/REJECT: {policies}")
+    return (False, f"Some iptables chains do not have DROP/REJECT policy: {non_drop}")
+
+
 def iptables_default_drop_lx() -> tuple[bool, str]:
     """Verify iptables INPUT, OUTPUT, and FORWARD default policies are DROP or REJECT on Linux/Debian."""
     try:
-        rc, out, _ = _run("iptables -L 2>/dev/null | grep '^Chain'")
-        if rc == 0 and out:
-            chains = out.splitlines()
-            policies = []
-            for line in chains:
-                m = re.search(r"policy\s+(\S+)", line, re.IGNORECASE)
-                if m:
-                    policies.append(m.group(1).upper())
-            if policies:
-                non_drop = [p for p in policies if p not in ("DROP", "REJECT")]
-                if not non_drop:
-                    return (True, f"All iptables chain default policies are DROP/REJECT: {policies}")
-                return (False, f"Some iptables chains do not have DROP/REJECT policy: {non_drop}")
-        # Check ufw default deny
+        result = _iptables_policies()
+        if result is not None:
+            return result
         rc2, out2, _ = _run("ufw status verbose 2>/dev/null")
         if rc2 == 0 and _DENY_INCOMING in out2.lower():
             return (True, _UFW_DENY_MSG)
-        # Check firewalld default zone
         rc3, out3, _ = _run("firewall-cmd --get-default-zone 2>/dev/null")
         if rc3 == 0 and out3.strip() in ("drop", "block"):
             return (True, f"firewalld default zone is '{out3.strip()}' (deny by default)")
@@ -821,28 +828,42 @@ def routing_via_vpn_ws() -> tuple[bool, str]:
     return routing_via_vpn_wc()
 
 
+def _check_openvpn_tunnel() -> tuple[bool, str] | None:
+    """Return a result if an OpenVPN full-tunnel config is found, else None."""
+    openvpn_dir = Path("/etc/openvpn")
+    if not openvpn_dir.exists():
+        return None
+    for conf in openvpn_dir.glob(_CONF_GLOB):
+        try:
+            text = conf.read_text()
+            if "redirect-gateway def1" in text or "redirect-gateway local def1" in text:
+                return (True, f"OpenVPN config {conf.name} routes all traffic through the tunnel (redirect-gateway)")
+        except Exception:
+            continue
+    return None
+
+
+def _check_wireguard_tunnel() -> tuple[bool, str] | None:
+    """Return a result if a WireGuard full-tunnel config is found, else None."""
+    wg_dir = Path("/etc/wireguard")
+    if not wg_dir.exists():
+        return None
+    for conf in wg_dir.glob(_CONF_GLOB):
+        try:
+            text = conf.read_text()
+            if re.search(r"AllowedIPs\s*=\s*0\.0\.0\.0/0", text):
+                return (True, f"WireGuard config {conf.name} routes all traffic through the tunnel (AllowedIPs = 0.0.0.0/0)")
+        except Exception:
+            continue
+    return None
+
+
 def vpn_no_split_tunnel_lx() -> tuple[bool, str]:
     """Verify VPN configurations (OpenVPN/WireGuard) route all traffic through the tunnel on Linux/Debian."""
     try:
-        openvpn_dir = Path("/etc/openvpn")
-        if openvpn_dir.exists():
-            for conf in openvpn_dir.glob(_CONF_GLOB):
-                try:
-                    text = conf.read_text()
-                    if "redirect-gateway def1" in text or "redirect-gateway local def1" in text:
-                        return (True, f"OpenVPN config {conf.name} routes all traffic through the tunnel (redirect-gateway)")
-                except Exception:
-                    continue
-        wg_dir = Path("/etc/wireguard")
-        if wg_dir.exists():
-            for conf in wg_dir.glob(_CONF_GLOB):
-                try:
-                    text = conf.read_text()
-                    if re.search(r"AllowedIPs\s*=\s*0\.0\.0\.0/0", text):
-                        return (True, f"WireGuard config {conf.name} routes all traffic through the tunnel (AllowedIPs = 0.0.0.0/0)")
-                except Exception:
-                    continue
-        # If no VPN configs found, check routing table for VPN interfaces
+        result = _check_openvpn_tunnel() or _check_wireguard_tunnel()
+        if result is not None:
+            return result
         rc, out, _ = _run("ip route show 2>/dev/null | grep 'default'")
         if rc == 0 and re.search(r"(tun|tap|wg|vpn)\d*", out, re.IGNORECASE):
             return (True, f"Default route is via a VPN-type interface: {out.strip()}")
@@ -1379,35 +1400,31 @@ def applocker_active_ws() -> tuple[bool, str]:
     return applocker_active_wc()
 
 
+def _read_mount_text() -> tuple[str, str | None]:
+    """Return (mount_text, error). error is None on success."""
+    p = Path("/proc/mounts")
+    if p.exists():
+        return p.read_text(), None
+    rc, out, err = _run("mount 2>/dev/null")
+    if rc != 0:
+        return "", err
+    return out, None
+
+
 def noexec_tmp_lx() -> tuple[bool, str]:
     """Verify /tmp and /home are mounted with the noexec option on Linux/Debian."""
     try:
-        p = Path("/proc/mounts")
-        if not p.exists():
-            rc, out, err = _run("mount 2>/dev/null")
-            if rc != 0:
-                return (False, f"Could not read mount information: {err}")
-            text = out
-        else:
-            text = p.read_text()
-        tmp_noexec = False
-        home_noexec = False
+        text, err = _read_mount_text()
+        if err is not None:
+            return (False, f"Could not read mount information: {err}")
+        noexec = {"/tmp": False, "/home": False}
         for line in text.splitlines():
             parts = line.split()
-            if len(parts) >= 4:
-                mountpoint = parts[1]
-                options = parts[3]
-                if mountpoint == "/tmp" and "noexec" in options:
-                    tmp_noexec = True
-                if mountpoint == "/home" and "noexec" in options:
-                    home_noexec = True
-        if tmp_noexec and home_noexec:
+            if len(parts) >= 4 and parts[1] in noexec and "noexec" in parts[3]:
+                noexec[parts[1]] = True
+        if all(noexec.values()):
             return (True, "/tmp and /home are both mounted with the noexec option")
-        missing = []
-        if not tmp_noexec:
-            missing.append("/tmp")
-        if not home_noexec:
-            missing.append("/home")
+        missing = [mp for mp, ok in noexec.items() if not ok]
         return (False, f"noexec mount option is missing for: {', '.join(missing)}")
     except Exception as e:
         return (False, f"Exception while checking noexec mount options: {e}")

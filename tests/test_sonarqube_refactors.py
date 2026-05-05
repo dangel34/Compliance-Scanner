@@ -932,3 +932,289 @@ class TestCheckLuksCipherStrongLxBranches:
         # Output has no "cipher:" line, only "keysize: 256 bits"
         status = "type:    LUKS2\nkeysize: 256 bits\nmode:    aes-xts-plain64\n"
         assert self._call([_sp(0, dm), _sp(0, status)]) is True
+
+
+# ============================================================
+# Helpers in system_communications_protection.py
+# ============================================================
+
+SCP_MOD = "core.custom_functions.system_communications_protection"
+
+
+class TestIptablesPolicies:
+    def _call(self, rc=0, out="", err=""):
+        from core.custom_functions.system_communications_protection import _iptables_policies
+        with patch(f"{SCP_MOD}._run", return_value=(rc, out, err)):
+            return _iptables_policies()
+
+    def test_rc_nonzero_returns_none(self):
+        assert self._call(rc=1) is None
+
+    def test_empty_output_returns_none(self):
+        assert self._call(rc=0, out="") is None
+
+    def test_all_drop_reject_returns_true(self):
+        out = "Chain INPUT (policy DROP)\nChain FORWARD (policy DROP)\nChain OUTPUT (policy REJECT)\n"
+        result = self._call(rc=0, out=out)
+        assert result is not None and result[0] is True
+
+    def test_accept_policy_returns_false(self):
+        out = "Chain INPUT (policy ACCEPT)\nChain FORWARD (policy DROP)\n"
+        result = self._call(rc=0, out=out)
+        assert result is not None and result[0] is False
+
+    def test_no_policy_keyword_returns_none(self):
+        out = "Chain INPUT (1 references)\n"
+        assert self._call(rc=0, out=out) is None
+
+    def test_message_contains_policy_list(self):
+        out = "Chain INPUT (policy DROP)\n"
+        result = self._call(rc=0, out=out)
+        assert "DROP" in result[1]
+
+
+class TestCheckOpenvpnTunnel:
+    def _make_path_mock(self, exists=True, confs=None):
+        mock_dir = MagicMock()
+        mock_dir.exists.return_value = exists
+        mock_dir.glob.return_value = confs or []
+        return MagicMock(return_value=mock_dir)
+
+    def _conf(self, text, name="client.conf"):
+        m = MagicMock()
+        m.read_text.return_value = text
+        m.name = name
+        return m
+
+    def test_dir_not_exists_returns_none(self):
+        from core.custom_functions.system_communications_protection import _check_openvpn_tunnel
+        with patch(f"{SCP_MOD}.Path", self._make_path_mock(exists=False)):
+            assert _check_openvpn_tunnel() is None
+
+    def test_no_conf_files_returns_none(self):
+        from core.custom_functions.system_communications_protection import _check_openvpn_tunnel
+        with patch(f"{SCP_MOD}.Path", self._make_path_mock(confs=[])):
+            assert _check_openvpn_tunnel() is None
+
+    def test_redirect_gateway_def1_returns_true(self):
+        from core.custom_functions.system_communications_protection import _check_openvpn_tunnel
+        conf = self._conf("remote server.example.com\nredirect-gateway def1\n")
+        with patch(f"{SCP_MOD}.Path", self._make_path_mock(confs=[conf])):
+            result = _check_openvpn_tunnel()
+        assert result is not None and result[0] is True
+
+    def test_redirect_gateway_local_def1_returns_true(self):
+        from core.custom_functions.system_communications_protection import _check_openvpn_tunnel
+        conf = self._conf("redirect-gateway local def1\n")
+        with patch(f"{SCP_MOD}.Path", self._make_path_mock(confs=[conf])):
+            result = _check_openvpn_tunnel()
+        assert result is not None and result[0] is True
+
+    def test_conf_without_keyword_returns_none(self):
+        from core.custom_functions.system_communications_protection import _check_openvpn_tunnel
+        conf = self._conf("remote server.example.com\ndev tun\n")
+        with patch(f"{SCP_MOD}.Path", self._make_path_mock(confs=[conf])):
+            assert _check_openvpn_tunnel() is None
+
+    def test_read_error_skips_file(self):
+        from core.custom_functions.system_communications_protection import _check_openvpn_tunnel
+        conf = MagicMock()
+        conf.read_text.side_effect = OSError("permission denied")
+        with patch(f"{SCP_MOD}.Path", self._make_path_mock(confs=[conf])):
+            assert _check_openvpn_tunnel() is None
+
+
+class TestCheckWireguardTunnel:
+    def _make_path_mock(self, exists=True, confs=None):
+        mock_dir = MagicMock()
+        mock_dir.exists.return_value = exists
+        mock_dir.glob.return_value = confs or []
+        return MagicMock(return_value=mock_dir)
+
+    def _conf(self, text, name="wg0.conf"):
+        m = MagicMock()
+        m.read_text.return_value = text
+        m.name = name
+        return m
+
+    def test_dir_not_exists_returns_none(self):
+        from core.custom_functions.system_communications_protection import _check_wireguard_tunnel
+        with patch(f"{SCP_MOD}.Path", self._make_path_mock(exists=False)):
+            assert _check_wireguard_tunnel() is None
+
+    def test_no_conf_files_returns_none(self):
+        from core.custom_functions.system_communications_protection import _check_wireguard_tunnel
+        with patch(f"{SCP_MOD}.Path", self._make_path_mock(confs=[])):
+            assert _check_wireguard_tunnel() is None
+
+    def test_allowed_ips_full_tunnel_returns_true(self):
+        from core.custom_functions.system_communications_protection import _check_wireguard_tunnel
+        conf = self._conf("[Peer]\nAllowedIPs = 0.0.0.0/0\n")
+        with patch(f"{SCP_MOD}.Path", self._make_path_mock(confs=[conf])):
+            result = _check_wireguard_tunnel()
+        assert result is not None and result[0] is True
+
+    def test_allowed_ips_partial_tunnel_returns_none(self):
+        from core.custom_functions.system_communications_protection import _check_wireguard_tunnel
+        conf = self._conf("[Peer]\nAllowedIPs = 10.0.0.0/8\n")
+        with patch(f"{SCP_MOD}.Path", self._make_path_mock(confs=[conf])):
+            assert _check_wireguard_tunnel() is None
+
+    def test_allowed_ips_with_spaces_matches(self):
+        from core.custom_functions.system_communications_protection import _check_wireguard_tunnel
+        conf = self._conf("AllowedIPs=0.0.0.0/0\n")
+        with patch(f"{SCP_MOD}.Path", self._make_path_mock(confs=[conf])):
+            result = _check_wireguard_tunnel()
+        assert result is not None and result[0] is True
+
+    def test_read_error_skips_file(self):
+        from core.custom_functions.system_communications_protection import _check_wireguard_tunnel
+        conf = MagicMock()
+        conf.read_text.side_effect = PermissionError("no access")
+        with patch(f"{SCP_MOD}.Path", self._make_path_mock(confs=[conf])):
+            assert _check_wireguard_tunnel() is None
+
+
+class TestReadMountText:
+    def _call_with_proc(self, proc_text):
+        from core.custom_functions.system_communications_protection import _read_mount_text
+        mock_p = MagicMock()
+        mock_p.exists.return_value = True
+        mock_p.read_text.return_value = proc_text
+        with patch(f"{SCP_MOD}.Path", return_value=mock_p):
+            return _read_mount_text()
+
+    def _call_without_proc(self, rc=0, out="", err=""):
+        from core.custom_functions.system_communications_protection import _read_mount_text
+        mock_p = MagicMock()
+        mock_p.exists.return_value = False
+        with patch(f"{SCP_MOD}.Path", return_value=mock_p):
+            with patch(f"{SCP_MOD}._run", return_value=(rc, out, err)):
+                return _read_mount_text()
+
+    def test_proc_mounts_exists_returns_text(self):
+        text, err = self._call_with_proc("/dev/sda1 / ext4 rw,noexec 0 0\n")
+        assert "/dev/sda1" in text and err is None
+
+    def test_proc_mounts_missing_uses_run_success(self):
+        text, err = self._call_without_proc(rc=0, out="sysfs on /sys\n")
+        assert "sysfs" in text and err is None
+
+    def test_proc_mounts_missing_run_fails_returns_error(self):
+        text, err = self._call_without_proc(rc=1, out="", err="command not found")
+        assert text == "" and err == "command not found"
+
+    def test_proc_mounts_content_passed_through(self):
+        content = "tmpfs /tmp tmpfs rw,noexec,nosuid 0 0\n"
+        text, err = self._call_with_proc(content)
+        assert text == content
+
+    def test_run_success_empty_output(self):
+        text, err = self._call_without_proc(rc=0, out="", err="")
+        assert text == "" and err is None
+
+
+# ============================================================
+# RuleRunner._run_service_check / _run_file_permissions_check
+# ============================================================
+
+def _make_runner(tmp_path, check_type, command_value="svc", path_value=None):
+    import json
+    from core.rule_runner import RuleRunner
+    check = {"check_type": check_type, "name": "Test Check", "command": command_value, "sub_control": "SC-1"}
+    if path_value:
+        check["path"] = path_value
+    rule = {"rule_id": "R1", "title": "T", "severity": "high", "remediation": "", "check_details": [check]}
+    rule_file = tmp_path / "rule.json"
+    rule_file.write_text(json.dumps(rule))
+    return RuleRunner(str(rule_file), os_type="linux")
+
+
+class TestRunServiceCheck:
+    def _runner(self, tmp_path):
+        return _make_runner(tmp_path, "service", "sshd")
+
+    def test_running_status_returns_pass(self, tmp_path):
+        runner = self._runner(tmp_path)
+        scanner = MagicMock()
+        scanner.check_service.return_value = "Running"
+        check = {"command": "sshd", "name": "SSH", "sub_control": "SC-1"}
+        result = runner._run_service_check(check, "SSH", "SC-1", scanner)
+        assert result["status"] == "PASS" and result["returncode"] == 0
+
+    def test_active_status_returns_pass(self, tmp_path):
+        runner = self._runner(tmp_path)
+        scanner = MagicMock()
+        scanner.check_service.return_value = "active"
+        check = {"command": "sshd", "name": "SSH", "sub_control": "SC-1"}
+        result = runner._run_service_check(check, "SSH", "SC-1", scanner)
+        assert result["status"] == "PASS"
+
+    def test_stopped_status_returns_fail(self, tmp_path):
+        runner = self._runner(tmp_path)
+        scanner = MagicMock()
+        scanner.check_service.return_value = "Stopped"
+        check = {"command": "sshd", "name": "SSH", "sub_control": "SC-1"}
+        result = runner._run_service_check(check, "SSH", "SC-1", scanner)
+        assert result["status"] == "FAIL" and result["returncode"] == 1
+
+    def test_exception_returns_fail(self, tmp_path):
+        runner = self._runner(tmp_path)
+        scanner = MagicMock()
+        scanner.check_service.side_effect = RuntimeError("timeout")
+        check = {"command": "sshd", "name": "SSH", "sub_control": "SC-1"}
+        result = runner._run_service_check(check, "SSH", "SC-1", scanner)
+        assert result["status"] == "FAIL" and result["returncode"] == -1 and "timeout" in result["stderr"]
+
+    def test_result_contains_expected_keys(self, tmp_path):
+        runner = self._runner(tmp_path)
+        scanner = MagicMock()
+        scanner.check_service.return_value = "active"
+        check = {"command": "sshd", "name": "SSH", "sub_control": "SC-1", "purpose": "p", "expected_result": "r"}
+        result = runner._run_service_check(check, "SSH", "SC-1", scanner)
+        assert {"check_name", "sub_control", "status", "stdout", "stderr"} <= result.keys()
+
+
+class TestRunFilePermissionsCheck:
+    def _runner(self, tmp_path):
+        return _make_runner(tmp_path, "file_permissions", "/etc/passwd")
+
+    def test_truthy_output_returns_pass(self, tmp_path):
+        runner = self._runner(tmp_path)
+        scanner = MagicMock()
+        scanner.check_file_permissions.return_value = "rw-r--r--"
+        check = {"path": "/etc/passwd", "name": "Passwd", "sub_control": "SC-2"}
+        result = runner._run_file_permissions_check(check, "Passwd", "SC-2", scanner)
+        assert result["status"] == "PASS" and result["returncode"] == 0
+
+    def test_falsy_output_returns_fail(self, tmp_path):
+        runner = self._runner(tmp_path)
+        scanner = MagicMock()
+        scanner.check_file_permissions.return_value = ""
+        check = {"path": "/etc/passwd", "name": "Passwd", "sub_control": "SC-2"}
+        result = runner._run_file_permissions_check(check, "Passwd", "SC-2", scanner)
+        assert result["status"] == "FAIL" and result["returncode"] == -1
+
+    def test_none_output_returns_fail(self, tmp_path):
+        runner = self._runner(tmp_path)
+        scanner = MagicMock()
+        scanner.check_file_permissions.return_value = None
+        check = {"path": "/etc/passwd", "name": "Passwd", "sub_control": "SC-2"}
+        result = runner._run_file_permissions_check(check, "Passwd", "SC-2", scanner)
+        assert result["status"] == "FAIL"
+
+    def test_exception_returns_fail(self, tmp_path):
+        runner = self._runner(tmp_path)
+        scanner = MagicMock()
+        scanner.check_file_permissions.side_effect = OSError("no access")
+        check = {"path": "/etc/passwd", "name": "Passwd", "sub_control": "SC-2"}
+        result = runner._run_file_permissions_check(check, "Passwd", "SC-2", scanner)
+        assert result["status"] == "FAIL" and result["returncode"] == -1 and "no access" in result["stderr"]
+
+    def test_uses_path_key_when_command_absent(self, tmp_path):
+        runner = self._runner(tmp_path)
+        scanner = MagicMock()
+        scanner.check_file_permissions.return_value = "ok"
+        check = {"path": "/etc/shadow", "name": "Shadow", "sub_control": "SC-2"}
+        result = runner._run_file_permissions_check(check, "Shadow", "SC-2", scanner)
+        scanner.check_file_permissions.assert_called_once_with("/etc/shadow")

@@ -41,9 +41,9 @@ def os_scan() -> str:
         if distro == "debian" or "debian" in id_like:
             return "debian"
         else:
-            return "linux" # Generalization
+            return "linux"
     else:
-        return "other"  # would like to raise error if happened
+        return "other"
 
 
 def get_scanner():

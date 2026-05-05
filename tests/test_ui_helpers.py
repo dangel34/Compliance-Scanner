@@ -385,3 +385,42 @@ class TestRenderCheck:
         check = _make_check(status="PASS")
         texts = self._texts(check, show_full=True)
         assert not any("Result           :" in t for t in texts)
+
+
+# ============================================================
+# _render_check_preview  (rule_display.py — new helper)
+# ============================================================
+
+class TestRenderCheckPreview:
+    def _collect(self, check, index=1) -> list:
+        from ui.rule_display import _render_check_preview
+        collected = []
+        def w(text="", tag="value"):
+            collected.append((text, tag))
+        _render_check_preview(w, index, check)
+        return collected
+
+    def _texts(self, check, **kwargs) -> list:
+        return [t for t, _ in self._collect(check, **kwargs)]
+
+    def test_check_header_contains_index_and_name(self):
+        texts = self._texts({"name": "My Check", "sub_control": "", "purpose": ""})
+        assert any("CHECK #1" in t for t in texts)
+        assert any("My Check" in t for t in texts)
+
+    def test_subcontrol_written(self):
+        texts = self._texts({"name": "Check", "sub_control": "AC.1.1", "purpose": ""})
+        assert any("AC.1.1" in t for t in texts)
+
+    def test_purpose_written_when_present(self):
+        texts = self._texts({"name": "Check", "sub_control": "", "purpose": "Important reason"})
+        assert any("Important reason" in t for t in texts)
+
+    def test_dash_written_when_no_purpose(self):
+        texts = self._texts({"name": "Check", "sub_control": "", "purpose": ""})
+        assert any("—" in t for t in texts)
+
+    def test_check_name_key_used_as_fallback(self):
+        texts = self._texts({"check_name": "Fallback", "sub_control": "", "purpose": ""}, index=3)
+        assert any("CHECK #3" in t for t in texts)
+        assert any("Fallback" in t for t in texts)

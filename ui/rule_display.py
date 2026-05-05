@@ -169,6 +169,28 @@ def _render_output_streams(
             w(f"    … {len(lines) - cap} more lines truncated\n", "meta")
 
 
+def _render_policy_body(w: Callable, check: dict) -> None:
+    purpose = check.get("stdout", "").strip()
+    if purpose:
+        w("\n  Policy requirement:\n", "policy_label")
+        for line in purpose.splitlines():
+            w(f"    {line}\n", "policy_text")
+
+
+def _render_automated_body(w: Callable, check: dict, show_full: bool, verbose: bool, chk_status: str) -> None:
+    purpose = check.get("purpose", "").strip()
+    if show_full and purpose:
+        w("\n  Purpose:\n", "policy_label")
+        for line in purpose.splitlines():
+            w(f"    {line}\n", "policy_text")
+        w("\n")
+    if show_full:
+        w("  Command          : ", "label"); w(f"{check.get('command',         '')}\n", "value")
+        w("  Expected result  : ", "label"); w(f"{check.get('expected_result', '')}\n", "value")
+        w("  Return code      : ", "label"); w(f"{check.get('returncode',      '')}\n", "value")
+        _render_output_streams(w, check, verbose, chk_status)
+
+
 def _render_check(
     w: Callable,
     check: dict,
@@ -187,23 +209,9 @@ def _render_check(
         w("  Result           : ", "label"); w(f"{bool_text}\n", "value")
 
     if chk_status == "POLICY":
-        purpose = check.get("stdout", "").strip()
-        if purpose:
-            w("\n  Policy requirement:\n", "policy_label")
-            for line in purpose.splitlines():
-                w(f"    {line}\n", "policy_text")
+        _render_policy_body(w, check)
     else:
-        purpose = check.get("purpose", "").strip()
-        if show_full and purpose:
-            w("\n  Purpose:\n", "policy_label")
-            for line in purpose.splitlines():
-                w(f"    {line}\n", "policy_text")
-            w("\n")
-        if show_full:
-            w("  Command          : ", "label"); w(f"{check.get('command',         '')}\n", "value")
-            w("  Expected result  : ", "label"); w(f"{check.get('expected_result', '')}\n", "value")
-            w("  Return code      : ", "label"); w(f"{check.get('returncode',      '')}\n", "value")
-            _render_output_streams(w, check, verbose, chk_status)
+        _render_automated_body(w, check, show_full, verbose, chk_status)
 
     w("\n")
     w(_DIVIDER, "divider")
@@ -272,6 +280,18 @@ def render_rule_details(
     widget.configure(state="disabled")
 
 
+def _render_check_preview(w: Callable, index: int, check: dict) -> None:
+    name        = _safe_str(check.get("name") or check.get("check_name", ""))
+    sub_control = _safe_str(check.get("sub_control", ""))
+    purpose     = _safe_str(check.get("purpose", ""), max_len=512)
+    w(f"  CHECK #{index}  |  {name}\n", "check_header")
+    w("  Subcontrol       : ", "label"); w(f"{sub_control}\n", "value")
+    w("  Purpose          : ", "label"); w(f"{purpose}\n" if purpose else "—\n", "value")
+    w("\n")
+    w(_DIVIDER, "divider")
+    w("\n")
+
+
 def render_rule_info(widget: tk.Text, rule_path: str) -> None:
     """
     Display a read-only preview of a rule's metadata for the detected OS,
@@ -324,16 +344,7 @@ def render_rule_info(widget: tk.Text, rule_path: str) -> None:
         w(f"  No checks defined for {format_os_name(_DETECTED_OS)}.\n", "meta")
     else:
         for i, check in enumerate(checks, start=1):
-            name        = _safe_str(check.get("name") or check.get("check_name", ""))
-            sub_control = _safe_str(check.get("sub_control", ""))
-            purpose     = _safe_str(check.get("purpose", ""), max_len=512)
-
-            w(f"  CHECK #{i}  |  {name}\n", "check_header")
-            w("  Subcontrol       : ", "label"); w(f"{sub_control}\n", "value")
-            w("  Purpose          : ", "label"); w(f"{purpose}\n" if purpose else "—\n", "value")
-            w("\n")
-            w(_DIVIDER, "divider")
-            w("\n")
+            _render_check_preview(w, i, check)
 
     w("  Run this rule to see results.\n", "meta")
 

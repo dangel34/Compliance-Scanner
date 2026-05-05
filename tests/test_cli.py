@@ -435,8 +435,7 @@ class TestHtmlReport:
     def test_score_shown_for_automated_checks(self, tmp_path):
         out = tmp_path / "report.html"
         generate_report_html(str(out), self._fake_results("PASS"))
-        content = out.read_text(encoding="utf-8")
-        assert "100.0%" in content
+        assert "100.0%" in out.read_text(encoding="utf-8")
 
     def test_check_stdout_included(self, tmp_path):
         out = tmp_path / "report.html"
@@ -472,11 +471,163 @@ class TestHtmlReport:
             }
         }
         generate_report_html(str(out), results)
-        content = out.read_text(encoding="utf-8")
-        assert "N/A" in content
+        assert "N/A" in out.read_text(encoding="utf-8")
 
     def test_score_zero_percent_when_all_fail(self, tmp_path):
         out = tmp_path / "report.html"
         generate_report_html(str(out), self._fake_results("FAIL"))
-        content = out.read_text(encoding="utf-8")
-        assert "0.0%" in content
+        assert "0.0%" in out.read_text(encoding="utf-8")
+
+
+# ---------------------------------------------------------------------------
+# Tests for helpers extracted from main() during SonarQube complexity refactor
+# ---------------------------------------------------------------------------
+
+import argparse as _argparse
+
+
+class TestValidateOutputArgs:
+    def _args(self, **kwargs):
+        defaults = dict(output=None, output_dir=None, format="text", dry_run=False)
+        defaults.update(kwargs)
+        return _argparse.Namespace(**defaults)
+
+    def test_output_and_output_dir_raises(self):
+        parser = cli._build_parser()
+        with pytest.raises(SystemExit):
+            cli._validate_output_args(parser, self._args(output="x.json", output_dir="/d", format="json"))
+
+    def test_output_dir_with_text_format_raises(self):
+        parser = cli._build_parser()
+        with pytest.raises(SystemExit):
+            cli._validate_output_args(parser, self._args(output_dir="/d", format="text"))
+
+    def test_non_text_format_no_output_raises(self):
+        parser = cli._build_parser()
+        with pytest.raises(SystemExit):
+            cli._validate_output_args(parser, self._args(format="json"))
+
+    def test_non_text_format_with_dry_run_passes(self):
+        parser = cli._build_parser()
+        cli._validate_output_args(parser, self._args(format="json", dry_run=True))
+
+    def test_text_format_no_output_passes(self):
+        parser = cli._build_parser()
+        cli._validate_output_args(parser, self._args(format="text"))
+
+    def test_json_with_output_passes(self):
+        parser = cli._build_parser()
+        cli._validate_output_args(parser, self._args(format="json", output="out.json"))
+
+
+class TestResolveScanWorkers:
+    def _args(self, workers=None):
+        return _argparse.Namespace(workers=workers)
+
+    def test_uses_settings_value(self):
+        assert cli._resolve_scan_workers(self._args(), {"scan_workers": 4}) == 4
+
+    def test_args_workers_overrides_settings(self):
+        assert cli._resolve_scan_workers(self._args(workers=6), {"scan_workers": 2}) == 6
+
+    def test_invalid_string_in_settings_defaults_to_two(self):
+        assert cli._resolve_scan_workers(self._args(), {"scan_workers": "bad"}) == 2
+
+    def test_zero_in_settings_clamped_to_one(self):
+        assert cli._resolve_scan_workers(self._args(), {"scan_workers": 0}) == 1
+
+    def test_missing_key_defaults_to_two(self):
+        assert cli._resolve_scan_workers(self._args(), {}) == 2
+
+    def test_zero_workers_arg_clamped_to_one(self):
+        assert cli._resolve_scan_workers(self._args(workers=0), {}) == 1
+
+
+class TestPrintDryRun:
+    def _rule(self, tmp_path, name="rule.json", severity="High", category="AC"):
+        p = tmp_path / name
+        p.write_text(json.dumps({"severity": severity, "category": category}))
+        return str(p)
+
+    def test_header_contains_count(self, tmp_path, capsys):
+        cli._print_dry_run([self._rule(tmp_path)])
+        assert "1 rule(s)" in capsys.readouterr().err
+
+    def test_filename_in_output(self, tmp_path, capsys):
+        cli._print_dry_run([self._rule(tmp_path, name="AC.L1-3.1.1.json")])
+        assert "AC.L1-3.1.1.json" in capsys.readouterr().out
+
+    def test_severity_and_category_shown(self, tmp_path, capsys):
+        cli._print_dry_run([self._rule(tmp_path, severity="Critical", category="AU")])
+        out = capsys.readouterr().out
+        assert "Critical" in out
+        assert "AU" in out
+
+    def test_multiple_rules_counted(self, tmp_path, capsys):
+        rules = [self._rule(tmp_path, name=f"{n}.json") for n in ("a", "b", "c")]
+        cli._print_dry_run(rules)
+        assert "3 rule(s)" in capsys.readouterr().err
+
+    def test_empty_list(self, capsys):
+        cli._print_dry_run([])
+        assert "0 rule(s)" in capsys.readouterr().err
+
+    def test_missing_severity_shows_question_mark(self, tmp_path, capsys):
+        p = tmp_path / "bare.json"
+        p.write_text(json.dumps({}))
+        cli._print_dry_run([str(p)])
+        assert "?" in capsys.readouterr().out
+
+
+class TestMainDirect:
+    """Call main() directly (not via subprocess) so coverage is captured."""
+
+    def test_text_format_exits_zero_with_no_fail(self, monkeypatch, fixtures_dir):
+        monkeypatch.setattr(sys, "argv", ["cli.py", "--ruleset", fixtures_dir, "--no-fail"])
+        with pytest.raises(SystemExit) as exc:
+            cli.main()
+        assert exc.value.code == 0
+
+    def test_dry_run_exits_zero(self, monkeypatch, fixtures_dir):
+        monkeypatch.setattr(sys, "argv", ["cli.py", "--ruleset", fixtures_dir, "--dry-run"])
+        with pytest.raises(SystemExit) as exc:
+            cli.main()
+        assert exc.value.code == 0
+
+    def test_missing_ruleset_exits_two(self, monkeypatch, tmp_path):
+        monkeypatch.setattr(sys, "argv", ["cli.py", "--ruleset", str(tmp_path / "nope")])
+        with pytest.raises(SystemExit) as exc:
+            cli.main()
+        assert exc.value.code == 2
+
+    def test_json_without_output_exits_two(self, monkeypatch, fixtures_dir):
+        monkeypatch.setattr(sys, "argv", ["cli.py", "--ruleset", fixtures_dir, "--format", "json"])
+        with pytest.raises(SystemExit) as exc:
+            cli.main()
+        assert exc.value.code == 2
+
+    def test_json_output_exits_zero(self, monkeypatch, fixtures_dir, tmp_path):
+        out = str(tmp_path / "report.json")
+        monkeypatch.setattr(sys, "argv", [
+            "cli.py", "--ruleset", fixtures_dir,
+            "--format", "json", "--output", out, "--no-fail",
+        ])
+        with pytest.raises(SystemExit) as exc:
+            cli.main()
+        assert exc.value.code == 0
+
+    def test_workers_flag_respected(self, monkeypatch, fixtures_dir):
+        monkeypatch.setattr(sys, "argv", [
+            "cli.py", "--ruleset", fixtures_dir, "--workers", "1", "--no-fail",
+        ])
+        with pytest.raises(SystemExit) as exc:
+            cli.main()
+        assert exc.value.code == 0
+
+    def test_filter_severity_no_match_exits_two(self, monkeypatch, fixtures_dir):
+        monkeypatch.setattr(sys, "argv", [
+            "cli.py", "--ruleset", fixtures_dir, "--filter-severity", "Critical",
+        ])
+        with pytest.raises(SystemExit) as exc:
+            cli.main()
+        assert exc.value.code == 2
