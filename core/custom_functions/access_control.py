@@ -192,12 +192,12 @@ def system_access_wc():  # Requires elevated privileges
     """Check that interactive logon rights are explicitly assigned."""
     import os as _os
     import uuid as _uuid
+    import tempfile as _tempfile
     # Unique path per call: avoids collision between concurrent rule executions.
     # Uses subprocess directly (not run_command) so file-I/O is never cached.
     # uuid4 guarantees uniqueness regardless of OS timer resolution (monotonic_ns
     # has ~15 ms granularity on Windows, causing collisions in rapid succession).
-    tmp_dir = _os.environ.get("TEMP") or _os.environ.get("TMP") or "C:\\Windows\\Temp"
-    cfg_path = _os.path.join(tmp_dir, f"secpol_{_uuid.uuid4().hex}.cfg")
+    cfg_path = _os.path.join(_tempfile.gettempdir(), f"secpol_{_uuid.uuid4().hex}.cfg")
     try:
         export = subprocess.run(
             ["powershell", "-NonInteractive", "-NoProfile", "-Command",
@@ -3122,7 +3122,7 @@ def privileged_function_prevention_lx() -> bool:
         # Check SUID/SGID binaries are limited to known system paths
         # and not present in user-writable directories
         suid_result = subprocess.run(
-            ["find", "/home", "/tmp", "/var/tmp",
+            ["find", "/home", "/tmp", "/var/tmp",  # NOSONAR - intentional security audit of world-writable dirs
              "-type", "f", "-perm", "/6000"],
             capture_output=True, text=True, timeout=30
         )
@@ -5521,7 +5521,7 @@ def remote_crypto_lx() -> bool:
 
         # Check ciphers
         cipher_match = re.search(
-            r"^ciphers\s+(.+)$", output, re.MULTILINE
+            r"^ciphers[ \t]+([^\r\n]+)", output, re.MULTILINE
         )
         if cipher_match:
             active_ciphers = {
@@ -5550,7 +5550,7 @@ def remote_crypto_lx() -> bool:
 
         # Check MACs
         mac_match = re.search(
-            r"^macs\s+(.+)$", output, re.MULTILINE
+            r"^macs[ \t]+([^\r\n]+)", output, re.MULTILINE
         )
         if mac_match:
             active_macs = {
@@ -5577,7 +5577,7 @@ def remote_crypto_lx() -> bool:
 
         # Check key exchange algorithms
         kex_match = re.search(
-            r"^kexalgorithms\s+(.+)$", output, re.MULTILINE
+            r"^kexalgorithms[ \t]+([^\r\n]+)", output, re.MULTILINE
         )
         if kex_match:
             active_kex = {
@@ -5605,7 +5605,7 @@ def remote_crypto_lx() -> bool:
         # Check SSH Protocol 1 is not enabled
         # In modern OpenSSH this is removed entirely but check anyway
         protocol_match = re.search(
-            r"^protocol\s+(.+)$", output, re.MULTILINE
+            r"^protocol[ \t]+([^\r\n]+)", output, re.MULTILINE
         )
         if protocol_match:
             protocols = protocol_match.group(1).strip()

@@ -995,9 +995,8 @@ def audit_self_protect_rules_lx() -> tuple[bool, str]:
 
 def manage_audit_right_wc() -> tuple[bool, str]:
     """Verify SeSecurityPrivilege is assigned only to Administrators on Windows Client."""
-    import os as _os, uuid as _uuid
-    tmp_dir = _os.environ.get("TEMP") or _os.environ.get("TMP") or r"C:\Windows\Temp"
-    cfg_path = _os.path.join(tmp_dir, f"secpol_{_uuid.uuid4().hex}.cfg")
+    import os as _os, uuid as _uuid, tempfile as _tempfile
+    cfg_path = _os.path.join(_tempfile.gettempdir(), f"secpol_{_uuid.uuid4().hex}.cfg")
     try:
         export = subprocess.run(
             ["powershell", "-NonInteractive", "-NoProfile", "-Command",
@@ -1030,9 +1029,8 @@ def manage_audit_right_wc() -> tuple[bool, str]:
 
 def audit_policy_modify_restricted_wc() -> tuple[bool, str]:
     """Confirm standard users cannot modify audit policy on Windows Client."""
-    import os as _os, uuid as _uuid
-    tmp_dir = _os.environ.get("TEMP") or _os.environ.get("TMP") or r"C:\Windows\Temp"
-    cfg_path = _os.path.join(tmp_dir, f"secpol_{_uuid.uuid4().hex}.cfg")
+    import os as _os, uuid as _uuid, tempfile as _tempfile
+    cfg_path = _os.path.join(_tempfile.gettempdir(), f"secpol_{_uuid.uuid4().hex}.cfg")
     try:
         export = subprocess.run(
             ["powershell", "-NonInteractive", "-NoProfile", "-Command",

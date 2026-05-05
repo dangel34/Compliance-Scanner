@@ -1105,7 +1105,7 @@ def mac_enforcing_lx() -> tuple[bool, str]:
     # Check AppArmor
     rc2, out2, _ = _run("apparmor_status 2>/dev/null | grep 'profiles are in enforce mode'")
     if rc2 == 0:
-        match = re.search(r'(\d+) profiles are in enforce mode', out2)
+        match = re.search(r'([0-9]{1,6}) profiles are in enforce mode', out2)
         if match and int(match.group(1)) > 0:
             return (True, f"AppArmor: {match.group(1)} profile(s) in enforce mode")
     se_mode = out.strip() if out.strip() else "not available"
@@ -1199,7 +1199,7 @@ def home_noexec_lx() -> tuple[bool, str]:
     if not out.strip():
         return (False, "/home and /tmp mount entries not found in mount output or /etc/fstab")
     lines = out.strip().splitlines()
-    missing_noexec = [l for l in lines if ("/home" in l or "/tmp" in l) and "noexec" not in l]
+    missing_noexec = [l for l in lines if ("/home" in l or "/tmp" in l) and "noexec" not in l]  # NOSONAR - checking mount options, not writing to these dirs
     if not missing_noexec:
         return (True, "/home and /tmp are mounted with noexec option")
     return (False, f"noexec missing on: {'; '.join(missing_noexec[:2])}")
