@@ -797,15 +797,24 @@ def password_warn_age_lx() -> tuple[bool, str]:
 
 def password_complexity_wc() -> tuple[bool, str]:
     """Verify password complexity is enabled on Windows Client."""
-    rc, out, _ = _ps(
-        "secedit /export /cfg C:\\Windows\\Temp\\secpol_ia.cfg /quiet; "
-        "Select-String 'PasswordComplexity' C:\\Windows\\Temp\\secpol_ia.cfg"
-    )
-    if rc != 0 or not out.strip():
-        return (False, "Could not read PasswordComplexity from security policy")
-    if "= 1" in out:
-        return (True, "Password complexity enabled (PasswordComplexity = 1)")
-    return (False, "Password complexity disabled (PasswordComplexity = 0)")
+    import os as _os, uuid as _uuid, tempfile as _tempfile
+    cfg_path = _os.path.join(_tempfile.gettempdir(), f"secpol_{_uuid.uuid4().hex}.cfg")
+    try:
+        rc, out, _ = _ps(
+            f"secedit /export /cfg '{cfg_path}' /quiet; "
+            f"Select-String 'PasswordComplexity' '{cfg_path}'"
+        )
+        if rc != 0 or not out.strip():
+            return (False, "Could not read PasswordComplexity from security policy")
+        if "= 1" in out:
+            return (True, "Password complexity enabled (PasswordComplexity = 1)")
+        return (False, "Password complexity disabled (PasswordComplexity = 0)")
+    finally:
+        subprocess.run(
+            ["powershell", "-NonInteractive", "-NoProfile", "-Command",
+             f"if (Test-Path '{cfg_path}') {{ Remove-Item -Force '{cfg_path}' }}"],
+            capture_output=True, timeout=10,
+        )
 
 
 def password_min_length_wc() -> tuple[bool, str]:
@@ -890,19 +899,28 @@ def password_complexity_lx() -> tuple[bool, str]:
 
 def password_history_wc() -> tuple[bool, str]:
     """Verify password history is enforced to at least 24 generations on Windows Client."""
-    rc, out, _ = _ps(
-        "secedit /export /cfg C:\\Windows\\Temp\\secpol_ia.cfg /quiet; "
-        "Select-String 'PasswordHistorySize' C:\\Windows\\Temp\\secpol_ia.cfg"
-    )
-    if rc != 0 or not out.strip():
-        return (False, "Could not read PasswordHistorySize from security policy")
-    m = re.search(r'=\s*(\d+)', out)
-    if m:
-        size = int(m.group(1))
-        if size >= 24:
-            return (True, f"Password history size = {size} (required: >= 24)")
-        return (False, f"Password history size = {size} (required: >= 24)")
-    return (False, "Could not parse PasswordHistorySize value")
+    import os as _os, uuid as _uuid, tempfile as _tempfile
+    cfg_path = _os.path.join(_tempfile.gettempdir(), f"secpol_{_uuid.uuid4().hex}.cfg")
+    try:
+        rc, out, _ = _ps(
+            f"secedit /export /cfg '{cfg_path}' /quiet; "
+            f"Select-String 'PasswordHistorySize' '{cfg_path}'"
+        )
+        if rc != 0 or not out.strip():
+            return (False, "Could not read PasswordHistorySize from security policy")
+        m = re.search(r'=\s*(\d+)', out)
+        if m:
+            size = int(m.group(1))
+            if size >= 24:
+                return (True, f"Password history size = {size} (required: >= 24)")
+            return (False, f"Password history size = {size} (required: >= 24)")
+        return (False, "Could not parse PasswordHistorySize value")
+    finally:
+        subprocess.run(
+            ["powershell", "-NonInteractive", "-NoProfile", "-Command",
+             f"if (Test-Path '{cfg_path}') {{ Remove-Item -Force '{cfg_path}' }}"],
+            capture_output=True, timeout=10,
+        )
 
 
 def password_history_ws() -> tuple[bool, str]:
@@ -994,15 +1012,24 @@ def lm_hash_disabled_wc() -> tuple[bool, str]:
 
 def reversible_encryption_disabled_wc() -> tuple[bool, str]:
     """Confirm reversible encryption is disabled in the password policy on Windows Client."""
-    rc, out, _ = _ps(
-        "secedit /export /cfg C:\\Windows\\Temp\\secpol_ia.cfg /quiet; "
-        "Select-String 'ClearTextPassword' C:\\Windows\\Temp\\secpol_ia.cfg"
-    )
-    if rc != 0 or not out.strip():
-        return (True, "ClearTextPassword not set — reversible encryption disabled by default")
-    if "= 0" in out:
-        return (True, "Reversible encryption disabled (ClearTextPassword = 0)")
-    return (False, "Reversible encryption enabled (ClearTextPassword = 1) — passwords stored in cleartext")
+    import os as _os, uuid as _uuid, tempfile as _tempfile
+    cfg_path = _os.path.join(_tempfile.gettempdir(), f"secpol_{_uuid.uuid4().hex}.cfg")
+    try:
+        rc, out, _ = _ps(
+            f"secedit /export /cfg '{cfg_path}' /quiet; "
+            f"Select-String 'ClearTextPassword' '{cfg_path}'"
+        )
+        if rc != 0 or not out.strip():
+            return (True, "ClearTextPassword not set — reversible encryption disabled by default")
+        if "= 0" in out:
+            return (True, "Reversible encryption disabled (ClearTextPassword = 0)")
+        return (False, "Reversible encryption enabled (ClearTextPassword = 1) — passwords stored in cleartext")
+    finally:
+        subprocess.run(
+            ["powershell", "-NonInteractive", "-NoProfile", "-Command",
+             f"if (Test-Path '{cfg_path}') {{ Remove-Item -Force '{cfg_path}' }}"],
+            capture_output=True, timeout=10,
+        )
 
 
 def auth_traffic_encrypted_wc() -> tuple[bool, str]:

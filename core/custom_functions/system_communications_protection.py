@@ -1006,8 +1006,8 @@ def ssh_strong_ciphers_lx() -> tuple[bool, str]:
         weak_ciphers = ("arcfour", "3des-cbc", "blowfish-cbc", "cast128-cbc", "aes128-cbc", "aes192-cbc", "aes256-cbc")
         weak_macs = ("hmac-md5", "hmac-sha1", "umac-64@openssh.com")
         out_lower = out.lower()
-        ciphers_line = re.search(r"^ciphers\s+(.+)$", out_lower, re.MULTILINE)
-        macs_line = re.search(r"^macs\s+(.+)$", out_lower, re.MULTILINE)
+        ciphers_line = re.search(r"^ciphers[ \t]+([^\r\n]+)", out_lower, re.MULTILINE)
+        macs_line = re.search(r"^macs[ \t]+([^\r\n]+)", out_lower, re.MULTILINE)
         found_weak = []
         if ciphers_line:
             ciphers = ciphers_line.group(1)
@@ -1417,7 +1417,7 @@ def noexec_tmp_lx() -> tuple[bool, str]:
         text, err = _read_mount_text()
         if err is not None:
             return (False, f"Could not read mount information: {err}")
-        noexec = {"/tmp": False, "/home": False}
+        noexec = {"/tmp": False, "/home": False}  # NOSONAR - checking mount point status, not writing to these dirs
         for line in text.splitlines():
             parts = line.split()
             if len(parts) >= 4 and parts[1] in noexec and "noexec" in parts[3]:
