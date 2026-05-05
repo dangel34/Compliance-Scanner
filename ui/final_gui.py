@@ -43,6 +43,11 @@ from ui.report_pdf import generate_report_pdf
 from ui.report_csv import generate_report_csv
 from ui.report_html import generate_report_html
 
+_EXT_JSON = ".json"
+_STATUS_ONLY = "Status Only"
+_ALL_FILES = "All Files"
+_EVT_ESCAPE = "<Escape>"
+
 from core import os_scan
 from core.rule_runner import RuleRunner
 
@@ -142,7 +147,7 @@ def discover_rule_files(rules_dir: str) -> Dict[str, List[Dict[str, str]]]:
 
     for root, _, files in os.walk(rules_dir):
         for name in sorted(files):
-            if not name.lower().endswith(".json"):
+            if not name.lower().endswith(_EXT_JSON):
                 continue
             if name.lower() in ("rule_template.json", "rule_schema.json"):
                 continue
@@ -959,11 +964,11 @@ class RuleForgeApp(ctk.CTk):
 
         row = setting_row("Result detail mode")
         self._settings_result_detail_mode = ctk.CTkSegmentedButton(
-            row, values=["Status Only", "Full Output"], width=220
+            row, values=[_STATUS_ONLY, "Full Output"], width=220
         )
         current_mode = self._settings.get("result_detail_mode", "full")
         self._settings_result_detail_mode.set(
-            "Status Only" if current_mode == "status_only" else "Full Output"
+            _STATUS_ONLY if current_mode == "status_only" else "Full Output"
         )
         self._settings_result_detail_mode.pack(side="left")
 
@@ -1068,7 +1073,7 @@ class RuleForgeApp(ctk.CTk):
         verbose_out = bool(self._settings_verbose_output.get())
         detail_mode = (
             "status_only"
-            if self._settings_result_detail_mode.get() == "Status Only"
+            if self._settings_result_detail_mode.get() == _STATUS_ONLY
             else "full"
         )
         pdf_size    = self._settings_pdf_size.get()
@@ -1651,7 +1656,7 @@ class RuleForgeApp(ctk.CTk):
         page_size         = self._settings.get("pdf_page_size", "A4")
         self._run_export(
             ext=".pdf",
-            filetypes=[("PDF Report", "*.pdf"), ("All Files", "*.*")],
+            filetypes=[("PDF Report", "*.pdf"), (_ALL_FILES, "*.*")],
             dialog_title="Save Compliance Report",
             busy_status="Generating PDF…",
             success_prefix="Report saved",
@@ -1663,7 +1668,7 @@ class RuleForgeApp(ctk.CTk):
         results_snapshot = dict(self.results_by_path)
         self._run_export(
             ext=".csv",
-            filetypes=[("CSV File", "*.csv"), ("All Files", "*.*")],
+            filetypes=[("CSV File", "*.csv"), (_ALL_FILES, "*.*")],
             dialog_title="Save CSV Report",
             busy_status="Generating CSV…",
             success_prefix="CSV saved",
@@ -1674,8 +1679,8 @@ class RuleForgeApp(ctk.CTk):
     def export_json(self):
         results_snapshot = dict(self.results_by_path)
         self._run_export(
-            ext=".json",
-            filetypes=[("JSON File", "*.json"), ("All Files", "*.*")],
+            ext=_EXT_JSON,
+            filetypes=[("JSON File", "*.json"), (_ALL_FILES, "*.*")],
             dialog_title="Save JSON Report",
             busy_status="Generating JSON…",
             success_prefix="JSON saved",
@@ -1687,7 +1692,7 @@ class RuleForgeApp(ctk.CTk):
         results_snapshot = dict(self.results_by_path)
         self._run_export(
             ext=".html",
-            filetypes=[("HTML File", "*.html"), ("All Files", "*.*")],
+            filetypes=[("HTML File", "*.html"), (_ALL_FILES, "*.*")],
             dialog_title="Save HTML Report",
             busy_status="Generating HTML…",
             success_prefix="HTML saved",
@@ -1738,7 +1743,7 @@ class RuleForgeApp(ctk.CTk):
             command=dlg.destroy,
         ).pack(pady=(6, 16))
 
-        dlg.bind("<Escape>", lambda _e: dlg.destroy())
+        dlg.bind(_EVT_ESCAPE, lambda _e: dlg.destroy())
 
     # ------------------------------------------------------------------
     def _show_about(self) -> None:
@@ -1805,7 +1810,7 @@ class RuleForgeApp(ctk.CTk):
             win, text="Close", command=win.destroy, width=100,
         ).pack(pady=(4, 20))
 
-        win.bind("<Escape>", lambda _e: win.destroy())
+        win.bind(_EVT_ESCAPE, lambda _e: win.destroy())
 
     # ------------------------------------------------------------------
     def _load_custom_rules(self) -> None:
@@ -2031,14 +2036,14 @@ MINIMAL EXAMPLE
             win, text="Close", command=win.destroy, width=100,
         ).pack(pady=(4, 16))
 
-        win.bind("<Escape>", lambda _e: win.destroy())
+        win.bind(_EVT_ESCAPE, lambda _e: win.destroy())
 
     # ------------------------------------------------------------------
     def _browse_sched_output(self) -> None:
         path = filedialog.asksaveasfilename(
             title="Select Scheduled Scan Output File",
-            defaultextension=".json",
-            filetypes=[("JSON File", "*.json"), ("All Files", "*.*")],
+            defaultextension=_EXT_JSON,
+            filetypes=[("JSON File", "*.json"), (_ALL_FILES, "*.*")],
             initialdir=self._settings.get("default_export_dir") or PROJECT_ROOT,
         )
         if path:
